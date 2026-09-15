@@ -1,0 +1,24 @@
+2026-09-07 11:04:07 | METHOD=POST | SESSION=["admin_logged_in","admin_user_id","admin_email","admin_first_name","admin_name","admin_role","logged_in","user_role","first_name","admin_permissions","user_permissions","success"] | POST_KEYS=topbar_phone,topbar_announcement_1,topbar_announcement_2,topbar_announcement_3,main_menu_id,main_menu_title,main_menu_link,bottom_menu_id,bottom_menu_title,bottom_menu_link,bottom_menu_icon,slide_id,slide_image_path,slide_image_base64_2,slide_title,slide_subtitle,slide_btn1_text,slide_btn1_link,slide_btn2_text,slide_btn2_link,slide_image_base64_3,cta_show,cta_offer_badge,cta_heading,cta_subtitle,cta_countdown_date,cta_btn1_text,cta_btn1_link,review_id,review_author,review_rating,review_text,whatsapp_number
+  => Flat settings done. Errors: 0
+  => Menus done. Errors: 0
+  => Slides done. Kept: 2,3 Errors: 0
+  => Reviews done. Kept: 4,3 Errors: 0
+  => Redirect SUCCESS
+2026-09-07 11:04:23 | METHOD=POST | SESSION=["admin_logged_in","admin_user_id","admin_email","admin_first_name","admin_name","admin_role","logged_in","user_role","first_name","admin_permissions","user_permissions","success"] | POST_KEYS=topbar_phone,topbar_announcement_1,topbar_announcement_2,topbar_announcement_3,main_menu_id,main_menu_title,main_menu_link,bottom_menu_id,bottom_menu_title,bottom_menu_link,bottom_menu_icon,slide_id,slide_image_path,slide_image_base64_2,slide_title,slide_subtitle,slide_btn1_text,slide_btn1_link,slide_btn2_text,slide_btn2_link,slide_image_base64_3,cta_offer_badge,cta_heading,cta_subtitle,cta_countdown_date,cta_btn1_text,cta_btn1_link,review_id,review_author,review_rating,review_text,whatsapp_number
+  => Flat settings done. Errors: 0
+  => Menus done. Errors: 0
+  => Slides done. Kept: 2,3 Errors: 0
+  => Reviews done. Kept: 4,3 Errors: 0
+  => Redirect SUCCESS
+2026-09-07 11:10:42 | METHOD=POST | SESSION=["admin_logged_in","admin_user_id","admin_email","admin_first_name","admin_name","admin_role","logged_in","user_role","first_name","admin_permissions","user_permissions","success"] | POST_KEYS=topbar_phone,topbar_announcement_1,topbar_announcement_2,topbar_announcement_3,main_menu_id,main_menu_title,main_menu_link,bottom_menu_id,bottom_menu_title,bottom_menu_link,bottom_menu_icon,slide_id,slide_image_path,slide_image_base64_2,slide_title,slide_subtitle,slide_btn1_text,slide_btn1_link,slide_btn2_text,slide_btn2_link,slide_image_base64_3,cta_offer_badge,cta_heading,cta_subtitle,cta_countdown_date,cta_btn1_text,cta_btn1_link,review_id,review_author,review_rating,review_text,whatsapp_number,wa_form_title,wa_form_subtitle,wa_product_options,wa_show_budget,wa_budget_options,wa_show_color,wa_show_message,wa_button_text,wa_form_note
+  => Flat settings done. Errors: 0
+  => Menus done. Errors: 0
+  => Slides done. Kept: 2,3 Errors: 0
+  => Reviews done. Kept: 4,3 Errors: 0
+  => Redirect SUCCESS
+2026-09-07 11:11:00 | METHOD=POST | SESSION=["admin_logged_in","admin_user_id","admin_email","admin_first_name","admin_name","admin_role","logged_in","user_role","first_name","admin_permissions","user_permissions","success"] | POST_KEYS=topbar_phone,topbar_announcement_1,topbar_announcement_2,topbar_announcement_3,main_menu_id,main_menu_title,main_menu_link,bottom_menu_id,bottom_menu_title,bottom_menu_link,bottom_menu_icon,slide_id,slide_image_path,slide_image_base64_2,slide_title,slide_subtitle,slide_btn1_text,slide_btn1_link,slide_btn2_text,slide_btn2_link,slide_image_base64_3,cta_offer_badge,cta_heading,cta_subtitle,cta_countdown_date,cta_btn1_text,cta_btn1_link,review_id,review_author,review_rating,review_text,whatsapp_number,wa_form_title,wa_form_subtitle,wa_show_product,wa_product_options,wa_show_budget,wa_budget_options,wa_show_color,wa_show_message,wa_button_text,wa_form_note
+  => Flat settings done. Errors: 0
+  => Menus done. Errors: 0
+  => Slides done. Kept: 2,3 Errors: 0
+  => Reviews done. Kept: 4,3 Errors: 0
+  => Redirect SUCCESS

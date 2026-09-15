@@ -1,0 +1,1030 @@
+<?php
+session_start();
+if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true) {
+    header('Location: login.php');
+    exit;
+}
+// Permission check handled by session only - edit-website is allowed for all logged-in admins
+require_once '../db_config.php';
+
+// Fetch settings
+$settings = [];
+$res = @mysqli_query($conn, "SELECT * FROM website_settings");
+if ($res) {
+    while ($row = mysqli_fetch_assoc($res)) {
+        $settings[$row['setting_key']] = $row['setting_value'];
+    }
+}
+
+// Fetch menus
+$main_menus = [];
+$bottom_menus = [];
+$res = @mysqli_query($conn, "SELECT * FROM navigation_menus ORDER BY display_order ASC");
+if ($res) {
+    while ($row = mysqli_fetch_assoc($res)) {
+        if ($row['menu_type'] == 'main_desktop') {
+            $main_menus[] = $row;
+        } else {
+            $bottom_menus[] = $row;
+        }
+    }
+}
+
+// Fetch Hero slides
+$hero_slides = [];
+$res = @mysqli_query($conn, "SELECT * FROM website_hero_slides ORDER BY slide_order ASC");
+if ($res) {
+    while ($row = mysqli_fetch_assoc($res)) {
+        $hero_slides[] = $row;
+    }
+}
+
+// Fetch Reviews
+$reviews = [];
+$res = @mysqli_query($conn, "SELECT * FROM client_reviews ORDER BY id DESC");
+if ($res) {
+    while ($row = mysqli_fetch_assoc($res)) {
+        $reviews[] = $row;
+    }
+}
+
+$success_message = isset($_GET['success']) ? 'Settings saved successfully!' : '';
+$error_message = isset($_GET['error']) ? 'Error saving settings.' : '';
+?>
+<!DOCTYPE html>
+<html lang="en" dir="ltr" data-startbar="light" data-bs-theme="light" id="html-root">
+
+<head>
+    <meta charset="utf-8" />
+    <title>Edit Website | Silky Admin</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <!-- App favicon -->
+    <link rel="shortcut icon" href="../assets/img/silky-jpg.jpg">
+    <!-- App css -->
+    <link href="assets/css/bootstrap.min.css" rel="stylesheet" type="text/css" />
+    <link href="assets/css/icons.min.css" rel="stylesheet" type="text/css" />
+    <link href="assets/css/app.min.css" rel="stylesheet" type="text/css" />
+    <!-- Cropper.js -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
+
+    <!-- Dark Mode State Check Script -->
+    <script>
+        // Check and apply saved theme before page loads
+        (function () {
+            const savedTheme = localStorage.getItem('silky_admin_theme');
+            if (savedTheme) {
+                document.documentElement.setAttribute('data-bs-theme', savedTheme);
+                document.documentElement.setAttribute('data-startbar', savedTheme);
+            }
+        })();
+    </script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <style>
+        .list-group-item { cursor: grab; }
+        .list-group-item:active { cursor: grabbing; }
+        .handle { cursor: grab; padding-right: 15px; color: #888; }
+        .card { margin-bottom: 20px; }
+
+        /* ── Chip / Tag Editor ── */
+        .wa-chip-editor {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            padding: 10px 12px;
+            border: 1px solid var(--bs-border-color, #dee2e6);
+            border-radius: 8px;
+            min-height: 56px;
+            background: var(--bs-tertiary-bg, var(--bs-body-bg, #fff));
+            cursor: text;
+            align-items: center;
+            transition: border-color .2s, box-shadow .2s;
+        }
+        .wa-chip-editor:focus-within {
+            border-color: var(--bs-primary, #3d78e3);
+            box-shadow: 0 0 0 3px rgba(61,120,227,.18);
+        }
+
+        /* ── Default chip (product / budget) ── */
+        .wa-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            background: rgba(61,120,227,.12);
+            color: var(--bs-primary, #3d78e3);
+            border: 1px solid rgba(61,120,227,.28);
+            border-radius: 20px;
+            padding: 4px 10px 4px 13px;
+            font-size: 0.80rem;
+            font-weight: 500;
+            line-height: 1.4;
+            white-space: nowrap;
+            animation: chipIn .15s cubic-bezier(.34,1.56,.64,1);
+        }
+        /* Dark-mode chips stay legible */
+        [data-bs-theme="dark"] .wa-chip {
+            background: rgba(61,120,227,.22);
+            border-color: rgba(61,120,227,.45);
+        }
+
+        /* ── Colour chips ── */
+        .wa-chip-color {
+            background: rgba(255,165,0,.12);
+            color: #d97700;
+            border-color: rgba(255,165,0,.35);
+        }
+        [data-bs-theme="dark"] .wa-chip-color {
+            background: rgba(255,165,0,.18);
+            color: #ffb830;
+            border-color: rgba(255,165,0,.45);
+        }
+
+        @keyframes chipIn {
+            from { transform: scale(.6); opacity: 0; }
+            to   { transform: scale(1);  opacity: 1; }
+        }
+
+        .wa-chip-remove {
+            background: none;
+            border: none;
+            color: inherit;
+            opacity: .5;
+            font-size: 1.05rem;
+            line-height: 1;
+            padding: 0 0 0 2px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            transition: opacity .15s, transform .15s;
+        }
+        .wa-chip-remove:hover { opacity: 1; transform: scale(1.2); }
+
+        .wa-chip-input-wrap { flex: 1; min-width: 140px; }
+        .wa-chip-input {
+            border: none;
+            outline: none;
+            background: transparent;
+            font-size: 0.84rem;
+            width: 100%;
+            color: var(--bs-body-color, #333);
+            padding: 3px 0;
+        }
+        .wa-chip-input::placeholder { color: var(--bs-secondary-color, #adb5bd); }
+
+        /* ── Field card hover ── */
+        .card.border:hover { border-color: var(--bs-primary, #3d78e3) !important; transition: border-color .2s; }
+
+        kbd {
+            font-size: 0.70rem;
+            padding: 1px 5px;
+            border-radius: 4px;
+            background: var(--bs-secondary-bg, #e9ecef);
+            color: var(--bs-body-color, #444);
+            border: 1px solid var(--bs-border-color, #ced4da);
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Top Bar Start -->
+    <?php include 'topbar.php'; ?>
+    <!-- Top Bar End -->
+
+    <!-- Left Sidebar Start -->
+    <?php include 'leftbar.php'; ?>
+    <!-- Left Sidebar End -->
+
+    <div class="page-wrapper">
+        <div class="page-content">
+            <div class="container-fluid">
+                
+                <div class="row">
+                    <div class="col-sm-12">
+                        <div class="page-title-box d-md-flex justify-content-md-between align-items-center">
+                            <h4 class="page-title">Edit Website</h4>
+                        </div>
+                    </div>
+                </div>
+
+                <?php if ($success_message): ?>
+                    <div class="alert alert-success"><i class="bi bi-check-circle me-2"></i><?php echo $success_message; ?></div>
+                <?php endif; ?>
+                <?php if ($error_message): ?>
+                    <div class="alert alert-danger">
+                        <i class="bi bi-exclamation-triangle me-2"></i><?php echo $error_message; ?>
+                        <?php if (isset($_SESSION['save_errors'])): ?>
+                            <hr><small><?php echo $_SESSION['save_errors']; unset($_SESSION['save_errors']); ?></small>
+                        <?php endif; ?>
+                    </div>
+                <?php endif; ?>
+
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <ul class="nav nav-tabs card-header-tabs" id="websiteTabs" role="tablist">
+                                    <li class="nav-item">
+                                        <a class="nav-link active" id="topbar-tab" data-bs-toggle="tab" href="#topbar" role="tab">Top Bar</a>
+                                    </li>
+                                    <li class="nav-item">
+                                        <a class="nav-link" id="nav-tab" data-bs-toggle="tab" href="#nav" role="tab">Navigation</a>
+                                    </li>
+                                    <li class="nav-item">
+                                        <a class="nav-link" id="hero-tab" data-bs-toggle="tab" href="#hero" role="tab">Hero Slider</a>
+                                    </li>
+                                    <li class="nav-item">
+                                        <a class="nav-link" id="cta-tab" data-bs-toggle="tab" href="#cta" role="tab">Call To Action</a>
+                                    </li>
+                                    <li class="nav-item">
+                                        <a class="nav-link" id="reviews-tab" data-bs-toggle="tab" href="#reviews" role="tab">Reviews</a>
+                                    </li>
+                                    <li class="nav-item">
+                                        <a class="nav-link" id="whatsapp-tab" data-bs-toggle="tab" href="#whatsapp" role="tab">WhatsApp</a>
+                                    </li>
+                                </ul>
+                            </div>
+                            <div class="card-body">
+                                <form id="editWebsiteForm" action="save-website.php" method="POST" enctype="multipart/form-data" data-ajax="false" novalidate>
+                                    <div class="tab-content" id="websiteTabsContent">
+                                        
+                                        <!-- Top Bar Tab -->
+                                        <div class="tab-pane fade show active" id="topbar" role="tabpanel">
+                                            <h5 class="card-title">Top Bar Settings</h5>
+                                            <div class="mb-3">
+                                                <label class="form-label">Phone Number</label>
+                                                <input type="text" class="form-control" name="topbar_phone" value="<?php echo htmlspecialchars($settings['topbar_phone'] ?? ''); ?>">
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">Announcement 1</label>
+                                                <input type="text" class="form-control" name="topbar_announcement_1" value="<?php echo htmlspecialchars($settings['topbar_announcement_1'] ?? ''); ?>">
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">Announcement 2</label>
+                                                <input type="text" class="form-control" name="topbar_announcement_2" value="<?php echo htmlspecialchars($settings['topbar_announcement_2'] ?? ''); ?>">
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">Announcement 3</label>
+                                                <input type="text" class="form-control" name="topbar_announcement_3" value="<?php echo htmlspecialchars($settings['topbar_announcement_3'] ?? ''); ?>">
+                                            </div>
+                                        </div>
+
+                                        <!-- Navigation Tab -->
+                                        <div class="tab-pane fade" id="nav" role="tabpanel">
+                                            <div class="row">
+                                                <div class="col-md-6">
+                                                    <h5 class="card-title">Main Desktop Navigation</h5>
+                                                    <p class="text-muted small">Drag to reorder. Click <i class="bi bi-trash text-danger"></i> to remove a link.</p>
+                                                    <ul class="list-group" id="main-nav-list">
+                                                        <?php foreach ($main_menus as $menu): ?>
+                                                                                                                                                                        <li class="list-group-item d-flex align-items-center">
+                                                            <i class="fas fa-grip-vertical handle"></i>
+                                                            <input type="hidden" name="main_menu_id[]" value="<?php echo $menu['id']; ?>">
+                                                            <input type="text" name="main_menu_title[]" class="form-control me-2" value="<?php echo htmlspecialchars($menu['title']); ?>" placeholder="Title">
+                                                            <input type="text" name="main_menu_link[]" class="form-control" value="<?php echo htmlspecialchars($menu['link']); ?>" placeholder="Link">
+                                                            <button type="button" class="btn btn-danger btn-sm ms-2" onclick="this.closest('.list-group-item').remove()" title="Delete"><i class="bi bi-trash"></i></button>
+                                                        </li>
+                                                        <?php endforeach; ?>
+                                                    </ul>
+                                                    <button type="button" class="btn btn-sm btn-outline-primary mt-2" onclick="addMainMenuItem()">+ Add Item</button>
+                                                </div>
+
+                                                <div class="col-md-6">
+                                                    <h5 class="card-title mt-4 mt-md-0">Mobile Bottom Navigation</h5>
+                                                    <p class="text-muted small">Max 5 items. Drag to reorder. Click <i class="bi bi-trash text-danger"></i> to remove.</p>
+                                                    <ul class="list-group" id="bottom-nav-list">
+                                                        <?php foreach ($bottom_menus as $menu): ?>
+                                                                                                                                                                        <li class="list-group-item d-flex align-items-center">
+                                                            <i class="fas fa-grip-vertical handle"></i>
+                                                            <input type="hidden" name="bottom_menu_id[]" value="<?php echo $menu['id']; ?>">
+                                                            <input type="text" name="bottom_menu_title[]" class="form-control me-2" value="<?php echo htmlspecialchars($menu['title']); ?>" placeholder="Title">
+                                                            <input type="text" name="bottom_menu_link[]" class="form-control me-2" value="<?php echo htmlspecialchars($menu['link']); ?>" placeholder="Link">
+                                                            <select name="bottom_menu_icon[]" class="form-select w-auto">
+                                                                <option value="bi bi-house-fill" <?php echo $menu['icon_class'] == 'bi bi-house-fill' ? 'selected' : ''; ?>>Home</option>
+                                                                <option value="bi bi-search" <?php echo $menu['icon_class'] == 'bi bi-search' ? 'selected' : ''; ?>>Search</option>
+                                                                <option value="bi bi-grid-3x3-gap-fill" <?php echo $menu['icon_class'] == 'bi bi-grid-3x3-gap-fill' ? 'selected' : ''; ?>>Grid/Collections</option>
+                                                                <option value="bi bi-person-fill" <?php echo $menu['icon_class'] == 'bi bi-person-fill' ? 'selected' : ''; ?>>Person/Account</option>
+                                                                <option value="bi bi-cart-fill" <?php echo $menu['icon_class'] == 'bi bi-cart-fill' ? 'selected' : ''; ?>>Cart</option>
+                                                                <option value="bi bi-heart-fill" <?php echo $menu['icon_class'] == 'bi bi-heart-fill' ? 'selected' : ''; ?>>Heart/Wishlist</option>
+                                                                <option value="bi bi-bag-fill" <?php echo $menu['icon_class'] == 'bi bi-bag-fill' ? 'selected' : ''; ?>>Bag</option>
+                                                                <option value="bi bi-envelope-fill" <?php echo $menu['icon_class'] == 'bi bi-envelope-fill' ? 'selected' : ''; ?>>Envelope</option>
+                                                            </select>
+                                                            <button type="button" class="btn btn-danger btn-sm ms-2" onclick="this.closest('.list-group-item').remove()" title="Delete"><i class="bi bi-trash"></i></button>
+                                                        </li>
+                                                        <?php endforeach; ?>
+                                                    </ul>
+                                                    <button type="button" class="btn btn-sm btn-outline-primary mt-2" onclick="addBottomMenuItem()">+ Add Item</button>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Hero Slider Tab -->
+                                        <div class="tab-pane fade" id="hero" role="tabpanel">
+                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                <div>
+                                                    <h5 class="card-title mb-0">Hero Slides</h5>
+                                                    <p class="text-muted small mb-0">Drag to reorder. Images are stored in <code>assets/img/hero/</code></p>
+                                                </div>
+                                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="addHeroSlideItem()"><i class="bi bi-plus-circle me-1"></i>Add New Slide</button>
+                                            </div>
+                                            <ul class="list-group" id="hero-slider-list">
+                                                <?php foreach ($hero_slides as $slide): ?>
+                                                <li class="list-group-item py-3">
+                                                    <div class="d-flex align-items-center justify-content-between mb-3">
+                                                        <div class="d-flex align-items-center gap-2">
+                                                            <i class="fas fa-grip-vertical handle text-muted"></i>
+                                                            <strong>Slide #<?php echo $slide['id']; ?></strong>
+                                                            <input type="hidden" name="slide_id[]" value="<?php echo $slide['id']; ?>">
+                                                        </div>
+                                                        <button type="button" class="btn btn-danger btn-sm" onclick="this.closest('.list-group-item').remove()">
+                                                            <i class="bi bi-trash me-1"></i>Delete Slide
+                                                        </button>
+                                                    </div>
+                                                    <div class="row g-3">
+                                                        <div class="col-md-4">
+                                                            <label class="form-label fw-semibold">Banner Image</label>
+                                                            <?php
+                                                            $img_path = htmlspecialchars($slide['image_path']);
+                                                            $img_preview = $img_path ? '../' . $img_path : '';
+                                                            ?>
+                                                            <!-- Current image preview -->
+                                                            <?php if ($img_path): ?>
+                                                            <div class="mb-2">
+                                                                <img src="../<?php echo $img_path; ?>" class="img-thumbnail" style="max-height:80px;object-fit:cover" onerror="this.style.display='none'">
+                                                            </div>
+                                                            <?php endif; ?>
+                                                            <input type="hidden" name="slide_image_path[]" class="slide-img-path" value="<?php echo $img_path; ?>">
+                                                            <input type="hidden" name="slide_image_base64_<?php echo $slide['id']; ?>" class="slide-base64" value="">
+                                                            <div class="btn-group w-100 mb-2" role="group">
+                                                                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="openDirectoryPicker(this)">
+                                                                    <i class="bi bi-folder2-open me-1"></i>Select
+                                                                </button>
+                                                                <button type="button" class="btn btn-outline-primary btn-sm" onclick="this.closest('.col-md-4').querySelector('.upload-trigger').click()">
+                                                                    <i class="bi bi-upload me-1"></i>Upload
+                                                                </button>
+                                                            </div>
+                                                            <input type="file" class="upload-trigger d-none" accept="image/*" onchange="previewUpload(this)">
+                                                        </div>
+                                                        <div class="col-md-4">
+                                                            <label class="form-label fw-semibold">Title</label>
+                                                            <input type="text" class="form-control mb-2" name="slide_title[]" value="<?php echo htmlspecialchars($slide['title']); ?>" placeholder="e.g. Elegant Sarees Collection">
+                                                            <label class="form-label fw-semibold">Subtitle</label>
+                                                            <input type="text" class="form-control" name="slide_subtitle[]" value="<?php echo htmlspecialchars($slide['subtitle']); ?>" placeholder="Short description...">
+                                                        </div>
+                                                        <div class="col-md-4">
+                                                            <label class="form-label fw-semibold">Button 1</label>
+                                                            <div class="input-group mb-2">
+                                                                <input type="text" class="form-control" name="slide_btn1_text[]" value="<?php echo htmlspecialchars($slide['button_1_text']); ?>" placeholder="Text">
+                                                                <input type="text" class="form-control" name="slide_btn1_link[]" value="<?php echo htmlspecialchars($slide['button_1_link']); ?>" placeholder="Link">
+                                                            </div>
+                                                            <label class="form-label fw-semibold">Button 2</label>
+                                                            <div class="input-group">
+                                                                <input type="text" class="form-control" name="slide_btn2_text[]" value="<?php echo htmlspecialchars($slide['button_2_text']); ?>" placeholder="Text">
+                                                                <input type="text" class="form-control" name="slide_btn2_link[]" value="<?php echo htmlspecialchars($slide['button_2_link']); ?>" placeholder="Link">
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </li>
+                                                <?php endforeach; ?>
+                                            </ul>
+                                        </div>
+
+                                        <!-- Call To Action Tab -->
+                                        <div class="tab-pane fade" id="cta" role="tabpanel">
+                                            <h5 class="card-title">Call To Action Settings</h5>
+                                            <div class="row">
+                                                <div class="col-md-12 mb-3">
+                                                    <div class="form-check form-switch form-switch-success form-switch-md">
+                                                        <input class="form-check-input" type="checkbox" id="cta_show" name="cta_show" value="1" <?php echo ($settings['cta_show'] ?? '1') == '1' ? 'checked' : ''; ?>>
+                                                        <label class="form-check-label" for="cta_show">Show Call To Action Section on Main Website</label>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-6 mb-3">
+                                                    <label class="form-label">Offer Badge</label>
+                                                    <input type="text" class="form-control" name="cta_offer_badge" value="<?php echo htmlspecialchars($settings['cta_offer_badge'] ?? ''); ?>">
+                                                </div>
+                                                <div class="col-md-6 mb-3">
+                                                    <label class="form-label">Heading</label>
+                                                    <input type="text" class="form-control" name="cta_heading" value="<?php echo htmlspecialchars($settings['cta_heading'] ?? ''); ?>">
+                                                </div>
+                                                <div class="col-md-12 mb-3">
+                                                    <label class="form-label">Subtitle</label>
+                                                    <textarea class="form-control" name="cta_subtitle" rows="3"><?php echo htmlspecialchars($settings['cta_subtitle'] ?? ''); ?></textarea>
+                                                </div>
+                                                <div class="col-md-6 mb-3">
+                                                    <label class="form-label">Countdown Target Date</label>
+                                                    <div class="input-group">
+                                                        <span class="input-group-text"><i class="bi bi-calendar-event"></i></span>
+                                                        <?php 
+                                                            $db_date = $settings['cta_countdown_date'] ?? ''; 
+                                                            $formatted_date = '';
+                                                            if (!empty($db_date)) {
+                                                                // Convert slashes to hyphens so strtotime parses correctly (dd-mm-yyyy or yyyy-mm-dd)
+                                                                $date_val = str_replace('/', '-', $db_date); 
+                                                                $ts = strtotime($date_val);
+                                                                if ($ts !== false) {
+                                                                    $formatted_date = date('Y-m-d', $ts);
+                                                                } else {
+                                                                    $formatted_date = $db_date;
+                                                                }
+                                                            }
+                                                        ?>
+                                                        <input type="date" class="form-control" id="cta_countdown_date" name="cta_countdown_date" value="<?php echo htmlspecialchars($formatted_date); ?>">
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-3 mb-3">
+                                                    <label class="form-label">Btn 1 Text</label>
+                                                    <input type="text" class="form-control" name="cta_btn1_text" value="<?php echo htmlspecialchars($settings['cta_btn1_text'] ?? ''); ?>">
+                                                </div>
+                                                <div class="col-md-3 mb-3">
+                                                    <label class="form-label">Btn 1 Link</label>
+                                                    <input type="text" class="form-control" name="cta_btn1_link" value="<?php echo htmlspecialchars($settings['cta_btn1_link'] ?? ''); ?>">
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Reviews Tab -->
+                                        <div class="tab-pane fade" id="reviews" role="tabpanel">
+                                            <h5 class="card-title">Client Reviews</h5>
+                                            <p class="text-muted">Edit existing reviews. Leave author name empty to delete.</p>
+                                            <div id="reviews-list">
+                                                <?php foreach ($reviews as $rev): ?>
+                                                                                                <div class="card border mb-3 p-3">
+                                                    <div class="d-flex justify-content-end">
+                                                        <button type="button" class="btn btn-danger btn-sm" onclick="this.closest('.card').remove()"><i class="bi bi-trash"></i></button>
+                                                    </div>
+                                                    <input type="hidden" name="review_id[]" value="<?php echo $rev['id']; ?>">
+                                                    <div class="row">
+                                                        <div class="col-md-9 mb-2">
+                                                            <label>Author</label>
+                                                            <input type="text" class="form-control" name="review_author[]" value="<?php echo htmlspecialchars($rev['author_name']); ?>">
+                                                        </div>
+                                                        <div class="col-md-3 mb-2">
+                                                            <label>Rating (Max 5.0)</label>
+                                                            <input type="number" step="0.1" max="5.0" min="0" class="form-control" name="review_rating[]" value="<?php echo htmlspecialchars($rev['rating']); ?>">
+                                                        </div>
+                                                        <div class="col-md-12">
+                                                            <label>Review Text</label>
+                                                            <textarea class="form-control" name="review_text[]"><?php echo htmlspecialchars($rev['review_text']); ?></textarea>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <?php endforeach; ?>
+                                            </div>
+                                            <button type="button" class="btn btn-sm btn-outline-primary mt-2" onclick="addReviewItem()">+ Add New Review</button>
+                                        </div>
+
+                                        <!-- WhatsApp Tab -->
+                                        <div class="tab-pane fade" id="whatsapp" role="tabpanel">
+                                            <h5 class="card-title mb-3">WhatsApp Enquiry Form Settings</h5>
+                                            
+                                            <div class="row">
+                                                <div class="col-md-6 mb-3">
+                                                    <label class="form-label fw-semibold">WhatsApp Recipient Number</label>
+                                                    <input type="text" class="form-control" name="whatsapp_number" value="<?php echo htmlspecialchars($settings['whatsapp_number'] ?? '918799582279'); ?>" placeholder="e.g. 918799582279">
+                                                    <small class="text-muted">Include country code without '+' or spaces (e.g. 918799582279)</small>
+                                                </div>
+                                                <div class="col-md-6 mb-3">
+                                                    <label class="form-label fw-semibold">Form Title</label>
+                                                    <input type="text" class="form-control" name="wa_form_title" value="<?php echo htmlspecialchars($settings['wa_form_title'] ?? 'Quick Enquiry'); ?>" placeholder="Quick Enquiry">
+                                                </div>
+                                                <div class="col-md-12 mb-3">
+                                                    <label class="form-label fw-semibold">Form Subtitle</label>
+                                                    <input type="text" class="form-control" name="wa_form_subtitle" value="<?php echo htmlspecialchars($settings['wa_form_subtitle'] ?? "Send us your details — we'll reply on WhatsApp instantly!"); ?>" placeholder="Subtitle description...">
+                                                </div>
+                                            </div>
+
+                                            <hr class="my-3">
+                                            <h6 class="fw-bold mb-3"><i class="bi bi-sliders me-1"></i> Form Fields &amp; Dropdown Options</h6>
+
+                                            <div class="row">
+                                                <!-- Product Interest Field -->
+                                                <div class="col-md-6 mb-4">
+                                                    <div class="card border p-3 h-100">
+                                                        <div class="d-flex justify-content-between align-items-center mb-3">
+                                                            <div>
+                                                                <label class="form-label fw-semibold mb-0"><i class="bi bi-bag me-1 text-primary"></i> Product Interest Field</label>
+                                                                <div class="small text-muted">Dropdown shown to customer</div>
+                                                            </div>
+                                                            <div class="form-check form-switch form-switch-success">
+                                                                <input class="form-check-input" type="checkbox" name="wa_show_product" value="1" id="wa_show_product" <?php echo ($settings['wa_show_product'] ?? '1') == '1' ? 'checked' : ''; ?>>
+                                                                <label class="form-check-label fw-semibold" for="wa_show_product">Show</label>
+                                                            </div>
+                                                        </div>
+                                                        <?php
+                                                        $default_products = "Kanjivaram Silk Saree\nBanarasi Silk Saree\nChiffon Saree\nMysore Silk Saree\nPaithani Saree\nDesigner Lehenga\nCotton Saree\nGeorgette Saree\nOther / Custom";
+                                                        $product_opts_raw = $settings['wa_product_options'] ?? $default_products;
+                                                        $product_opts_arr = array_filter(array_map('trim', preg_split('/\r\n|\r|\n/', $product_opts_raw)));
+                                                        ?>
+                                                        <!-- Hidden textarea synced by JS -->
+                                                        <textarea class="d-none" name="wa_product_options" id="wa_product_options_hidden"><?php echo htmlspecialchars($product_opts_raw); ?></textarea>
+                                                        <!-- Chip Editor -->
+                                                        <div class="wa-chip-editor" id="wa_product_chips">
+                                                            <?php foreach ($product_opts_arr as $opt): ?>
+                                                            <span class="wa-chip"><?php echo htmlspecialchars($opt); ?><button type="button" class="wa-chip-remove" title="Remove">&times;</button></span>
+                                                            <?php endforeach; ?>
+                                                            <div class="wa-chip-input-wrap">
+                                                                <input type="text" class="wa-chip-input" placeholder="Type &amp; press Enter to add…">
+                                                            </div>
+                                                        </div>
+                                                        <small class="text-muted mt-1 d-block"><i class="bi bi-info-circle me-1"></i>Type an option and press <kbd>Enter</kbd> or <kbd>,</kbd> to add. Click &times; to remove.</small>
+                                                    </div>
+                                                </div>
+
+                                                <!-- Budget Range Field -->
+                                                <div class="col-md-6 mb-4">
+                                                    <div class="card border p-3 h-100">
+                                                        <div class="d-flex justify-content-between align-items-center mb-3">
+                                                            <div>
+                                                                <label class="form-label fw-semibold mb-0"><i class="bi bi-currency-rupee me-1 text-success"></i> Budget Range Field</label>
+                                                                <div class="small text-muted">Dropdown shown to customer</div>
+                                                            </div>
+                                                            <div class="form-check form-switch form-switch-success">
+                                                                <input class="form-check-input" type="checkbox" name="wa_show_budget" value="1" id="wa_show_budget" <?php echo ($settings['wa_show_budget'] ?? '1') == '1' ? 'checked' : ''; ?>>
+                                                                <label class="form-check-label fw-semibold" for="wa_show_budget">Show</label>
+                                                            </div>
+                                                        </div>
+                                                        <?php
+                                                        $default_budgets = "Under ₹1,000\n₹1,000 – ₹3,000\n₹3,000 – ₹5,000\n₹5,000 – ₹10,000\nAbove ₹10,000";
+                                                        $budget_opts_raw = $settings['wa_budget_options'] ?? $default_budgets;
+                                                        $budget_opts_arr = array_filter(array_map('trim', preg_split('/\r\n|\r|\n/', $budget_opts_raw)));
+                                                        ?>
+                                                        <textarea class="d-none" name="wa_budget_options" id="wa_budget_options_hidden"><?php echo htmlspecialchars($budget_opts_raw); ?></textarea>
+                                                        <div class="wa-chip-editor" id="wa_budget_chips">
+                                                            <?php foreach ($budget_opts_arr as $opt): ?>
+                                                            <span class="wa-chip"><?php echo htmlspecialchars($opt); ?><button type="button" class="wa-chip-remove" title="Remove">&times;</button></span>
+                                                            <?php endforeach; ?>
+                                                            <div class="wa-chip-input-wrap">
+                                                                <input type="text" class="wa-chip-input" placeholder="Type &amp; press Enter to add…">
+                                                            </div>
+                                                        </div>
+                                                        <small class="text-muted mt-1 d-block"><i class="bi bi-info-circle me-1"></i>Type an option and press <kbd>Enter</kbd> or <kbd>,</kbd> to add. Click &times; to remove.</small>
+                                                    </div>
+                                                </div>
+
+                                                <!-- Colour Preference Field -->
+                                                <div class="col-md-6 mb-4">
+                                                    <div class="card border p-3 h-100">
+                                                        <div class="d-flex justify-content-between align-items-center mb-3">
+                                                            <div>
+                                                                <label class="form-label fw-semibold mb-0"><i class="bi bi-palette me-1 text-warning"></i> Colour Preference Field</label>
+                                                                <div class="small text-muted">Dropdown of colour choices for customer</div>
+                                                            </div>
+                                                            <div class="form-check form-switch form-switch-success">
+                                                                <input class="form-check-input" type="checkbox" name="wa_show_color" value="1" id="wa_show_color" <?php echo ($settings['wa_show_color'] ?? '1') == '1' ? 'checked' : ''; ?>>
+                                                                <label class="form-check-label fw-semibold" for="wa_show_color">Show</label>
+                                                            </div>
+                                                        </div>
+                                                        <?php
+                                                        $default_colors = "Red\nPink\nBlue\nGreen\nYellow\nOrange\nPurple\nGold\nSilver\nWhite\nBlack\nMulticolor";
+                                                        $color_opts_raw = $settings['wa_color_options'] ?? $default_colors;
+                                                        $color_opts_arr = array_filter(array_map('trim', preg_split('/\r\n|\r|\n/', $color_opts_raw)));
+                                                        ?>
+                                                        <textarea class="d-none" name="wa_color_options" id="wa_color_options_hidden"><?php echo htmlspecialchars($color_opts_raw); ?></textarea>
+                                                        <div class="wa-chip-editor" id="wa_color_chips">
+                                                            <?php foreach ($color_opts_arr as $color): ?>
+                                                            <span class="wa-chip wa-chip-color"><?php echo htmlspecialchars($color); ?><button type="button" class="wa-chip-remove" title="Remove">&times;</button></span>
+                                                            <?php endforeach; ?>
+                                                            <div class="wa-chip-input-wrap">
+                                                                <input type="text" class="wa-chip-input" placeholder="e.g. Red, Gold…">
+                                                            </div>
+                                                        </div>
+                                                        <small class="text-muted mt-1 d-block"><i class="bi bi-info-circle me-1"></i>Type a colour name and press <kbd>Enter</kbd> to add. Click &times; to remove.</small>
+                                                    </div>
+                                                </div>
+
+                                                <!-- Additional Message Field -->
+                                                <div class="col-md-6 mb-4">
+                                                    <div class="card border p-3 h-100">
+                                                        <div class="d-flex justify-content-between align-items-center">
+                                                            <div>
+                                                                <label class="form-label fw-semibold mb-0"><i class="bi bi-chat-left-text me-1 text-info"></i> Additional Message Field</label>
+                                                                <div class="small text-muted">Textarea for additional customer notes</div>
+                                                            </div>
+                                                            <div class="form-check form-switch form-switch-success">
+                                                                <input class="form-check-input" type="checkbox" name="wa_show_message" value="1" id="wa_show_message" <?php echo ($settings['wa_show_message'] ?? '1') == '1' ? 'checked' : ''; ?>>
+                                                                <label class="form-check-label fw-semibold" for="wa_show_message">Show</label>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <!-- Button & Note -->
+                                                <div class="col-md-6 mb-3">
+                                                    <label class="form-label fw-semibold">Submit Button Text</label>
+                                                    <input type="text" class="form-control" name="wa_button_text" value="<?php echo htmlspecialchars($settings['wa_button_text'] ?? 'Send Enquiry on WhatsApp'); ?>">
+                                                </div>
+                                                <div class="col-md-6 mb-3">
+                                                    <label class="form-label fw-semibold">Privacy / Safety Note</label>
+                                                    <input type="text" class="form-control" name="wa_form_note" value="<?php echo htmlspecialchars($settings['wa_form_note'] ?? 'Your details are safe and will only be used to assist your enquiry.'); ?>">
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <hr>
+                                    <input type="submit" class="btn btn-primary btn-lg px-5" value="Save All Changes">
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div><!-- container -->
+            
+            <?php include 'footer.php'; ?>
+        </div>
+        <!-- end page content -->
+    </div>
+    <!-- end page-wrapper -->
+
+    <!-- Javascript  -->
+    <script src="assets/libs/bootstrap/js/bootstrap.bundle.min.js"></script>
+    <script src="assets/libs/simplebar/simplebar.min.js"></script>
+    <script src="assets/js/app.js"></script>
+    <script src="assets/js/theme-manager.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+    <!-- Cropper.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize Sortable for Drag and Drop
+            new Sortable(document.getElementById('main-nav-list'), { handle: '.handle', animation: 150 });
+            new Sortable(document.getElementById('bottom-nav-list'), { handle: '.handle', animation: 150 });
+            new Sortable(document.getElementById('hero-slider-list'), { handle: '.handle', animation: 150 });
+        });
+
+        // Force native POST submit - bypasses any JS framework interceptors
+        function doSave() {
+            var form = document.getElementById('editWebsiteForm');
+            if (!form) { alert('Form not found!'); return; }
+            
+            // Clear the unsaved changes flag since we are saving
+            window.hasUnsavedChanges = false;
+            
+            // Force the method and action just in case
+            form.method = 'POST';
+            form.action = 'save-website.php';
+            
+            // Use native submit to bypass any jQuery/Bootstrap event handlers
+            HTMLFormElement.prototype.submit.call(form);
+        }
+
+                        function addMainMenuItem() {
+            const html = `
+                <li class="list-group-item d-flex align-items-center">
+                    <i class="fas fa-grip-vertical handle"></i>
+                    <input type="hidden" name="main_menu_id[]" value="new">
+                    <input type="text" name="main_menu_title[]" class="form-control me-2" placeholder="Title">
+                    <input type="text" name="main_menu_link[]" class="form-control" placeholder="Link">
+                    <button type="button" class="btn btn-danger btn-sm ms-2" onclick="this.closest('.list-group-item').remove()" title="Delete"><i class="bi bi-trash"></i></button>
+                </li>
+            `;
+            document.getElementById('main-nav-list').insertAdjacentHTML('beforeend', html);
+        }
+
+        function addBottomMenuItem() {
+            const html = `
+                <li class="list-group-item d-flex align-items-center">
+                    <i class="fas fa-grip-vertical handle"></i>
+                    <input type="hidden" name="bottom_menu_id[]" value="new">
+                    <input type="text" name="bottom_menu_title[]" class="form-control me-2" placeholder="Title">
+                    <input type="text" name="bottom_menu_link[]" class="form-control me-2" placeholder="Link">
+                    <select name="bottom_menu_icon[]" class="form-select w-auto">
+                        <option value="bi bi-house-fill">Home</option>
+                        <option value="bi bi-search">Search</option>
+                        <option value="bi bi-grid-3x3-gap-fill">Grid/Collections</option>
+                        <option value="bi bi-person-fill">Person/Account</option>
+                        <option value="bi bi-cart-fill">Cart</option>
+                        <option value="bi bi-heart-fill">Heart/Wishlist</option>
+                        <option value="bi bi-bag-fill">Bag</option>
+                        <option value="bi bi-envelope-fill">Envelope</option>
+                    </select>
+                    <button type="button" class="btn btn-danger btn-sm ms-2" onclick="this.closest('.list-group-item').remove()" title="Delete"><i class="bi bi-trash"></i></button>
+                </li>
+            `;
+            document.getElementById('bottom-nav-list').insertAdjacentHTML('beforeend', html);
+        }
+
+        function addHeroSlideItem() {
+            const id = 'new_' + Date.now();
+            const html = `
+                <li class="list-group-item">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <div>
+                            <i class="fas fa-grip-vertical handle"></i>
+                            <strong>New Slide</strong>
+                            <input type="hidden" name="slide_id[]" value="${id}">
+                        </div>
+                        <button type="button" class="btn btn-danger btn-sm" onclick="this.closest('.list-group-item').remove()">Delete Slide</button>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <label>Image Path (or upload new)</label>
+                            <input type="text" class="form-control mb-1" name="slide_image_path[]" placeholder="assets/img/hero/banner.jpg">
+                            <input type="file" class="form-control" name="slide_image_file_${id}">
+                        </div>
+                        <div class="col-md-4">
+                            <label>Title</label>
+                            <input type="text" class="form-control mb-1" name="slide_title[]" placeholder="Slide Title">
+                            <label>Subtitle</label>
+                            <input type="text" class="form-control" name="slide_subtitle[]" placeholder="Slide Subtitle">
+                        </div>
+                        <div class="col-md-4">
+                            <label>Btn 1 Text & Link</label>
+                            <div class="d-flex mb-1">
+                                <input type="text" class="form-control me-1" name="slide_btn1_text[]" placeholder="Shop Now">
+                                <input type="text" class="form-control" name="slide_btn1_link[]" placeholder="#products">
+                            </div>
+                            <label>Btn 2 Text & Link</label>
+                            <div class="d-flex">
+                                <input type="text" class="form-control me-1" name="slide_btn2_text[]" placeholder="Explore">
+                                <input type="text" class="form-control" name="slide_btn2_link[]" placeholder="#categories">
+                            </div>
+                        </div>
+                    </div>
+                </li>
+            `;
+            document.getElementById('hero-slider-list').insertAdjacentHTML('beforeend', html);
+        }
+
+        function addReviewItem() {
+            const html = `
+                <div class="card border mb-3 p-3">
+                    <div class="d-flex justify-content-end">
+                        <button type="button" class="btn btn-danger btn-sm" onclick="this.closest('.card').remove()"><i class="bi bi-trash"></i></button>
+                    </div>
+                    <input type="hidden" name="review_id[]" value="new">
+                    <div class="row">
+                        <div class="col-md-9 mb-2">
+                            <label>Author</label>
+                            <input type="text" class="form-control" name="review_author[]" placeholder="Author Name">
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <label>Rating (Max 5.0)</label>
+                            <input type="number" step="0.1" max="5.0" min="0" class="form-control" name="review_rating[]" value="5.0">
+                        </div>
+                        <div class="col-md-12">
+                            <label>Review Text</label>
+                            <textarea class="form-control" name="review_text[]" placeholder="Customer review..."></textarea>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.getElementById('reviews-list').insertAdjacentHTML('beforeend', html);
+        }
+
+        // ── Directory Picker ──────────────────────────────────────────
+        let _pickerTarget = null;
+
+        function openDirectoryPicker(btn) {
+            _pickerTarget = btn.closest('.col-md-4');
+            const modal = new bootstrap.Modal(document.getElementById('heroBannerModal'));
+            const grid = document.getElementById('heroBannerGrid');
+            grid.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-primary"></div><p class="mt-2 text-muted">Loading images...</p></div>';
+            modal.show();
+
+            fetch('get-hero-banners.php')
+                .then(r => r.json())
+                .then(images => {
+                    if (!images.length) {
+                        grid.innerHTML = '<div class="text-center py-5 text-muted"><i class="bi bi-images" style="font-size:2rem"></i><p class="mt-2">No images in hero directory.<br>Upload images to <code>assets/img/hero/</code></p></div>';
+                        return;
+                    }
+                    grid.innerHTML = images.map(img => `
+                        <div class="col-4 col-md-3 col-lg-2">
+                            <div class="card h-100 border picker-card" style="cursor:pointer" onclick="selectBannerImage('${img.path}', '../${img.path}')" title="${img.name}">
+                                <img src="../${img.path}" class="card-img-top" style="height:90px;object-fit:cover" onerror="this.src='assets/img/no-image.png'">
+                                <div class="card-body p-1 text-center">
+                                    <small class="text-muted d-block text-truncate" style="font-size:10px">${img.name}</small>
+                                    <small class="text-muted" style="font-size:10px">${img.size}</small>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('');
+                })
+                .catch(() => { grid.innerHTML = '<p class="text-danger p-3">Error loading images.</p>'; });
+        }
+
+        function selectBannerImage(path, previewSrc) {
+            if (!_pickerTarget) return;
+            // Set hidden input (and clear any previous base64 crop)
+            _pickerTarget.querySelector('.slide-img-path').value = path;
+            const b64 = _pickerTarget.querySelector('.slide-base64');
+            if(b64) b64.value = '';
+
+            // Show/update preview
+            let wrap = _pickerTarget.querySelector('.img-preview-wrap');
+            if (!wrap) {
+                wrap = document.createElement('div');
+                wrap.className = 'img-preview-wrap mb-2';
+                wrap.innerHTML = '<img class="img-thumbnail" style="max-height:80px;object-fit:cover">';
+                _pickerTarget.querySelector('.slide-img-path').before(wrap);
+            }
+            wrap.style.display = '';
+            wrap.querySelector('img').src = previewSrc;
+            // Highlight selected
+            document.querySelectorAll('.picker-card').forEach(c => c.classList.remove('border-primary', 'border-2'));
+            event.currentTarget.querySelector('.picker-card')?.classList.add('border-primary','border-2');
+            // Close modal
+            bootstrap.Modal.getInstance(document.getElementById('heroBannerModal')).hide();
+        }
+
+        // ── Cropper ──────────────────────────────────────────
+        let _cropTarget = null;
+        let _cropper = null;
+
+        function previewUpload(input) {
+            if (!input.files || !input.files[0]) return;
+            _cropTarget = input.closest('.col-md-4');
+            
+            const reader = new FileReader();
+            reader.onload = e => {
+                const img = document.getElementById('cropImageToCrop');
+                img.onload = () => {
+                    const modal = new bootstrap.Modal(document.getElementById('cropModal'));
+                    modal.show();
+                };
+                img.src = e.target.result;
+                input.value = ''; // clear input so same file can trigger change again
+            };
+            reader.readAsDataURL(input.files[0]);
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const cropModalEl = document.getElementById('cropModal');
+            if (cropModalEl) {
+                cropModalEl.addEventListener('shown.bs.modal', function () {
+                    if (_cropper) _cropper.destroy();
+                    _cropper = new Cropper(document.getElementById('cropImageToCrop'), {
+                        aspectRatio: 16 / 9,
+                        viewMode: 1,
+                        autoCropArea: 0.7, // Start with a smaller crop box (70%) so handles are obvious
+                        dragMode: 'move', // Allows dragging the image around easily
+                        cropBoxMovable: true,
+                        cropBoxResizable: true,
+                        background: true
+                    });
+                });
+            }
+        });
+
+        function performCrop() {
+            if (!_cropper || !_cropTarget) return;
+            const canvas = _cropper.getCroppedCanvas({ width: 1920, height: 1080 });
+            const b64 = canvas.toDataURL('image/jpeg', 0.85);
+
+            // Update hidden inputs (clear path, set base64)
+            _cropTarget.querySelector('.slide-img-path').value = '';
+            const b64Input = _cropTarget.querySelector('.slide-base64');
+            if(b64Input) b64Input.value = b64;
+
+            // Show/update preview
+            let wrap = _cropTarget.querySelector('.img-preview-wrap');
+            if (!wrap) {
+                wrap = document.createElement('div');
+                wrap.className = 'img-preview-wrap mb-2';
+                wrap.innerHTML = '<img class="img-thumbnail" style="max-height:80px;object-fit:cover">';
+                _cropTarget.querySelector('.slide-img-path').before(wrap);
+            }
+            wrap.style.display = '';
+            wrap.querySelector('img').src = b64;
+
+            bootstrap.Modal.getInstance(document.getElementById('cropModal')).hide();
+        }
+    </script>
+
+    <!-- Hero Banner Directory Picker Modal -->
+    <div class="modal fade" id="heroBannerModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-folder2-open me-2"></i>Select Hero Banner Image</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted small mb-3">Images from <code>assets/img/hero/</code> — click any image to select it.</p>
+                    <div class="row g-2" id="heroBannerGrid">
+                        <!-- Images loaded via AJAX -->
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <small class="text-muted me-auto">To add more images, upload them directly to <code>assets/img/hero/</code></small>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Crop Modal -->
+    <div class="modal fade" id="cropModal" tabindex="-1" data-bs-backdrop="static">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Crop Image (16:9)</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body text-center bg-light">
+                    <div style="height: 50vh; width: 100%;">
+                        <img id="cropImageToCrop" style="max-width: 100%; max-height: 100%; display:block; margin: 0 auto;">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="performCrop()">Apply Crop & Use Image</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Chip Editor JS -->
+    <script>
+    (function () {
+        // Map: chip-editor-id -> hidden-textarea-id
+        var chipSets = [
+            { editorId: 'wa_product_chips',  hiddenId: 'wa_product_options_hidden' },
+            { editorId: 'wa_budget_chips',   hiddenId: 'wa_budget_options_hidden'  },
+            { editorId: 'wa_color_chips',    hiddenId: 'wa_color_options_hidden'   }
+        ];
+
+        function syncToHidden(editor, hidden) {
+            var chips = editor.querySelectorAll('.wa-chip');
+            var values = Array.from(chips).map(function (c) {
+                // text content minus the × button text
+                return c.childNodes[0].textContent.trim();
+            });
+            hidden.value = values.join('\n');
+        }
+
+        function addChip(editor, hidden, text) {
+            text = text.trim();
+            if (!text) return;
+            // prevent duplicates
+            var existing = Array.from(editor.querySelectorAll('.wa-chip')).map(function (c) {
+                return c.childNodes[0].textContent.trim().toLowerCase();
+            });
+            if (existing.includes(text.toLowerCase())) return;
+
+            var isColor = editor.id === 'wa_color_chips';
+            var chip = document.createElement('span');
+            chip.className = 'wa-chip' + (isColor ? ' wa-chip-color' : '');
+            chip.appendChild(document.createTextNode(text));
+            var btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'wa-chip-remove';
+            btn.title = 'Remove';
+            btn.innerHTML = '&times;';
+            btn.addEventListener('click', function () {
+                chip.remove();
+                syncToHidden(editor, hidden);
+            });
+            chip.appendChild(btn);
+
+            // Insert before the input wrapper
+            var inputWrap = editor.querySelector('.wa-chip-input-wrap');
+            editor.insertBefore(chip, inputWrap);
+            syncToHidden(editor, hidden);
+        }
+
+        chipSets.forEach(function (set) {
+            var editor = document.getElementById(set.editorId);
+            var hidden = document.getElementById(set.hiddenId);
+            if (!editor || !hidden) return;
+
+            // Remove buttons on existing chips
+            editor.querySelectorAll('.wa-chip-remove').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    btn.closest('.wa-chip').remove();
+                    syncToHidden(editor, hidden);
+                });
+            });
+
+            var input = editor.querySelector('.wa-chip-input');
+
+            // Click anywhere on editor to focus input
+            editor.addEventListener('click', function () { input.focus(); });
+
+            input.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter' || e.key === ',') {
+                    e.preventDefault();
+                    var val = input.value.replace(/,$/, '').trim();
+                    addChip(editor, hidden, val);
+                    input.value = '';
+                } else if (e.key === 'Backspace' && input.value === '') {
+                    var chips = editor.querySelectorAll('.wa-chip');
+                    if (chips.length) {
+                        chips[chips.length - 1].remove();
+                        syncToHidden(editor, hidden);
+                    }
+                }
+            });
+
+            // Also split on paste with commas/newlines
+            input.addEventListener('paste', function (e) {
+                e.preventDefault();
+                var text = (e.clipboardData || window.clipboardData).getData('text');
+                text.split(/[\n,]+/).forEach(function (t) { addChip(editor, hidden, t); });
+                input.value = '';
+            });
+        });
+    })();
+    </script>
+</body>
+</html>

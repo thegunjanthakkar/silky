@@ -1,0 +1,167 @@
+# Silky Saree Website - Apache Configuration
+# Enable URL Rewriting
+RewriteEngine On
+
+# Force HTTPS (uncomment when SSL certificate is installed)
+# RewriteCond %{HTTPS} off
+# RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+# SEO-friendly URLs for e-commerce pages (MUST BE FIRST)
+RewriteRule ^products/([a-z0-9-]+)/?$ products.php?category=$1 [L,QSA]
+RewriteRule ^products/?$ products.php [L]
+RewriteRule ^product-details/([^/]+)/?$ product-details.php?slug=$1 [L]
+RewriteRule ^my-account/?$ account.php [L]
+RewriteRule ^shopping-cart/?$ cart.php [L]
+RewriteRule ^checkout/?$ checkout.php [L]
+RewriteRule ^search/?$ search.php [L]
+
+# Redirect ONLY root index.php, index.html, index.htm to clean root URL (does not affect subfolders like admin/)
+RewriteCond %{THE_REQUEST} ^[A-Z]{3,9}\ /index\.(php|html?|htm)[\s?] [NC]
+RewriteRule ^index\.(php|html?|htm)$ / [R=301,L]
+
+RewriteCond %{THE_REQUEST} ^[A-Z]{3,9}\ /index[\s?] [NC]
+RewriteRule ^index/?$ / [R=301,L]
+
+# Remove file extensions for clean URLs (including sub-directories)
+# CRITICAL FIX FOR LIVE SERVERS:
+# 1. Never redirect POST requests (preserves POST data for login_process.php and all form handlers)
+# 2. Exclude /admin/ directory from 301 redirects to avoid breaking admin forms
+RewriteCond %{REQUEST_METHOD} !POST
+RewriteCond %{REQUEST_URI} !^/(silky/)?admin/ [NC]
+RewriteCond %{REQUEST_URI} !admin/ [NC]
+RewriteCond %{THE_REQUEST} \s/+(.*)\.(php|html?|htm)[?\s] [NC]
+RewriteCond %{REQUEST_URI} !^/(silky/)?cart\.php [NC]
+RewriteCond %{REQUEST_URI} !^/(silky/)?filter_products\.php [NC]
+RewriteCond %{REQUEST_URI} !^/(silky/)?checkout\.php$ [NC]
+RewriteCond %{REQUEST_URI} !^/(silky/)?calculate_shipping\.php$ [NC]
+RewriteCond %{REQUEST_URI} !^/(silky/)?process-payment\.php$ [NC]
+RewriteCond %{REQUEST_URI} !^/(silky/)?verify-payment\.php$ [NC]
+RewriteCond %{REQUEST_URI} !^/(silky/)?login\.php$ [NC]
+RewriteCond %{REQUEST_URI} !^/(silky/)?login_process\.php$ [NC]
+RewriteCond %{REQUEST_URI} !^/(silky/)?register\.php$ [NC]
+RewriteCond %{REQUEST_URI} !^/(silky/)?logout\.php$ [NC]
+RewriteCond %{REQUEST_URI} !^/(silky/)?product-details\.php [NC]
+RewriteRule ^ /%1 [R=301,L]
+
+# Serve extensionless URLs (including sub-directories)
+# Exclude directory requests and existing files
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME}.php -f
+RewriteRule ^(.+)/?$ $1.php [L,QSA]
+
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME}.html -f
+RewriteRule ^(.+)/?$ $1.html [L,QSA]
+
+# Handle sub-directory files with extensions
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{DOCUMENT_ROOT}/$1.php -f
+RewriteRule ^(.+)/?$ $1.php [L,QSA]
+
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{DOCUMENT_ROOT}/$1.html -f
+RewriteRule ^(.+)/?$ $1.html [L,QSA]
+
+# Security Headers
+<IfModule mod_headers.c>
+    # Prevent clickjacking
+    Header always append X-Frame-Options SAMEORIGIN
+    
+    # XSS Protection
+    Header set X-XSS-Protection "1; mode=block"
+    
+    # Content Type Options
+    Header set X-Content-Type-Options nosniff
+    
+    # Referrer Policy
+    Header set Referrer-Policy "strict-origin-when-cross-origin"
+    
+    # Remove server signature
+    Header unset Server
+    Header unset X-Powered-By
+</IfModule>
+
+# File Security - Block access to sensitive files
+<Files ".htaccess">
+    Order allow,deny
+    Deny from all
+</Files>
+
+<Files "*.log">
+    Order allow,deny
+    Deny from all
+</Files>
+
+<Files "*.txt">
+    Order allow,deny
+    Deny from all
+    # Allow robots.txt
+    <Files "robots.txt">
+        Order deny,allow
+        Allow from all
+    </Files>
+</Files>
+
+# Performance Optimization
+<IfModule mod_expires.c>
+    ExpiresActive On
+    
+    # Images
+    ExpiresByType image/jpg "access plus 1 month"
+    ExpiresByType image/jpeg "access plus 1 month"
+    ExpiresByType image/gif "access plus 1 month"
+    ExpiresByType image/png "access plus 1 month"
+    ExpiresByType image/webp "access plus 1 month"
+    ExpiresByType image/svg+xml "access plus 1 month"
+    
+    # CSS and JavaScript
+    ExpiresByType text/css "access plus 1 week"
+    ExpiresByType application/javascript "access plus 1 week"
+    ExpiresByType text/javascript "access plus 1 week"
+    
+    # Fonts
+    ExpiresByType font/woff "access plus 1 month"
+    ExpiresByType font/woff2 "access plus 1 month"
+    ExpiresByType application/font-woff "access plus 1 month"
+    ExpiresByType application/font-woff2 "access plus 1 month"
+    
+    # HTML
+    ExpiresByType text/html "access plus 1 hour"
+</IfModule>
+
+# Gzip Compression
+<IfModule mod_deflate.c>
+    # Compress HTML, CSS, JavaScript, Text, XML and fonts
+    AddOutputFilterByType DEFLATE application/javascript
+    AddOutputFilterByType DEFLATE application/rss+xml
+    AddOutputFilterByType DEFLATE application/vnd.ms-fontobject
+    AddOutputFilterByType DEFLATE application/x-font
+    AddOutputFilterByType DEFLATE application/x-font-opentype
+    AddOutputFilterByType DEFLATE application/x-font-otf
+    AddOutputFilterByType DEFLATE application/x-font-truetype
+    AddOutputFilterByType DEFLATE application/x-font-ttf
+    AddOutputFilterByType DEFLATE application/x-javascript
+    AddOutputFilterByType DEFLATE application/xhtml+xml
+    AddOutputFilterByType DEFLATE application/xml
+    AddOutputFilterByType DEFLATE font/opentype
+    AddOutputFilterByType DEFLATE font/otf
+    AddOutputFilterByType DEFLATE font/ttf
+    AddOutputFilterByType DEFLATE image/svg+xml
+    AddOutputFilterByType DEFLATE image/x-icon
+    AddOutputFilterByType DEFLATE text/css
+    AddOutputFilterByType DEFLATE text/html
+    AddOutputFilterByType DEFLATE text/javascript
+    AddOutputFilterByType DEFLATE text/plain
+    AddOutputFilterByType DEFLATE text/xml
+</IfModule>
+
+# Error Pages (create these files as needed)
+ErrorDocument 404 /404.html
+ErrorDocument 500 /error.html
+
+# Prevent directory browsing
+Options -Indexes

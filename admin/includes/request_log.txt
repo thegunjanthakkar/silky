@@ -1,0 +1,25 @@
+[2025-09-18 04:03:24] METHOD=GET QUERY_STRING= IP=::1
+POST_KEYS= GET_KEYS=
+------------------------------------------------------------
+[2025-09-18 04:04:13] METHOD=GET QUERY_STRING= IP=::1
+POST_KEYS= GET_KEYS=
+------------------------------------------------------------
+[2025-09-18 04:06:42] METHOD=GET QUERY_STRING= IP=::1
+POST_KEYS= GET_KEYS=
+------------------------------------------------------------
+[2025-09-18 04:09:48] METHOD=GET QUERY_STRING= IP=::1
+POST_KEYS= GET_KEYS=
+------------------------------------------------------------
+[2025-09-18 04:15:38] METHOD=POST QUERY_STRING= IP=::1
+POST_KEYS=role_id,action,_submit_flag,role_name,role_description GET_KEYS=
+POST_DATA=Array
+(
+    [role_id] => 
+    [action] => create
+    [_submit_flag] => 1
+    [role_name] => Admin
+    [role_description] => 
+)
+
+RAW_BODY=role_id=&action=create&_submit_flag=1&role_name=Admin&role_description=
+------------------------------------------------------------
