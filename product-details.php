@@ -1429,31 +1429,89 @@ if (isset($_SESSION['user_id'])) {
                 <?php echo nl2br(htmlspecialchars($product['description'])); ?>
               </div>
 
+              <?php
+              // Fetch website settings if not already fetched
+              if (!isset($website_settings)) {
+                  $website_settings = [];
+                  $s_res = @mysqli_query($conn, "SELECT setting_key, setting_value FROM website_settings");
+                  if ($s_res) {
+                      while ($row = mysqli_fetch_assoc($s_res)) {
+                          $website_settings[$row['setting_key']] = $row['setting_value'];
+                      }
+                  }
+              }
+
+              // Determine highlights to show
+              $show_highlights = false;
+              $highlights_title = '';
+              $highlights_cards = [];
+
+              $default_fallback_cards = [
+                  ['icon' => 'bi bi-gem', 'title' => 'Premium Quality', 'desc' => 'Crafted from the finest fabrics for a luxurious feel and elegant drape.'],
+                  ['icon' => 'bi bi-palette2', 'title' => 'Authentic Design', 'desc' => 'Traditional motifs blended beautifully with contemporary aesthetics.'],
+                  ['icon' => 'bi bi-shield-check', 'title' => 'Long-lasting', 'desc' => 'Woven with precision to ensure your saree lasts for generations.'],
+                  ['icon' => 'bi bi-stars', 'title' => 'Perfect Finish', 'desc' => 'Impeccable finishing and attention to detail in every single thread.']
+              ];
+
+              // Check if product has custom highlights enabled
+              $has_custom = !empty($product['custom_highlights_enabled']);
+              if ($has_custom) {
+                  $show_highlights = true;
+                  $highlights_title = !empty($product['custom_highlights_title']) 
+                      ? $product['custom_highlights_title'] 
+                      : ($website_settings['product_highlights_title'] ?? 'Why Choose Our Sarees?');
+                  
+                  if (!empty($product['custom_highlights_cards'])) {
+                      $p_cards = json_decode($product['custom_highlights_cards'], true);
+                      if (json_last_error() === JSON_ERROR_NONE && is_array($p_cards) && count($p_cards) > 0) {
+                          $highlights_cards = $p_cards;
+                      }
+                  }
+              } else {
+                  // Check global setting
+                  $global_enabled = ($website_settings['product_highlights_enabled'] ?? '1') !== '0';
+                  if ($global_enabled) {
+                      $show_highlights = true;
+                      $highlights_title = !empty($website_settings['product_highlights_title']) 
+                          ? $website_settings['product_highlights_title'] 
+                          : 'Why Choose Our Sarees?';
+                      
+                      if (!empty($website_settings['product_highlights_cards'])) {
+                          $g_cards = json_decode($website_settings['product_highlights_cards'], true);
+                          if (json_last_error() === JSON_ERROR_NONE && is_array($g_cards) && count($g_cards) > 0) {
+                              $highlights_cards = $g_cards;
+                          }
+                      }
+                  }
+              }
+
+              // Fallback to default 4 cards if list is empty but section is enabled
+              if ($show_highlights && empty($highlights_cards)) {
+                  $highlights_cards = $default_fallback_cards;
+              }
+              ?>
+
+              <?php if ($show_highlights && !empty($highlights_cards)): ?>
               <div class="pd-highlights-section">
-                <h4 class="pd-section-title">Why Choose Our Sarees?</h4>
+                <h4 class="pd-section-title"><?php echo htmlspecialchars($highlights_title); ?></h4>
                 <div class="pd-highlights-grid">
+                  <?php foreach ($highlights_cards as $c): 
+                      $raw_icon = trim($c['icon'] ?? 'bi bi-gem');
+                      if (strpos($raw_icon, 'bi-') === 0 && strpos($raw_icon, 'bi ') !== 0) {
+                          $raw_icon = 'bi ' . $raw_icon;
+                      }
+                      $c_title = $c['title'] ?? '';
+                      $c_desc = $c['desc'] ?? '';
+                  ?>
                   <div class="pd-highlight-card">
-                    <div class="pd-highlight-icon"><i class="bi bi-gem"></i></div>
-                    <h5>Premium Quality</h5>
-                    <p>Crafted from the finest fabrics for a luxurious feel and elegant drape.</p>
+                    <div class="pd-highlight-icon"><i class="<?php echo htmlspecialchars($raw_icon); ?>"></i></div>
+                    <h5><?php echo htmlspecialchars($c_title); ?></h5>
+                    <p><?php echo htmlspecialchars($c_desc); ?></p>
                   </div>
-                  <div class="pd-highlight-card">
-                    <div class="pd-highlight-icon"><i class="bi bi-palette2"></i></div>
-                    <h5>Authentic Design</h5>
-                    <p>Traditional motifs blended beautifully with contemporary aesthetics.</p>
-                  </div>
-                  <div class="pd-highlight-card">
-                    <div class="pd-highlight-icon"><i class="bi bi-shield-check"></i></div>
-                    <h5>Long-lasting</h5>
-                    <p>Woven with precision to ensure your saree lasts for generations.</p>
-                  </div>
-                  <div class="pd-highlight-card">
-                    <div class="pd-highlight-icon"><i class="bi bi-stars"></i></div>
-                    <h5>Perfect Finish</h5>
-                    <p>Impeccable finishing and attention to detail in every single thread.</p>
-                  </div>
+                  <?php endforeach; ?>
                 </div>
               </div>
+              <?php endif; ?>
             </div>
           </div>
 

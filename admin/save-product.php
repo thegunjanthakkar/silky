@@ -163,9 +163,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $imagesJson = mysqli_real_escape_string($conn, $imagesJson);
     $youtube_video_id = mysqli_real_escape_string($conn, $youtube_video_id);
 
+    // Custom overview highlights
+    $custom_highlights_enabled = isset($_POST['custom_highlights_enabled']) ? 1 : 0;
+    $custom_highlights_title = trim($_POST['custom_highlights_title'] ?? '');
+    $custom_highlights_cards = [];
+    if (isset($_POST['custom_highlight_title']) && is_array($_POST['custom_highlight_title'])) {
+        foreach ($_POST['custom_highlight_title'] as $i => $t) {
+            $t = trim($t);
+            $icon = trim($_POST['custom_highlight_icon'][$i] ?? 'bi bi-gem');
+            $desc = trim($_POST['custom_highlight_desc'][$i] ?? '');
+            if ($t !== '' || $desc !== '') {
+                $custom_highlights_cards[] = [
+                    'icon' => $icon,
+                    'title' => $t,
+                    'desc' => $desc
+                ];
+            }
+        }
+    }
+    $custom_hl_title_sql = $custom_highlights_title !== '' ? "'" . mysqli_real_escape_string($conn, $custom_highlights_title) . "'" : "NULL";
+    $custom_hl_cards_sql = !empty($custom_highlights_cards) ? "'" . mysqli_real_escape_string($conn, json_encode($custom_highlights_cards)) . "'" : "NULL";
+
     // Insert product into database (without size and color fields)
-    $sql = "INSERT INTO products (name, product_code, slug, description, category_id, price, compare_price, grams, status, image, youtube_video_id, created_by, created_at) 
-            VALUES ('$name', $product_code, '$slug', '$description', '$category_id', '$price', $compare_price, $grams, '$status', '$imagesJson', '$youtube_video_id', '$user_id', NOW())";
+    $sql = "INSERT INTO products (name, product_code, slug, description, category_id, price, compare_price, grams, status, image, youtube_video_id, custom_highlights_enabled, custom_highlights_title, custom_highlights_cards, created_by, created_at) 
+            VALUES ('$name', $product_code, '$slug', '$description', '$category_id', '$price', $compare_price, $grams, '$status', '$imagesJson', '$youtube_video_id', $custom_highlights_enabled, $custom_hl_title_sql, $custom_hl_cards_sql, '$user_id', NOW())";
     
     if (mysqli_query($conn, $sql)) {
         $product_id = mysqli_insert_id($conn);

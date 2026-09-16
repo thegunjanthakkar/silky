@@ -33,10 +33,11 @@ $flat_settings = [
     'cta_btn1_text', 'cta_btn1_link', 'cta_btn2_text', 'cta_btn2_link',
     'whatsapp_number', 'wa_form_title', 'wa_form_subtitle', 'wa_show_product', 'wa_product_options',
     'wa_show_budget', 'wa_budget_options', 'wa_show_color', 'wa_color_options', 'wa_show_message',
-    'wa_button_text', 'wa_form_note'
+    'wa_button_text', 'wa_form_note',
+    'product_highlights_enabled', 'product_highlights_title'
 ];
 
-$checkboxes = ['cta_show', 'wa_show_product', 'wa_show_budget', 'wa_show_color', 'wa_show_message'];
+$checkboxes = ['cta_show', 'wa_show_product', 'wa_show_budget', 'wa_show_color', 'wa_show_message', 'product_highlights_enabled'];
 foreach ($checkboxes as $cb) {
     if (!isset($_POST[$cb])) {
         $_POST[$cb] = '0';
@@ -55,9 +56,10 @@ if (!$has_section) {
 foreach ($flat_settings as $key) {
     $val = isset($_POST[$key]) ? $_POST[$key] : '';
     $val_safe = mysqli_real_escape_string($conn, $val);
+    $sec = (strpos($key, 'product_highlights_') === 0) ? 'product_page' : 'general';
     if ($has_section) {
         $sql = "INSERT INTO website_settings (setting_key, setting_value, section) 
-                VALUES ('$key', '$val_safe', 'general') 
+                VALUES ('$key', '$val_safe', '$sec') 
                 ON DUPLICATE KEY UPDATE setting_value='$val_safe'";
     } else {
         $sql = "INSERT INTO website_settings (setting_key, setting_value) 
@@ -70,6 +72,36 @@ foreach ($flat_settings as $key) {
     }
 }
 file_put_contents($log_file, "  => Flat settings done. Errors: " . count($errors) . "\n", FILE_APPEND);
+
+// Process Product Highlights Cards
+if (isset($_POST['highlight_card_title']) && is_array($_POST['highlight_card_title'])) {
+    $saved_cards = [];
+    foreach ($_POST['highlight_card_title'] as $idx => $title) {
+        $title = trim($title);
+        $icon = trim($_POST['highlight_card_icon'][$idx] ?? 'bi bi-gem');
+        $desc = trim($_POST['highlight_card_desc'][$idx] ?? '');
+        if ($title !== '' || $desc !== '') {
+            $saved_cards[] = [
+                'icon' => $icon,
+                'title' => $title,
+                'desc' => $desc
+            ];
+        }
+    }
+    $cards_json = mysqli_real_escape_string($conn, json_encode($saved_cards));
+    if ($has_section) {
+        $sql = "INSERT INTO website_settings (setting_key, setting_value, section) 
+                VALUES ('product_highlights_cards', '$cards_json', 'product_page') 
+                ON DUPLICATE KEY UPDATE setting_value='$cards_json'";
+    } else {
+        $sql = "INSERT INTO website_settings (setting_key, setting_value) 
+                VALUES ('product_highlights_cards', '$cards_json') 
+                ON DUPLICATE KEY UPDATE setting_value='$cards_json'";
+    }
+    if (!mysqli_query($conn, $sql)) {
+        $errors[] = "Setting 'product_highlights_cards': " . mysqli_error($conn);
+    }
+}
 
 // =============================================
 // 2. Navigation Menus - Delete and Re-Insert

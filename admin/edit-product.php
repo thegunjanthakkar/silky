@@ -104,6 +104,8 @@ while ($row = mysqli_fetch_assoc($variants_result)) {
     <link href="assets/css/bootstrap.min.css" rel="stylesheet" type="text/css" />
     <link href="assets/css/icons.min.css" rel="stylesheet" type="text/css" />
     <link href="assets/css/app.min.css" rel="stylesheet" type="text/css" />
+    <link rel="stylesheet" href="../assets/vendor/bootstrap-icons/bootstrap-icons.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 
     <!-- Dark Mode State Check Script -->
     <script>
@@ -511,6 +513,111 @@ while ($row = mysqli_fetch_assoc($variants_result)) {
                                         </div>
                                     </div>
 
+                                    <!-- Overview Highlights Section -->
+                                    <?php
+                                    // Fetch global highlight settings for reference/fallbacks
+                                    $global_hl_res = @mysqli_query($conn, "SELECT setting_value FROM website_settings WHERE setting_key = 'product_highlights_cards'");
+                                    $global_hl_cards = [];
+                                    if ($global_hl_res && $r = mysqli_fetch_assoc($global_hl_res)) {
+                                        $global_hl_cards = json_decode($r['setting_value'], true) ?: [];
+                                    }
+                                    if (empty($global_hl_cards)) {
+                                        $global_hl_cards = [
+                                            ['icon' => 'bi bi-gem', 'title' => 'Premium Quality', 'desc' => 'Crafted from the finest fabrics for a luxurious feel and elegant drape.'],
+                                            ['icon' => 'bi bi-palette2', 'title' => 'Authentic Design', 'desc' => 'Traditional motifs blended beautifully with contemporary aesthetics.'],
+                                            ['icon' => 'bi bi-shield-check', 'title' => 'Long-lasting', 'desc' => 'Woven with precision to ensure your saree lasts for generations.'],
+                                            ['icon' => 'bi bi-stars', 'title' => 'Perfect Finish', 'desc' => 'Impeccable finishing and attention to detail in every single thread.']
+                                        ];
+                                    }
+
+                                    $product_has_custom_hl = !empty($product['custom_highlights_enabled']);
+                                    $product_hl_title = $product['custom_highlights_title'] ?? '';
+                                    $product_hl_cards = [];
+                                    if (!empty($product['custom_highlights_cards'])) {
+                                        $product_hl_cards = json_decode($product['custom_highlights_cards'], true) ?: [];
+                                    }
+                                    if (empty($product_hl_cards)) {
+                                        $product_hl_cards = $global_hl_cards;
+                                    }
+                                    ?>
+                                    <div class="card border mb-4">
+                                        <div class="card-header d-flex justify-content-between align-items-center py-2">
+                                            <div>
+                                                <h4 class="card-title mb-0 fs-15"><i class="bi bi-stars text-warning me-1"></i> Overview Highlights / Feature Cards</h4>
+                                                <small class="text-muted">Cards shown in the "Why Choose Our Sarees?" section on this product's page</small>
+                                            </div>
+                                            <div class="form-check form-switch form-switch-success ms-3">
+                                                <input class="form-check-input" type="checkbox" name="custom_highlights_enabled" value="1" id="custom_highlights_enabled" <?php echo $product_has_custom_hl ? 'checked' : ''; ?> onchange="toggleCustomHighlights(this.checked)">
+                                                <label class="form-check-label fw-semibold fs-13" for="custom_highlights_enabled">Customize for this product</label>
+                                            </div>
+                                        </div>
+                                        <div class="card-body" id="custom-highlights-panel" style="display: <?php echo $product_has_custom_hl ? 'block' : 'none'; ?>;">
+                                            <div class="alert alert-info py-2 fs-13 d-flex justify-content-between align-items-center mb-3">
+                                                <span><i class="fas fa-info-circle me-1"></i> When customized, these specific cards override the global default highlights on this product's page.</span>
+                                                <button type="button" class="btn btn-sm btn-soft-primary text-nowrap ms-2" onclick="resetToGlobalDefaults()"><i class="fas fa-undo me-1"></i> Reset to Global Defaults</button>
+                                            </div>
+
+                                            <div class="mb-3">
+                                                <label class="form-label fw-semibold fs-13">Custom Section Heading</label>
+                                                <input type="text" class="form-control" name="custom_highlights_title" id="custom_highlights_title" value="<?php echo htmlspecialchars($product_hl_title); ?>" placeholder="Leave blank to use global heading (e.g. Why Choose Our Sarees?)">
+                                            </div>
+
+                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                <label class="form-label fw-semibold fs-13 mb-0">Feature Cards</label>
+                                                <button type="button" class="btn btn-sm btn-soft-primary" onclick="addProductHighlightCard()">
+                                                    <i class="fas fa-plus me-1"></i> Add Card
+                                                </button>
+                                            </div>
+
+                                            <div class="row g-3" id="product-highlights-cards-list">
+                                                <?php foreach ($product_hl_cards as $idx => $card): 
+                                                    $cIcon = !empty($card['icon']) ? $card['icon'] : 'bi bi-gem';
+                                                    $cTitle = $card['title'] ?? '';
+                                                    $cDesc = $card['desc'] ?? '';
+                                                ?>
+                                                <div class="col-md-6 prod-highlight-card-item">
+                                                    <div class="card border mb-0 h-100 shadow-none">
+                                                        <div class="card-header d-flex justify-content-between align-items-center py-2 px-3 border-bottom">
+                                                            <span class="fw-bold fs-12 text-primary">Card #<span class="pcard-num"><?php echo $idx + 1; ?></span></span>
+                                                            <button type="button" class="btn btn-sm btn-soft-danger py-0 px-2" onclick="removeProductHighlightCard(this)" title="Remove"><i class="fas fa-trash font-11"></i></button>
+                                                        </div>
+                                                        <div class="card-body p-3">
+                                                            <div class="mb-2">
+                                                                <label class="form-label fs-12 mb-1">Icon</label>
+                                                                <div class="input-group input-group-sm mb-1">
+                                                                    <span class="input-group-text icon-preview-box" style="font-size: 1.1rem; color: #97c51d; width: 40px; justify-content: center;">
+                                                                        <i class="<?php echo htmlspecialchars($cIcon); ?>"></i>
+                                                                    </span>
+                                                                    <input type="text" class="form-control form-control-sm prod-card-icon-input" name="custom_highlight_icon[]" value="<?php echo htmlspecialchars($cIcon); ?>" oninput="updateProdCardIcon(this)" placeholder="e.g. bi bi-gem">
+                                                                </div>
+                                                                <div class="d-flex flex-wrap gap-1">
+                                                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1 cursor-pointer" onclick="setProdCardIcon(this, 'bi bi-gem')"><i class="bi bi-gem me-1 text-success"></i>Gem</span>
+                                                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1 cursor-pointer" onclick="setProdCardIcon(this, 'bi bi-palette2')"><i class="bi bi-palette2 me-1 text-primary"></i>Palette</span>
+                                                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1 cursor-pointer" onclick="setProdCardIcon(this, 'bi bi-shield-check')"><i class="bi bi-shield-check me-1 text-success"></i>Shield</span>
+                                                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1 cursor-pointer" onclick="setProdCardIcon(this, 'bi bi-stars')"><i class="bi bi-stars me-1 text-warning"></i>Stars</span>
+                                                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1 cursor-pointer" onclick="setProdCardIcon(this, 'bi bi-award')"><i class="bi bi-award me-1 text-warning"></i>Award</span>
+                                                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1 cursor-pointer" onclick="setProdCardIcon(this, 'bi bi-truck')"><i class="bi bi-truck me-1 text-info"></i>Truck</span>
+                                                                </div>
+                                                            </div>
+                                                            <div class="mb-2">
+                                                                <label class="form-label fs-12 mb-1">Title</label>
+                                                                <input type="text" class="form-control form-control-sm" name="custom_highlight_title[]" value="<?php echo htmlspecialchars($cTitle); ?>" placeholder="e.g. Premium Quality">
+                                                            </div>
+                                                            <div>
+                                                                <label class="form-label fs-12 mb-1">Description</label>
+                                                                <textarea class="form-control form-control-sm" name="custom_highlight_desc[]" rows="2" placeholder="Brief description"><?php echo htmlspecialchars($cDesc); ?></textarea>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <?php endforeach; ?>
+                                            </div>
+                                        </div>
+                                        <div class="card-body py-2 text-muted fs-12 border-top" id="custom-highlights-placeholder" style="display: <?php echo $product_has_custom_hl ? 'none' : 'block'; ?>;">
+                                            <i class="fas fa-check-circle me-1 text-success"></i> This product uses the <strong>global default highlights</strong> configured in <a href="edit-website.php#highlights" target="_blank" class="fw-semibold text-primary">Edit Website &rarr; Product Highlights</a>.
+                                        </div>
+                                    </div>
+
                                     <div class="d-flex justify-content-between">
                                         <a href="products.php" class="btn btn-secondary">
                                             <i class="fas fa-arrow-left me-1"></i> Back to Products
@@ -667,6 +774,105 @@ while ($row = mysqli_fetch_assoc($variants_result)) {
         let imagesToCrop = [];
         let removedImages = [];
         let youtubeVideoId = '<?php echo $product['youtube_video_id'] ?? ''; ?>';
+
+        // Global defaults for highlight cards reset
+        const globalDefaultCards = <?php echo json_encode($global_hl_cards); ?>;
+
+        function toggleCustomHighlights(checked) {
+            const panel = document.getElementById('custom-highlights-panel');
+            const placeholder = document.getElementById('custom-highlights-placeholder');
+            if (panel) panel.style.display = checked ? 'block' : 'none';
+            if (placeholder) placeholder.style.display = checked ? 'none' : 'block';
+        }
+
+        function updateProdCardIcon(input) {
+            const wrap = input.closest('.mb-2');
+            const preview = wrap.querySelector('.icon-preview-box i');
+            if (preview) {
+                let cls = input.value.trim();
+                if (cls.startsWith('bi-') && !cls.startsWith('bi bi-')) cls = 'bi ' + cls;
+                preview.className = cls || 'bi bi-gem';
+            }
+        }
+
+        function setProdCardIcon(badge, iconClass) {
+            const wrap = badge.closest('.mb-2');
+            const input = wrap.querySelector('.prod-card-icon-input');
+            const preview = wrap.querySelector('.icon-preview-box i');
+            if (input) input.value = iconClass;
+            if (preview) preview.className = iconClass;
+        }
+
+        function reindexProductCards() {
+            const items = document.querySelectorAll('#product-highlights-cards-list .prod-highlight-card-item');
+            items.forEach((item, idx) => {
+                const num = item.querySelector('.pcard-num');
+                if (num) num.textContent = idx + 1;
+            });
+        }
+
+        function removeProductHighlightCard(btn) {
+            const item = btn.closest('.prod-highlight-card-item');
+            if (item) {
+                item.remove();
+                reindexProductCards();
+            }
+        }
+
+        function addProductHighlightCard(icon = 'bi bi-stars', title = '', desc = '') {
+            const list = document.getElementById('product-highlights-cards-list');
+            if (!list) return;
+            const count = list.querySelectorAll('.prod-highlight-card-item').length + 1;
+            const html = `
+                <div class="col-md-6 prod-highlight-card-item">
+                    <div class="card border mb-0 h-100 shadow-none">
+                        <div class="card-header d-flex justify-content-between align-items-center py-2 px-3 border-bottom">
+                            <span class="fw-bold fs-12 text-primary">Card #<span class="pcard-num">${count}</span></span>
+                            <button type="button" class="btn btn-sm btn-soft-danger py-0 px-2" onclick="removeProductHighlightCard(this)" title="Remove"><i class="fas fa-trash font-11"></i></button>
+                        </div>
+                        <div class="card-body p-3">
+                            <div class="mb-2">
+                                <label class="form-label fs-12 mb-1">Icon</label>
+                                <div class="input-group input-group-sm mb-1">
+                                    <span class="input-group-text icon-preview-box" style="font-size: 1.1rem; color: #97c51d; width: 40px; justify-content: center;">
+                                        <i class="${icon}"></i>
+                                    </span>
+                                    <input type="text" class="form-control form-control-sm prod-card-icon-input" name="custom_highlight_icon[]" value="${icon}" oninput="updateProdCardIcon(this)" placeholder="e.g. bi bi-gem">
+                                </div>
+                                <div class="d-flex flex-wrap gap-1">
+                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1" style="cursor: pointer;" onclick="setProdCardIcon(this, 'bi bi-gem')"><i class="bi bi-gem me-1 text-success"></i>Gem</span>
+                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1" style="cursor: pointer;" onclick="setProdCardIcon(this, 'bi bi-palette2')"><i class="bi bi-palette2 me-1 text-primary"></i>Palette</span>
+                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1" style="cursor: pointer;" onclick="setProdCardIcon(this, 'bi bi-shield-check')"><i class="bi bi-shield-check me-1 text-success"></i>Shield</span>
+                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1" style="cursor: pointer;" onclick="setProdCardIcon(this, 'bi bi-stars')"><i class="bi bi-stars me-1 text-warning"></i>Stars</span>
+                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1" style="cursor: pointer;" onclick="setProdCardIcon(this, 'bi bi-award')"><i class="bi bi-award me-1 text-warning"></i>Award</span>
+                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1" style="cursor: pointer;" onclick="setProdCardIcon(this, 'bi bi-truck')"><i class="bi bi-truck me-1 text-info"></i>Truck</span>
+                                </div>
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label fs-12 mb-1">Title</label>
+                                <input type="text" class="form-control form-control-sm" name="custom_highlight_title[]" value="${title.replace(/"/g, '&quot;')}" placeholder="e.g. Premium Quality">
+                            </div>
+                            <div>
+                                <label class="form-label fs-12 mb-1">Description</label>
+                                <textarea class="form-control form-control-sm" name="custom_highlight_desc[]" rows="2" placeholder="Brief description">${desc}</textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            list.insertAdjacentHTML('beforeend', html);
+        }
+
+        function resetToGlobalDefaults() {
+            if (!confirm('Replace current cards with the global default highlights?')) return;
+            const list = document.getElementById('product-highlights-cards-list');
+            if (!list) return;
+            list.innerHTML = '';
+            document.getElementById('custom_highlights_title').value = '';
+            globalDefaultCards.forEach(c => {
+                addProductHighlightCard(c.icon || 'bi bi-gem', c.title || '', c.desc || '');
+            });
+        }
 
         // YouTube video handling
         // Extract YouTube video ID from URL

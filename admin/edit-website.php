@@ -64,6 +64,8 @@ $error_message = isset($_GET['error']) ? 'Error saving settings.' : '';
     <link href="assets/css/bootstrap.min.css" rel="stylesheet" type="text/css" />
     <link href="assets/css/icons.min.css" rel="stylesheet" type="text/css" />
     <link href="assets/css/app.min.css" rel="stylesheet" type="text/css" />
+    <link rel="stylesheet" href="../assets/vendor/bootstrap-icons/bootstrap-icons.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <!-- Cropper.js -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
 
@@ -238,9 +240,12 @@ $error_message = isset($_GET['error']) ? 'Error saving settings.' : '';
                                         <a class="nav-link" id="reviews-tab" data-bs-toggle="tab" href="#reviews" role="tab">Reviews</a>
                                     </li>
                                     <li class="nav-item">
-                                        <a class="nav-link" id="whatsapp-tab" data-bs-toggle="tab" href="#whatsapp" role="tab">WhatsApp</a>
-                                    </li>
-                                </ul>
+                                         <a class="nav-link" id="whatsapp-tab" data-bs-toggle="tab" href="#whatsapp" role="tab">WhatsApp</a>
+                                     </li>
+                                     <li class="nav-item">
+                                         <a class="nav-link" id="highlights-tab" data-bs-toggle="tab" href="#highlights" role="tab"><i class="bi bi-stars me-1"></i> Product Highlights</a>
+                                     </li>
+                                 </ul>
                             </div>
                             <div class="card-body">
                                 <form id="editWebsiteForm" action="save-website.php" method="POST" enctype="multipart/form-data" data-ajax="false" novalidate>
@@ -618,6 +623,95 @@ $error_message = isset($_GET['error']) ? 'Error saving settings.' : '';
                                                 </div>
                                             </div>
                                         </div>
+
+                                        <!-- Product Highlights Tab -->
+                                        <div class="tab-pane fade" id="highlights" role="tabpanel">
+                                            <div class="d-flex justify-content-between align-items-center mb-4 pb-2 border-bottom">
+                                                <div>
+                                                    <h5 class="card-title mb-1">Product Details - Overview Highlight Cards</h5>
+                                                    <p class="text-muted small mb-0">These cards appear under the <strong>Overview</strong> section on product pages (e.g. "Why Choose Our Sarees?").</p>
+                                                </div>
+                                                <div class="form-check form-switch form-switch-success">
+                                                    <input class="form-check-input" type="checkbox" name="product_highlights_enabled" value="1" id="product_highlights_enabled" <?php echo ($settings['product_highlights_enabled'] ?? '1') == '1' ? 'checked' : ''; ?>>
+                                                    <label class="form-check-label fw-semibold" for="product_highlights_enabled">Show on Product Pages</label>
+                                                </div>
+                                            </div>
+
+                                            <div class="mb-4">
+                                                <label class="form-label fw-bold">Section Heading</label>
+                                                <input type="text" class="form-control form-control-lg" name="product_highlights_title" value="<?php echo htmlspecialchars($settings['product_highlights_title'] ?? 'Why Choose Our Sarees?'); ?>" placeholder="e.g. Why Choose Our Sarees?">
+                                                <small class="text-muted">Heading displayed directly above the 4 highlight cards.</small>
+                                            </div>
+
+                                            <?php
+                                            $default_hl_cards = [
+                                                ['icon' => 'bi bi-gem', 'title' => 'Premium Quality', 'desc' => 'Crafted from the finest fabrics for a luxurious feel and elegant drape.'],
+                                                ['icon' => 'bi bi-palette2', 'title' => 'Authentic Design', 'desc' => 'Traditional motifs blended beautifully with contemporary aesthetics.'],
+                                                ['icon' => 'bi bi-shield-check', 'title' => 'Long-lasting', 'desc' => 'Woven with precision to ensure your saree lasts for generations.'],
+                                                ['icon' => 'bi bi-stars', 'title' => 'Perfect Finish', 'desc' => 'Impeccable finishing and attention to detail in every single thread.']
+                                            ];
+                                            $hl_cards = $default_hl_cards;
+                                            if (!empty($settings['product_highlights_cards'])) {
+                                                $decoded_hl = json_decode($settings['product_highlights_cards'], true);
+                                                if (json_last_error() === JSON_ERROR_NONE && is_array($decoded_hl) && count($decoded_hl) > 0) {
+                                                    $hl_cards = $decoded_hl;
+                                                }
+                                            }
+                                            ?>
+
+                                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                                <h6 class="fw-bold mb-0">Highlight Cards (Default for all products)</h6>
+                                                <button type="button" class="btn btn-sm btn-soft-primary" onclick="addHighlightCard()">
+                                                    <i class="fas fa-plus me-1"></i> Add Card
+                                                </button>
+                                            </div>
+
+                                            <div class="row g-3" id="highlights-cards-list">
+                                                <?php foreach ($hl_cards as $idx => $card): 
+                                                    $cIcon = !empty($card['icon']) ? $card['icon'] : 'bi bi-gem';
+                                                    $cTitle = $card['title'] ?? '';
+                                                    $cDesc = $card['desc'] ?? '';
+                                                ?>
+                                                <div class="col-md-6 highlight-card-item">
+                                                    <div class="card border shadow-none mb-0 h-100">
+                                                        <div class="card-header d-flex justify-content-between align-items-center py-2 px-3 border-bottom">
+                                                            <span class="fw-bold fs-12 text-primary"><i class="fas fa-grip-vertical handle me-2"></i>Card #<span class="card-num"><?php echo $idx + 1; ?></span></span>
+                                                            <button type="button" class="btn btn-sm btn-soft-danger py-0 px-2" onclick="removeHighlightCard(this)" title="Delete Card"><i class="fas fa-trash font-11"></i></button>
+                                                        </div>
+                                                        <div class="card-body p-3">
+                                                            <div class="mb-3">
+                                                                <label class="form-label small fw-semibold">Icon</label>
+                                                                <div class="input-group mb-2">
+                                                                    <span class="input-group-text icon-preview-box" style="font-size: 1.3rem; color: #97c51d; width: 48px; justify-content: center;">
+                                                                        <i class="<?php echo htmlspecialchars($cIcon); ?>"></i>
+                                                                    </span>
+                                                                    <input type="text" class="form-control card-icon-input" name="highlight_card_icon[]" value="<?php echo htmlspecialchars($cIcon); ?>" oninput="updateCardIconPreview(this)" placeholder="e.g. bi bi-gem">
+                                                                </div>
+                                                                <div class="d-flex flex-wrap gap-1">
+                                                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1" style="cursor: pointer;" onclick="selectCardIcon(this, 'bi bi-gem')"><i class="bi bi-gem me-1 text-success"></i>Gem</span>
+                                                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1" style="cursor: pointer;" onclick="selectCardIcon(this, 'bi bi-palette2')"><i class="bi bi-palette2 me-1 text-primary"></i>Palette</span>
+                                                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1" style="cursor: pointer;" onclick="selectCardIcon(this, 'bi bi-shield-check')"><i class="bi bi-shield-check me-1 text-success"></i>Shield</span>
+                                                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1" style="cursor: pointer;" onclick="selectCardIcon(this, 'bi bi-stars')"><i class="bi bi-stars me-1 text-warning"></i>Stars</span>
+                                                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1" style="cursor: pointer;" onclick="selectCardIcon(this, 'bi bi-award')"><i class="bi bi-award me-1 text-warning"></i>Award</span>
+                                                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1" style="cursor: pointer;" onclick="selectCardIcon(this, 'bi bi-truck')"><i class="bi bi-truck me-1 text-info"></i>Truck</span>
+                                                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1" style="cursor: pointer;" onclick="selectCardIcon(this, 'bi bi-patch-check')"><i class="bi bi-patch-check me-1 text-success"></i>Certified</span>
+                                                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1" style="cursor: pointer;" onclick="selectCardIcon(this, 'bi bi-heart')"><i class="bi bi-heart me-1 text-danger"></i>Heart</span>
+                                                                </div>
+                                                            </div>
+                                                            <div class="mb-3">
+                                                                <label class="form-label small fw-semibold">Card Title *</label>
+                                                                <input type="text" class="form-control" name="highlight_card_title[]" value="<?php echo htmlspecialchars($cTitle); ?>" placeholder="e.g. Premium Quality" required>
+                                                            </div>
+                                                            <div class="mb-2">
+                                                                <label class="form-label small fw-semibold">Card Description *</label>
+                                                                <textarea class="form-control" name="highlight_card_desc[]" rows="2" placeholder="Brief 1-2 sentence description" required><?php echo htmlspecialchars($cDesc); ?></textarea>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <?php endforeach; ?>
+                                            </div>
+                                        </div>
                                     </div>
                                     <hr>
                                     <input type="submit" class="btn btn-primary btn-lg px-5" value="Save All Changes">
@@ -650,7 +744,97 @@ $error_message = isset($_GET['error']) ? 'Error saving settings.' : '';
             new Sortable(document.getElementById('main-nav-list'), { handle: '.handle', animation: 150 });
             new Sortable(document.getElementById('bottom-nav-list'), { handle: '.handle', animation: 150 });
             new Sortable(document.getElementById('hero-slider-list'), { handle: '.handle', animation: 150 });
+            const hlList = document.getElementById('highlights-cards-list');
+            if (hlList) {
+                new Sortable(hlList, { 
+                    handle: '.handle', 
+                    animation: 150,
+                    onEnd: reindexHighlightCards
+                });
+            }
         });
+
+        function updateCardIconPreview(input) {
+            const wrap = input.closest('.mb-3');
+            const preview = wrap.querySelector('.icon-preview-box i');
+            if (preview) {
+                let cls = input.value.trim();
+                if (cls.startsWith('bi-') && !cls.startsWith('bi bi-')) cls = 'bi ' + cls;
+                preview.className = cls || 'bi bi-gem';
+            }
+        }
+
+        function selectCardIcon(badge, iconClass) {
+            const wrap = badge.closest('.mb-3');
+            const input = wrap.querySelector('.card-icon-input');
+            const preview = wrap.querySelector('.icon-preview-box i');
+            if (input) input.value = iconClass;
+            if (preview) preview.className = iconClass;
+        }
+
+        function reindexHighlightCards() {
+            const list = document.querySelectorAll('#highlights-cards-list .highlight-card-item');
+            list.forEach((card, idx) => {
+                const num = card.querySelector('.card-num');
+                if (num) num.textContent = idx + 1;
+            });
+        }
+
+        function removeHighlightCard(btn) {
+            const item = btn.closest('.highlight-card-item');
+            if (item) {
+                if (confirm('Are you sure you want to remove this card?')) {
+                    item.remove();
+                    reindexHighlightCards();
+                }
+            }
+        }
+
+        function addHighlightCard() {
+            const list = document.getElementById('highlights-cards-list');
+            if (!list) return;
+            const count = list.querySelectorAll('.highlight-card-item').length + 1;
+            const html = `
+                <div class="col-md-6 highlight-card-item">
+                    <div class="card border shadow-none mb-0 h-100">
+                        <div class="card-header d-flex justify-content-between align-items-center py-2 px-3 border-bottom">
+                            <span class="fw-bold fs-12 text-primary"><i class="fas fa-grip-vertical handle me-2"></i>Card #<span class="card-num">${count}</span></span>
+                            <button type="button" class="btn btn-sm btn-soft-danger py-0 px-2" onclick="removeHighlightCard(this)" title="Delete Card"><i class="fas fa-trash font-11"></i></button>
+                        </div>
+                        <div class="card-body p-3">
+                            <div class="mb-3">
+                                <label class="form-label small fw-semibold">Icon</label>
+                                <div class="input-group mb-2">
+                                    <span class="input-group-text icon-preview-box" style="font-size: 1.3rem; color: #97c51d; width: 48px; justify-content: center;">
+                                        <i class="bi bi-stars"></i>
+                                    </span>
+                                    <input type="text" class="form-control card-icon-input" name="highlight_card_icon[]" value="bi bi-stars" oninput="updateCardIconPreview(this)" placeholder="e.g. bi bi-stars">
+                                </div>
+                                <div class="d-flex flex-wrap gap-1">
+                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1" style="cursor: pointer;" onclick="selectCardIcon(this, 'bi bi-gem')"><i class="bi bi-gem me-1 text-success"></i>Gem</span>
+                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1" style="cursor: pointer;" onclick="selectCardIcon(this, 'bi bi-palette2')"><i class="bi bi-palette2 me-1 text-primary"></i>Palette</span>
+                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1" style="cursor: pointer;" onclick="selectCardIcon(this, 'bi bi-shield-check')"><i class="bi bi-shield-check me-1 text-success"></i>Shield</span>
+                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1" style="cursor: pointer;" onclick="selectCardIcon(this, 'bi bi-stars')"><i class="bi bi-stars me-1 text-warning"></i>Stars</span>
+                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1" style="cursor: pointer;" onclick="selectCardIcon(this, 'bi bi-award')"><i class="bi bi-award me-1 text-warning"></i>Award</span>
+                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1" style="cursor: pointer;" onclick="selectCardIcon(this, 'bi bi-truck')"><i class="bi bi-truck me-1 text-info"></i>Truck</span>
+                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1" style="cursor: pointer;" onclick="selectCardIcon(this, 'bi bi-patch-check')"><i class="bi bi-patch-check me-1 text-success"></i>Certified</span>
+                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1" style="cursor: pointer;" onclick="selectCardIcon(this, 'bi bi-heart')"><i class="bi bi-heart me-1 text-danger"></i>Heart</span>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label small fw-semibold">Card Title *</label>
+                                <input type="text" class="form-control" name="highlight_card_title[]" value="" placeholder="e.g. Handcrafted Elegance" required>
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label small fw-semibold">Card Description *</label>
+                                <textarea class="form-control" name="highlight_card_desc[]" rows="2" placeholder="Brief 1-2 sentence description" required></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            list.insertAdjacentHTML('beforeend', html);
+        }
 
         // Force native POST submit - bypasses any JS framework interceptors
         function doSave() {

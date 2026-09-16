@@ -771,12 +771,38 @@ $result = mysqli_query($conn, $sql);
                 html += '</div>';
                 html += '</div>';
                 
+                // Highlights Section
+                if (product.custom_highlights_enabled) {
+                    html += '<div class="col-12">';
+                    html += '<div class="p-3 border rounded">';
+                    html += '<div class="d-flex justify-content-between align-items-center mb-2">';
+                    html += '<h6 class="fw-bold mb-0 small"><i class="bi bi-stars text-warning me-1"></i>Overview Highlights</h6>';
+                    html += '<span class="badge bg-success-subtle text-success border border-success-subtle">Customized</span>';
+                    html += '</div>';
+                    if (product.custom_highlights_title) {
+                        html += '<p class="small text-muted mb-2">Heading: <strong>' + escapeHtml(product.custom_highlights_title) + '</strong></p>';
+                    }
+                    if (product.custom_highlights_cards && product.custom_highlights_cards.length > 0) {
+                        html += '<div class="row g-2">';
+                        product.custom_highlights_cards.forEach(card => {
+                            html += '<div class="col-6"><div class="p-2 border rounded small h-100"><i class="' + escapeHtml(card.icon || 'bi bi-gem') + ' me-1 text-primary"></i><strong>' + escapeHtml(card.title || '') + '</strong><div class="text-muted fs-11 mt-1 text-truncate" title="' + escapeHtml(card.desc || '') + '">' + escapeHtml(card.desc || '') + '</div></div></div>';
+                        });
+                        html += '</div>';
+                    }
+                    html += '</div>';
+                    html += '</div>';
+                }
+
                 html += '</div>'; // End row
                 
                 html += '</div>'; // End col-md-7
                 html += '</div>'; // End row
                 
                 document.getElementById('productPreviewContent').innerHTML = html;
+            }
+
+            function escapeHtml(str) {
+                return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
             }
             document.querySelectorAll('.btn-edit-product').forEach(function(btn) {
                 btn.addEventListener('click', function() {

@@ -171,6 +171,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $imagesJson = mysqli_real_escape_string($conn, $imagesJson);
     $youtube_video_id = mysqli_real_escape_string($conn, $youtube_video_id);
 
+    // Custom overview highlights
+    $custom_highlights_enabled = isset($_POST['custom_highlights_enabled']) ? 1 : 0;
+    $custom_highlights_title = trim($_POST['custom_highlights_title'] ?? '');
+    $custom_highlights_cards = [];
+    if (isset($_POST['custom_highlight_title']) && is_array($_POST['custom_highlight_title'])) {
+        foreach ($_POST['custom_highlight_title'] as $i => $t) {
+            $t = trim($t);
+            $icon = trim($_POST['custom_highlight_icon'][$i] ?? 'bi bi-gem');
+            $desc = trim($_POST['custom_highlight_desc'][$i] ?? '');
+            if ($t !== '' || $desc !== '') {
+                $custom_highlights_cards[] = [
+                    'icon' => $icon,
+                    'title' => $t,
+                    'desc' => $desc
+                ];
+            }
+        }
+    }
+    $custom_hl_title_sql = $custom_highlights_title !== '' ? "'" . mysqli_real_escape_string($conn, $custom_highlights_title) . "'" : "NULL";
+    $custom_hl_cards_sql = !empty($custom_highlights_cards) ? "'" . mysqli_real_escape_string($conn, json_encode($custom_highlights_cards)) . "'" : "NULL";
+
     // Update product in database (without size and color fields)
     $sql = "UPDATE products SET 
                 name = '$name', 
@@ -184,6 +205,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 status = '$status',
                 image = '$imagesJson',
                 youtube_video_id = '$youtube_video_id',
+                custom_highlights_enabled = $custom_highlights_enabled,
+                custom_highlights_title = $custom_hl_title_sql,
+                custom_highlights_cards = $custom_hl_cards_sql,
                 updated_at = NOW()
             WHERE id = '" . mysqli_real_escape_string($conn, $product_id) . "'";
     

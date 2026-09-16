@@ -115,7 +115,10 @@ try {
             'colors' => $colors,
             'sizes' => $sizes,
             'created_at' => $createdAt,
-            'created_by' => $product['created_by_name'] ?: 'Unknown'
+            'created_by' => $product['created_by_name'] ?: 'Unknown',
+            'custom_highlights_enabled' => !empty($product['custom_highlights_enabled']),
+            'custom_highlights_title' => $product['custom_highlights_title'] ?? '',
+            'custom_highlights_cards' => !empty($product['custom_highlights_cards']) ? (json_decode($product['custom_highlights_cards'], true) ?: []) : []
         ]
     ];
 
