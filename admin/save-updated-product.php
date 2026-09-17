@@ -192,6 +192,99 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $custom_hl_title_sql = $custom_highlights_title !== '' ? "'" . mysqli_real_escape_string($conn, $custom_highlights_title) . "'" : "NULL";
     $custom_hl_cards_sql = !empty($custom_highlights_cards) ? "'" . mysqli_real_escape_string($conn, json_encode($custom_highlights_cards)) . "'" : "NULL";
 
+    // Custom care instructions
+    $custom_care_enabled = isset($_POST['custom_care_enabled']) ? 1 : 0;
+    $custom_care_title_raw = $_POST['custom_care_title'] ?? '';
+    if (is_array($custom_care_title_raw)) {
+        $custom_care_title = '';
+    } else {
+        $custom_care_title = trim((string)$custom_care_title_raw);
+    }
+    if (isset($_POST['custom_care_heading']) && is_string($_POST['custom_care_heading'])) {
+        $custom_care_title = trim($_POST['custom_care_heading']);
+    }
+
+    $custom_care_cards = [];
+    $raw_card_titles = $_POST['custom_care_card_title'] ?? (is_array($_POST['custom_care_title'] ?? null) ? $_POST['custom_care_title'] : []);
+    $raw_card_icons  = $_POST['custom_care_card_icon'] ?? ($_POST['custom_care_icon'] ?? []);
+    $raw_card_colors = $_POST['custom_care_card_color'] ?? ($_POST['custom_care_color'] ?? []);
+    $raw_card_descs  = $_POST['custom_care_card_desc'] ?? ($_POST['custom_care_desc'] ?? []);
+
+    if (is_array($raw_card_titles)) {
+        foreach ($raw_card_titles as $i => $t) {
+            $t = is_string($t) ? trim($t) : '';
+            $icon = isset($raw_card_icons[$i]) && is_string($raw_card_icons[$i]) ? trim($raw_card_icons[$i]) : 'bi bi-droplet-half';
+            $color = isset($raw_card_colors[$i]) && is_string($raw_card_colors[$i]) ? trim($raw_card_colors[$i]) : '#0dcaf0';
+            $desc = isset($raw_card_descs[$i]) && is_string($raw_card_descs[$i]) ? trim($raw_card_descs[$i]) : '';
+            if ($t !== '' || $desc !== '') {
+                $custom_care_cards[] = [
+                    'icon' => $icon,
+                    'color' => $color,
+                    'title' => $t,
+                    'desc' => $desc
+                ];
+            }
+        }
+    }
+    $custom_care_title_sql = $custom_care_title !== '' ? "'" . mysqli_real_escape_string($conn, $custom_care_title) . "'" : "NULL";
+    $custom_care_cards_sql = !empty($custom_care_cards) ? "'" . mysqli_real_escape_string($conn, json_encode($custom_care_cards)) . "'" : "NULL";
+
+    $is_bestseller = isset($_POST['is_bestseller']) ? 1 : 0;
+
+    // Auto-ensure custom_care columns exist in products table
+    $col_care_check = @mysqli_query($conn, "SHOW COLUMNS FROM products LIKE 'custom_care_enabled'");
+    if ($col_care_check && mysqli_num_rows($col_care_check) == 0) {
+        @mysqli_query($conn, "ALTER TABLE `products` ADD COLUMN `custom_care_enabled` TINYINT(1) NOT NULL DEFAULT 0");
+        @mysqli_query($conn, "ALTER TABLE `products` ADD COLUMN `custom_care_title` VARCHAR(255) NULL");
+        @mysqli_query($conn, "ALTER TABLE `products` ADD COLUMN `custom_care_cards` TEXT NULL");
+    }
+
+    // Addon products
+    $addon_title_raw = $_POST['addon_title'] ?? '';
+    $addon_title = is_string($addon_title_raw) ? trim($addon_title_raw) : '';
+    $addon_products = [];
+    $addon_types        = isset($_POST['addon_type'])              && is_array($_POST['addon_type'])              ? $_POST['addon_type']              : [];
+    $addon_product_ids  = isset($_POST['addon_product_id'])        && is_array($_POST['addon_product_id'])        ? $_POST['addon_product_id']        : [];
+    $addon_custom_names = isset($_POST['addon_custom_name'])       && is_array($_POST['addon_custom_name'])       ? $_POST['addon_custom_name']       : [];
+    $addon_custom_imgs  = isset($_POST['addon_custom_image_path']) && is_array($_POST['addon_custom_image_path']) ? $_POST['addon_custom_image_path'] : [];
+    $addon_custom_prices= isset($_POST['addon_custom_price'])      && is_array($_POST['addon_custom_price'])      ? $_POST['addon_custom_price']      : [];
+    $addon_needs_meas   = isset($_POST['addon_needs_measurement']) && is_array($_POST['addon_needs_measurement']) ? $_POST['addon_needs_measurement'] : [];
+
+    foreach ($addon_types as $idx => $atype) {
+        $atype = ($atype === 'custom') ? 'custom' : 'catalog';
+        if ($atype === 'catalog') {
+            $apid = intval($addon_product_ids[$idx] ?? 0);
+            if ($apid <= 0) continue;
+            $custom_p = isset($addon_custom_prices[$idx]) ? trim($addon_custom_prices[$idx]) : '';
+            $addon_products[] = [
+                'type'              => 'catalog',
+                'product_id'        => $apid,
+                'custom_price'      => (is_numeric($custom_p) && floatval($custom_p) > 0) ? floatval($custom_p) : null,
+                'needs_measurement' => in_array((string)$idx, $addon_needs_meas) ? true : false,
+            ];
+        } else {
+            $cname = trim($addon_custom_names[$idx] ?? '');
+            if ($cname === '') continue;
+            $custom_p = isset($addon_custom_prices[$idx]) ? trim($addon_custom_prices[$idx]) : '';
+            $addon_products[] = [
+                'type'              => 'custom',
+                'custom_name'       => $cname,
+                'custom_image'      => trim($addon_custom_imgs[$idx] ?? ''),
+                'custom_price'      => (is_numeric($custom_p) && floatval($custom_p) > 0) ? floatval($custom_p) : 0,
+                'needs_measurement' => in_array((string)$idx, $addon_needs_meas) ? true : false,
+            ];
+        }
+    }
+    $addon_title_sql = $addon_title !== '' ? "'" . mysqli_real_escape_string($conn, $addon_title) . "'" : "NULL";
+    $addon_products_sql = !empty($addon_products) ? "'" . mysqli_real_escape_string($conn, json_encode($addon_products)) . "'" : "NULL";
+
+    // Auto-ensure addon columns exist in products table
+    $col_addon_check = @mysqli_query($conn, "SHOW COLUMNS FROM products LIKE 'addon_products'");
+    if ($col_addon_check && mysqli_num_rows($col_addon_check) == 0) {
+        @mysqli_query($conn, "ALTER TABLE `products` ADD COLUMN `addon_title` VARCHAR(255) NULL");
+        @mysqli_query($conn, "ALTER TABLE `products` ADD COLUMN `addon_products` TEXT NULL");
+    }
+
     // Update product in database (without size and color fields)
     $sql = "UPDATE products SET 
                 name = '$name', 
@@ -203,11 +296,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 compare_price = $compare_price,
                 grams = $grams,
                 status = '$status',
+                is_bestseller = $is_bestseller,
                 image = '$imagesJson',
                 youtube_video_id = '$youtube_video_id',
                 custom_highlights_enabled = $custom_highlights_enabled,
                 custom_highlights_title = $custom_hl_title_sql,
                 custom_highlights_cards = $custom_hl_cards_sql,
+                custom_care_enabled = $custom_care_enabled,
+                custom_care_title = $custom_care_title_sql,
+                custom_care_cards = $custom_care_cards_sql,
+                addon_title = $addon_title_sql,
+                addon_products = $addon_products_sql,
                 updated_at = NOW()
             WHERE id = '" . mysqli_real_escape_string($conn, $product_id) . "'";
     

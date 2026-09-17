@@ -99,6 +99,43 @@ try {
     // Format date
     $createdAt = date('d M Y, h:i A', strtotime($product['created_at']));
 
+    $addon_items = [];
+    if (!empty($product['addon_products'])) {
+        $decoded_addons = json_decode($product['addon_products'], true);
+        if (is_array($decoded_addons) && count($decoded_addons) > 0) {
+            $aids = [];
+            $c_prices = [];
+            foreach ($decoded_addons as $ad) {
+                $aid = intval($ad['product_id'] ?? 0);
+                if ($aid > 0) {
+                    $aids[] = $aid;
+                    $c_prices[$aid] = (isset($ad['custom_price']) && is_numeric($ad['custom_price'])) ? floatval($ad['custom_price']) : null;
+                }
+            }
+            if (!empty($aids)) {
+                $aids_str = implode(',', $aids);
+                $a_res = mysqli_query($conn, "SELECT id, name, price, image FROM products WHERE id IN ($aids_str)");
+                if ($a_res) {
+                    while ($arow = mysqli_fetch_assoc($a_res)) {
+                        $aimg = 'assets/images/products/default.png';
+                        if (!empty($arow['image'])) {
+                            $aimg_dec = json_decode($arow['image'], true);
+                            $aimg = (is_array($aimg_dec) && !empty($aimg_dec)) ? $aimg_dec[0] : trim(explode(',', $arow['image'])[0]);
+                        }
+                        $aid = intval($arow['id']);
+                        $addon_items[] = [
+                            'id' => $aid,
+                            'name' => $arow['name'],
+                            'regular_price' => floatval($arow['price']),
+                            'custom_price' => $c_prices[$aid] ?? null,
+                            'image' => $aimg
+                        ];
+                    }
+                }
+            }
+        }
+    }
+
     // Prepare response
     $response = [
         'success' => true,
@@ -116,9 +153,15 @@ try {
             'sizes' => $sizes,
             'created_at' => $createdAt,
             'created_by' => $product['created_by_name'] ?: 'Unknown',
+            'is_bestseller' => !empty($product['is_bestseller']) ? 1 : 0,
             'custom_highlights_enabled' => !empty($product['custom_highlights_enabled']),
             'custom_highlights_title' => $product['custom_highlights_title'] ?? '',
-            'custom_highlights_cards' => !empty($product['custom_highlights_cards']) ? (json_decode($product['custom_highlights_cards'], true) ?: []) : []
+            'custom_highlights_cards' => !empty($product['custom_highlights_cards']) ? (json_decode($product['custom_highlights_cards'], true) ?: []) : [],
+            'custom_care_enabled' => !empty($product['custom_care_enabled']),
+            'custom_care_title' => $product['custom_care_title'] ?? '',
+            'custom_care_cards' => !empty($product['custom_care_cards']) ? (json_decode($product['custom_care_cards'], true) ?: []) : [],
+            'addon_title' => $product['addon_title'] ?? '',
+            'addon_products' => $addon_items
         ]
     ];
 

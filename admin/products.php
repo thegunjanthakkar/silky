@@ -1,14 +1,77 @@
 <?php
 // Basic session check for dashboard access
-session_start();
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+// Check if this is an AJAX toggle bestseller request
+$isAjaxToggle = ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'toggle_bestseller');
+
 if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true) {
+    if ($isAjaxToggle) {
+        header('Content-Type: application/json');
+        echo json_encode(['success' => false, 'message' => 'Unauthorized']);
+        exit;
+    }
     header('Location: login.php');
     exit;
 }
 // Check permission for this page
 require_once 'includes/permission-manager.php';
-checkPageAccess();
+if ($isAjaxToggle) {
+    if (!hasFileAccess('products.php')) {
+        header('Content-Type: application/json');
+        echo json_encode(['success' => false, 'message' => 'Permission denied']);
+        exit;
+    }
+} else {
+    checkPageAccess();
+}
 require_once '../db_config.php';
+
+// Handle AJAX toggle for bestseller directly in products.php
+if ($isAjaxToggle) {
+    header('Content-Type: application/json');
+    $productId = isset($_POST['product_id']) ? intval($_POST['product_id']) : 0;
+    if ($productId <= 0) {
+        echo json_encode(['success' => false, 'message' => 'Invalid product ID']);
+        exit;
+    }
+
+    $checkSql = "SELECT id, name, is_bestseller FROM products WHERE id = $productId LIMIT 1";
+    $res = mysqli_query($conn, $checkSql);
+    if (!$res || mysqli_num_rows($res) === 0) {
+        echo json_encode(['success' => false, 'message' => 'Product not found']);
+        exit;
+    }
+    $product = mysqli_fetch_assoc($res);
+
+    if (isset($_POST['is_bestseller'])) {
+        $newStatus = intval($_POST['is_bestseller']) === 1 ? 1 : 0;
+    } else {
+        $newStatus = empty($product['is_bestseller']) ? 1 : 0;
+    }
+
+    $updateSql = "UPDATE products SET is_bestseller = $newStatus WHERE id = $productId";
+    if (mysqli_query($conn, $updateSql)) {
+        $productName = htmlspecialchars($product['name']);
+        $msg = $newStatus === 1 
+            ? "'$productName' added to Best Sellers." 
+            : "'$productName' removed from Best Sellers.";
+        echo json_encode([
+            'success' => true,
+            'is_bestseller' => $newStatus,
+            'product_id' => $productId,
+            'message' => $msg
+        ]);
+    } else {
+        echo json_encode([
+            'success' => false,
+            'message' => 'Database error: ' . mysqli_error($conn)
+        ]);
+    }
+    exit;
+}
 
 // Handle bulk actions
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && isset($_POST['product_ids'])) {
@@ -33,6 +96,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && isset($_
                 $successMessage = "$count product(s) deactivated successfully!";
                 break;
                 
+            case 'mark_bestseller':
+                $sql = "UPDATE products SET is_bestseller = 1 WHERE id IN ($placeholders)";
+                $successMessage = "$count product(s) marked as Best Seller successfully!";
+                break;
+
+            case 'unmark_bestseller':
+                $sql = "UPDATE products SET is_bestseller = 0 WHERE id IN ($placeholders)";
+                $successMessage = "$count product(s) removed from Best Seller successfully!";
+                break;
+
             case 'delete':
                 // Delete related records first
                 $deleteColorsSql = "DELETE FROM product_colors WHERE product_id IN ($placeholders)";
@@ -234,17 +307,23 @@ $result = mysqli_query($conn, $sql);
                                                         <small class="text-muted">Choose an action to perform on selected products</small>
                                                     </div>
                                                 </div>
-                                                <div class="btn-group" role="group">
+                                                <div class="btn-group flex-wrap gap-1" role="group">
                                                     <button type="button" class="btn btn-success btn-sm" id="bulkActivate">
                                                         <i class="fas fa-check me-1"></i> Activate
                                                     </button>
                                                     <button type="button" class="btn btn-warning btn-sm" id="bulkDeactivate">
                                                         <i class="fas fa-pause me-1"></i> Inactive
                                                     </button>
+                                                    <button type="button" class="btn btn-primary btn-sm" id="bulkMarkBestSeller">
+                                                        <i class="fas fa-star me-1"></i> Add to Best Seller
+                                                    </button>
+                                                    <button type="button" class="btn btn-soft-warning btn-sm" id="bulkUnmarkBestSeller">
+                                                        <i class="far fa-star me-1"></i> Remove Best Seller
+                                                    </button>
                                                     <button type="button" class="btn btn-danger btn-sm" id="bulkDelete">
                                                         <i class="fas fa-trash me-1"></i> Delete
                                                     </button>
-                                                    <button type="button" class="btn btn-outline-secondary btn-sm ms-2" id="bulkCancel">
+                                                    <button type="button" class="btn btn-outline-secondary btn-sm ms-1" id="bulkCancel">
                                                         <i class="fas fa-times me-1"></i> Cancel
                                                     </button>
                                                 </div>
@@ -269,6 +348,7 @@ $result = mysqli_query($conn, $sql);
                                                 <th>Color</th>
                                                 <th>Price</th>
                                                 <th>Status</th>
+                                                <th class="text-center">Best Seller</th>
                                                 <th>Created At</th>
                                                 <th>Created By</th>
                                                 <th class="text-end">Action</th>
@@ -282,7 +362,7 @@ $result = mysqli_query($conn, $sql);
                                                         <td style="width: 16px;">
                                                             <div class="form-check">
                                                                 <input type="checkbox" class="form-check-input" name="check"
-                                                                    id="customCheck<?php echo $serial; ?>">
+                                                                    id="customCheck<?php echo $serial; ?>" value="<?php echo $row['id']; ?>">
                                                             </div>
                                                         </td>
                                                         <td class="ps-0">
@@ -397,6 +477,23 @@ $result = mysqli_query($conn, $sql);
                                                                 </span>
                                                             <?php endif; ?>
                                                         </td>
+                                                        <td class="text-center">
+                                                            <div class="form-check form-switch form-switch-warning d-inline-flex align-items-center justify-content-center mb-1">
+                                                                <input class="form-check-input bestseller-toggle" type="checkbox" role="switch"
+                                                                    id="bestseller_switch_<?php echo $row['id']; ?>"
+                                                                    data-product-id="<?php echo $row['id']; ?>"
+                                                                    <?php echo (!empty($row['is_bestseller']) && $row['is_bestseller'] == 1) ? 'checked' : ''; ?>
+                                                                    style="cursor: pointer;"
+                                                                    title="<?php echo (!empty($row['is_bestseller']) && $row['is_bestseller'] == 1) ? 'Click to remove from Best Seller' : 'Click to add to Best Seller'; ?>">
+                                                            </div>
+                                                            <div class="bestseller-badge-wrap" id="bestseller_badge_<?php echo $row['id']; ?>">
+                                                                <?php if (!empty($row['is_bestseller']) && $row['is_bestseller'] == 1): ?>
+                                                                    <span class="badge bg-warning-subtle text-warning border border-warning-subtle fs-11"><i class="fas fa-star me-1"></i>Yes</span>
+                                                                <?php else: ?>
+                                                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle fs-11">No</span>
+                                                                <?php endif; ?>
+                                                            </div>
+                                                        </td>
                                                         <td>
                                                             <span><?php echo date('d M Y, h:i A', strtotime($row['created_at'])); ?></span>
                                                         </td>
@@ -417,12 +514,13 @@ $result = mysqli_query($conn, $sql);
                                                                     data-id="<?php echo $row['id']; ?>" title="Delete"><i
                                                                         class="fas fa-trash"></i></button>
                                                             </div>
+                                                        </td>
                                                     </tr>
                                                     <?php $serial++; ?>
                                                 <?php endwhile; ?>
                                             <?php else: ?>
                                                 <tr>
-                                                    <td colspan="10" class="text-center py-4">
+                                                    <td colspan="11" class="text-center py-4">
                                                         <i class="iconoir-box fs-48 text-muted mb-2"></i>
                                                         <p class="text-muted mb-0">No products found</p>
                                                         <a href="add-product.php" class="btn btn-primary btn-sm mt-2">
@@ -524,10 +622,14 @@ $result = mysqli_query($conn, $sql);
             const checkboxes = document.querySelectorAll('input[name="check"]:checked');
             const ids = [];
             checkboxes.forEach(checkbox => {
-                const row = checkbox.closest('tr');
-                const viewBtn = row.querySelector('.btn-view-product');
-                if (viewBtn) {
-                    ids.push(viewBtn.getAttribute('data-id'));
+                if (checkbox.value) {
+                    ids.push(checkbox.value);
+                } else {
+                    const row = checkbox.closest('tr');
+                    const viewBtn = row ? row.querySelector('.btn-view-product') : null;
+                    if (viewBtn) {
+                        ids.push(viewBtn.getAttribute('data-id'));
+                    }
                 }
             });
             return ids;
@@ -542,7 +644,9 @@ $result = mysqli_query($conn, $sql);
             const actionText = {
                 'activate': 'activate',
                 'deactivate': 'deactivate',
-                'delete': 'delete'
+                'delete': 'delete',
+                'mark_bestseller': 'add to Best Seller',
+                'unmark_bestseller': 'remove from Best Seller'
             };
 
             if (action === 'delete') {
@@ -588,6 +692,20 @@ $result = mysqli_query($conn, $sql);
             performBulkAction('deactivate');
         });
 
+        const bulkMarkBsBtn = document.getElementById('bulkMarkBestSeller');
+        if (bulkMarkBsBtn) {
+            bulkMarkBsBtn.addEventListener('click', function() {
+                performBulkAction('mark_bestseller');
+            });
+        }
+
+        const bulkUnmarkBsBtn = document.getElementById('bulkUnmarkBestSeller');
+        if (bulkUnmarkBsBtn) {
+            bulkUnmarkBsBtn.addEventListener('click', function() {
+                performBulkAction('unmark_bestseller');
+            });
+        }
+
         document.getElementById('bulkDelete').addEventListener('click', function() {
             performBulkAction('delete');
         });
@@ -596,6 +714,70 @@ $result = mysqli_query($conn, $sql);
             document.querySelectorAll('input[name="check"]').forEach(cb => cb.checked = false);
             document.getElementById('select-all').checked = false;
             updateBulkActionBar();
+        });
+
+        // Toast notification helper
+        function showToast(msg, type = 'success') {
+            const el = document.getElementById('adminToast');
+            const msgEl = document.getElementById('adminToastMsg');
+            if (!el || !msgEl) return;
+            el.className = `toast align-items-center border-0 shadow-lg text-white ${type === 'success' ? 'bg-success' : (type === 'error' ? 'bg-danger' : 'bg-primary')}`;
+            msgEl.textContent = msg;
+            bootstrap.Toast.getOrCreateInstance(el, { delay: 3500 }).show();
+        }
+
+        // Individual Best Seller switch AJAX toggle (Delegated event listener)
+        document.addEventListener('change', function(e) {
+            if (e.target && e.target.classList.contains('bestseller-toggle')) {
+                const toggle = e.target;
+                const productId = toggle.getAttribute('data-product-id');
+                const isBestseller = toggle.checked ? 1 : 0;
+                const badgeWrap = document.getElementById('bestseller_badge_' + productId);
+
+                toggle.disabled = true;
+
+                fetch('products.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: new URLSearchParams({
+                        action: 'toggle_bestseller',
+                        product_id: productId,
+                        is_bestseller: isBestseller
+                    })
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('HTTP error ' + response.status);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    toggle.disabled = false;
+                    if (data.success) {
+                        if (data.is_bestseller == 1) {
+                            if (badgeWrap) badgeWrap.innerHTML = '<span class="badge bg-warning-subtle text-warning border border-warning-subtle fs-11"><i class="fas fa-star me-1"></i>Yes</span>';
+                            toggle.setAttribute('title', 'Click to remove from Best Seller');
+                            showToast(data.message || 'Product added to Best Seller!', 'success');
+                        } else {
+                            if (badgeWrap) badgeWrap.innerHTML = '<span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle fs-11">No</span>';
+                            toggle.setAttribute('title', 'Click to add to Best Seller');
+                            showToast(data.message || 'Product removed from Best Seller!', 'info');
+                        }
+                    } else {
+                        // Revert
+                        toggle.checked = !toggle.checked;
+                        showToast(data.message || 'Failed to update Best Seller status.', 'error');
+                    }
+                })
+                .catch(err => {
+                    toggle.disabled = false;
+                    toggle.checked = !toggle.checked;
+                    console.error('Error toggling bestseller:', err);
+                    showToast('Network error while updating Best Seller status.', 'error');
+                });
+            }
         });
 
         document.addEventListener('DOMContentLoaded', function() {
@@ -699,11 +881,15 @@ $result = mysqli_query($conn, $sql);
                 
                 // Status Badge
                 if (product.status === 'active') {
-                    html += '<span class="badge bg-success mb-3"><i class="fas fa-check me-1"></i> Active</span>';
+                    html += '<span class="badge bg-success mb-3 me-2"><i class="fas fa-check me-1"></i> Active</span>';
                 } else if (product.status === 'inactive') {
-                    html += '<span class="badge bg-danger mb-3"><i class="fas fa-xmark me-1"></i> Inactive</span>';
+                    html += '<span class="badge bg-danger mb-3 me-2"><i class="fas fa-xmark me-1"></i> Inactive</span>';
                 } else {
-                    html += '<span class="badge bg-secondary mb-3"><i class="fas fa-box-archive me-1"></i> Draft</span>';
+                    html += '<span class="badge bg-secondary mb-3 me-2"><i class="fas fa-box-archive me-1"></i> Draft</span>';
+                }
+
+                if (product.is_bestseller == 1) {
+                    html += '<span class="badge bg-warning text-dark mb-3"><i class="fas fa-star me-1"></i> Best Seller</span>';
                 }
                 
                 html += '<hr>';
@@ -793,6 +979,54 @@ $result = mysqli_query($conn, $sql);
                     html += '</div>';
                 }
 
+                // Care Instructions Section
+                if (product.custom_care_enabled) {
+                    html += '<div class="col-12">';
+                    html += '<div class="p-3 border rounded">';
+                    html += '<div class="d-flex justify-content-between align-items-center mb-2">';
+                    html += '<h6 class="fw-bold mb-0 small"><i class="bi bi-droplet-half text-info me-1"></i>Care Instructions</h6>';
+                    html += '<span class="badge bg-success-subtle text-success border border-success-subtle">Customized</span>';
+                    html += '</div>';
+                    if (product.custom_care_title) {
+                        html += '<p class="small text-muted mb-2">Heading: <strong>' + escapeHtml(product.custom_care_title) + '</strong></p>';
+                    }
+                    if (product.custom_care_cards && product.custom_care_cards.length > 0) {
+                        html += '<div class="row g-2">';
+                        product.custom_care_cards.forEach(card => {
+                            let styleAttr = card.color ? ' style="color: ' + escapeHtml(card.color) + ';"' : ' class="text-info"';
+                            html += '<div class="col-6"><div class="p-2 border rounded small h-100"><i class="' + escapeHtml(card.icon || 'bi bi-droplet-half') + ' me-1"' + styleAttr + '></i><strong>' + escapeHtml(card.title || '') + '</strong><div class="text-muted fs-11 mt-1 text-truncate" title="' + escapeHtml(card.desc || '') + '">' + escapeHtml(card.desc || '') + '</div></div></div>';
+                        });
+                        html += '</div>';
+                    }
+                    html += '</div>';
+                    html += '</div>';
+                }
+
+                // Addon Products Section
+                if (product.addon_products && product.addon_products.length > 0) {
+                    html += '<div class="col-12">';
+                    html += '<div class="p-3 border rounded bg-light">';
+                    html += '<div class="d-flex justify-content-between align-items-center mb-2">';
+                    html += '<h6 class="fw-bold mb-0 small"><i class="fas fa-puzzle-piece text-primary me-1"></i>Add-on Products (' + product.addon_products.length + ')</h6>';
+                    html += '<span class="badge bg-primary-subtle text-primary border border-primary-subtle">' + escapeHtml(product.addon_title || 'Frequently Added Together') + '</span>';
+                    html += '</div>';
+                    html += '<div class="row g-2">';
+                    product.addon_products.forEach(addon => {
+                        let img = addon.image || 'assets/images/products/default.png';
+                        if (!img.startsWith('../') && !img.startsWith('http')) {
+                            img = '../' + img;
+                        }
+                        let priceDisplay = '₹' + parseFloat(addon.regular_price).toLocaleString('en-IN');
+                        if (addon.custom_price !== null && addon.custom_price !== undefined) {
+                            priceDisplay = '<span class="text-success fw-bold">₹' + parseFloat(addon.custom_price).toLocaleString('en-IN') + '</span> <span class="text-muted text-decoration-line-through fs-11">₹' + parseFloat(addon.regular_price).toLocaleString('en-IN') + '</span>';
+                        }
+                        html += '<div class="col-6"><div class="d-flex align-items-center gap-2 p-2 border rounded bg-white small h-100"><img src="' + img + '" class="rounded border" style="width:36px;height:36px;object-fit:cover;" onerror="this.src=\'../assets/images/products/default.png\'"><div class="overflow-hidden flex-grow-1"><div class="text-truncate fw-semibold">' + escapeHtml(addon.name) + '</div><div class="small">' + priceDisplay + '</div></div></div></div>';
+                    });
+                    html += '</div>';
+                    html += '</div>';
+                    html += '</div>';
+                }
+
                 html += '</div>'; // End row
                 
                 html += '</div>'; // End col-md-7
@@ -822,6 +1056,16 @@ $result = mysqli_query($conn, $sql);
             });
         });
     </script>
+
+    <!-- Toast Notification -->
+    <div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 1090;">
+        <div id="adminToast" class="toast align-items-center border-0 shadow-lg" role="alert" aria-atomic="true">
+            <div class="d-flex">
+                <div class="toast-body fw-semibold" id="adminToastMsg"></div>
+                <button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast"></button>
+            </div>
+        </div>
+    </div>
 </body>
 
 </html>

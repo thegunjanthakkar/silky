@@ -245,6 +245,9 @@ $error_message = isset($_GET['error']) ? 'Error saving settings.' : '';
                                      <li class="nav-item">
                                          <a class="nav-link" id="highlights-tab" data-bs-toggle="tab" href="#highlights" role="tab"><i class="bi bi-stars me-1"></i> Product Highlights</a>
                                      </li>
+                                     <li class="nav-item">
+                                         <a class="nav-link" id="care-tab" data-bs-toggle="tab" href="#care" role="tab"><i class="bi bi-droplet-half me-1"></i> Care Instructions</a>
+                                     </li>
                                  </ul>
                             </div>
                             <div class="card-body">
@@ -712,6 +715,96 @@ $error_message = isset($_GET['error']) ? 'Error saving settings.' : '';
                                                 <?php endforeach; ?>
                                             </div>
                                         </div>
+
+                                        <!-- Care Instructions Tab -->
+                                        <div class="tab-pane fade" id="care" role="tabpanel">
+                                            <div class="d-flex justify-content-between align-items-center mb-4 pb-2 border-bottom">
+                                                <div>
+                                                    <h5 class="card-title mb-1">Product Details - Specifications Care Instructions Cards</h5>
+                                                    <p class="text-muted small mb-0">These cards appear in the <strong>Specifications</strong> tab under the Care Instructions section on product pages.</p>
+                                                </div>
+                                                <div class="form-check form-switch form-switch-success">
+                                                    <input class="form-check-input" type="checkbox" name="product_care_enabled" value="1" id="product_care_enabled" <?php echo ($settings['product_care_enabled'] ?? '1') == '1' ? 'checked' : ''; ?>>
+                                                    <label class="form-check-label fw-semibold" for="product_care_enabled">Show on Product Pages</label>
+                                                </div>
+                                            </div>
+
+                                            <div class="mb-4">
+                                                <label class="form-label fw-bold">Section Heading</label>
+                                                <input type="text" class="form-control form-control-lg" name="product_care_title" value="<?php echo htmlspecialchars($settings['product_care_title'] ?? 'Care Instructions'); ?>" placeholder="e.g. Care Instructions">
+                                                <small class="text-muted">Heading displayed above the care cards in the Specifications tab.</small>
+                                            </div>
+
+                                            <?php
+                                            $default_care_cards = [
+                                                ['icon' => 'bi bi-droplet-half', 'color' => '#0dcaf0', 'title' => 'Washing', 'desc' => 'Dry clean only for best results'],
+                                                ['icon' => 'bi bi-brightness-high', 'color' => '#ffc107', 'title' => 'Drying', 'desc' => 'Avoid drying in direct sunlight'],
+                                                ['icon' => 'bi bi-archive', 'color' => '#0e2187', 'title' => 'Storage', 'desc' => 'Store in a cool, dry place'],
+                                                ['icon' => 'bi bi-thermometer-half', 'color' => '#dc3545', 'title' => 'Ironing', 'desc' => 'Iron on reverse side on low heat']
+                                            ];
+                                            $care_cards = $default_care_cards;
+                                            if (!empty($settings['product_care_cards'])) {
+                                                $decoded_care = json_decode($settings['product_care_cards'], true);
+                                                if (json_last_error() === JSON_ERROR_NONE && is_array($decoded_care) && count($decoded_care) > 0) {
+                                                    $care_cards = $decoded_care;
+                                                }
+                                            }
+                                            ?>
+
+                                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                                <h6 class="fw-bold mb-0">Care Instruction Cards (Default for all products)</h6>
+                                                <button type="button" class="btn btn-sm btn-soft-primary" onclick="addCareCard()">
+                                                    <i class="fas fa-plus me-1"></i> Add Card
+                                                </button>
+                                            </div>
+
+                                            <div class="row g-3" id="care-cards-list">
+                                                <?php foreach ($care_cards as $idx => $card): 
+                                                    $cIcon = !empty($card['icon']) ? $card['icon'] : 'bi bi-droplet-half';
+                                                    $cColor = !empty($card['color']) ? $card['color'] : '#0dcaf0';
+                                                    $cTitle = $card['title'] ?? '';
+                                                    $cDesc = $card['desc'] ?? '';
+                                                ?>
+                                                <div class="col-md-6 care-card-item">
+                                                    <div class="card border shadow-none mb-0 h-100">
+                                                        <div class="card-header d-flex justify-content-between align-items-center py-2 px-3 border-bottom">
+                                                            <span class="fw-bold fs-12 text-primary"><i class="fas fa-grip-vertical handle me-2"></i>Card #<span class="care-card-num"><?php echo $idx + 1; ?></span></span>
+                                                            <button type="button" class="btn btn-sm btn-soft-danger py-0 px-2" onclick="removeCareCard(this)" title="Delete Card"><i class="fas fa-trash font-11"></i></button>
+                                                        </div>
+                                                        <div class="card-body p-3">
+                                                            <div class="mb-3">
+                                                                <label class="form-label small fw-semibold">Icon &amp; Color</label>
+                                                                <div class="input-group mb-2">
+                                                                    <span class="input-group-text care-icon-preview-box" style="font-size: 1.3rem; color: <?php echo htmlspecialchars($cColor); ?>; width: 48px; justify-content: center;">
+                                                                        <i class="<?php echo htmlspecialchars($cIcon); ?>"></i>
+                                                                    </span>
+                                                                    <input type="text" class="form-control care-card-icon-input" name="care_card_icon[]" value="<?php echo htmlspecialchars($cIcon); ?>" oninput="updateCareIconPreview(this)" placeholder="e.g. bi bi-droplet-half">
+                                                                    <input type="color" class="form-control form-control-color care-card-color-input" name="care_card_color[]" value="<?php echo htmlspecialchars($cColor); ?>" onchange="updateCareColorPreview(this)" title="Choose icon color" style="max-width: 48px;">
+                                                                </div>
+                                                                <div class="d-flex flex-wrap gap-1">
+                                                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1" style="cursor: pointer;" onclick="selectCarePreset(this, 'bi bi-droplet-half', '#0dcaf0')"><i class="bi bi-droplet-half me-1" style="color:#0dcaf0;"></i>Washing</span>
+                                                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1" style="cursor: pointer;" onclick="selectCarePreset(this, 'bi bi-brightness-high', '#ffc107')"><i class="bi bi-brightness-high me-1" style="color:#ffc107;"></i>Drying</span>
+                                                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1" style="cursor: pointer;" onclick="selectCarePreset(this, 'bi bi-archive', '#0e2187')"><i class="bi bi-archive me-1" style="color:#0e2187;"></i>Storage</span>
+                                                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1" style="cursor: pointer;" onclick="selectCarePreset(this, 'bi bi-thermometer-half', '#dc3545')"><i class="bi bi-thermometer-half me-1" style="color:#dc3545;"></i>Ironing</span>
+                                                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1" style="cursor: pointer;" onclick="selectCarePreset(this, 'bi bi-shield-check', '#198754')"><i class="bi bi-shield-check me-1 text-success"></i>Care</span>
+                                                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1" style="cursor: pointer;" onclick="selectCarePreset(this, 'bi bi-wind', '#6c757d')"><i class="bi bi-wind me-1 text-secondary"></i>Air</span>
+                                                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1" style="cursor: pointer;" onclick="selectCarePreset(this, 'bi bi-stars', '#ffc107')"><i class="bi bi-stars me-1 text-warning"></i>Sparkle</span>
+                                                                </div>
+                                                            </div>
+                                                            <div class="mb-3">
+                                                                <label class="form-label small fw-semibold">Card Title *</label>
+                                                                <input type="text" class="form-control" name="care_card_title[]" value="<?php echo htmlspecialchars($cTitle); ?>" placeholder="e.g. Washing" required>
+                                                            </div>
+                                                            <div class="mb-2">
+                                                                <label class="form-label small fw-semibold">Card Description *</label>
+                                                                <textarea class="form-control" name="care_card_desc[]" rows="2" placeholder="Brief 1-2 sentence instructions" required><?php echo htmlspecialchars($cDesc); ?></textarea>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <?php endforeach; ?>
+                                            </div>
+                                        </div>
                                     </div>
                                     <hr>
                                     <input type="submit" class="btn btn-primary btn-lg px-5" value="Save All Changes">
@@ -750,6 +843,14 @@ $error_message = isset($_GET['error']) ? 'Error saving settings.' : '';
                     handle: '.handle', 
                     animation: 150,
                     onEnd: reindexHighlightCards
+                });
+            }
+            const careList = document.getElementById('care-cards-list');
+            if (careList) {
+                new Sortable(careList, { 
+                    handle: '.handle', 
+                    animation: 150,
+                    onEnd: reindexCareCards
                 });
             }
         });
@@ -828,6 +929,100 @@ $error_message = isset($_GET['error']) ? 'Error saving settings.' : '';
                             <div class="mb-2">
                                 <label class="form-label small fw-semibold">Card Description *</label>
                                 <textarea class="form-control" name="highlight_card_desc[]" rows="2" placeholder="Brief 1-2 sentence description" required></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            list.insertAdjacentHTML('beforeend', html);
+        }
+
+        function updateCareIconPreview(input) {
+            const wrap = input.closest('.mb-3');
+            const preview = wrap.querySelector('.care-icon-preview-box i');
+            if (preview) {
+                let cls = input.value.trim();
+                if (cls.startsWith('bi-') && !cls.startsWith('bi bi-')) cls = 'bi ' + cls;
+                preview.className = cls || 'bi bi-droplet-half';
+            }
+        }
+
+        function updateCareColorPreview(input) {
+            const wrap = input.closest('.mb-3');
+            const previewBox = wrap.querySelector('.care-icon-preview-box');
+            if (previewBox) {
+                previewBox.style.color = input.value;
+            }
+        }
+
+        function selectCarePreset(badge, iconClass, colorHex) {
+            const wrap = badge.closest('.mb-3');
+            const iconInput = wrap.querySelector('.care-card-icon-input');
+            const colorInput = wrap.querySelector('.care-card-color-input');
+            const previewBox = wrap.querySelector('.care-icon-preview-box');
+            const previewIcon = previewBox ? previewBox.querySelector('i') : null;
+            if (iconInput) iconInput.value = iconClass;
+            if (colorInput) colorInput.value = colorHex;
+            if (previewIcon) previewIcon.className = iconClass;
+            if (previewBox) previewBox.style.color = colorHex;
+        }
+
+        function reindexCareCards() {
+            const list = document.querySelectorAll('#care-cards-list .care-card-item');
+            list.forEach((card, idx) => {
+                const num = card.querySelector('.care-card-num');
+                if (num) num.textContent = idx + 1;
+            });
+        }
+
+        function removeCareCard(btn) {
+            const item = btn.closest('.care-card-item');
+            if (item) {
+                if (confirm('Are you sure you want to remove this care card?')) {
+                    item.remove();
+                    reindexCareCards();
+                }
+            }
+        }
+
+        function addCareCard() {
+            const list = document.getElementById('care-cards-list');
+            if (!list) return;
+            const count = list.querySelectorAll('.care-card-item').length + 1;
+            const html = `
+                <div class="col-md-6 care-card-item">
+                    <div class="card border shadow-none mb-0 h-100">
+                        <div class="card-header d-flex justify-content-between align-items-center py-2 px-3 border-bottom">
+                            <span class="fw-bold fs-12 text-primary"><i class="fas fa-grip-vertical handle me-2"></i>Card #<span class="care-card-num">${count}</span></span>
+                            <button type="button" class="btn btn-sm btn-soft-danger py-0 px-2" onclick="removeCareCard(this)" title="Delete Card"><i class="fas fa-trash font-11"></i></button>
+                        </div>
+                        <div class="card-body p-3">
+                            <div class="mb-3">
+                                <label class="form-label small fw-semibold">Icon & Color</label>
+                                <div class="input-group mb-2">
+                                    <span class="input-group-text care-icon-preview-box" style="font-size: 1.3rem; color: #0dcaf0; width: 48px; justify-content: center;">
+                                        <i class="bi bi-droplet-half"></i>
+                                    </span>
+                                    <input type="text" class="form-control care-card-icon-input" name="care_card_icon[]" value="bi bi-droplet-half" oninput="updateCareIconPreview(this)" placeholder="e.g. bi bi-droplet-half">
+                                    <input type="color" class="form-control form-control-color care-card-color-input" name="care_card_color[]" value="#0dcaf0" onchange="updateCareColorPreview(this)" title="Choose icon color" style="max-width: 48px;">
+                                </div>
+                                <div class="d-flex flex-wrap gap-1">
+                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1" style="cursor: pointer;" onclick="selectCarePreset(this, 'bi bi-droplet-half', '#0dcaf0')"><i class="bi bi-droplet-half me-1" style="color:#0dcaf0;"></i>Washing</span>
+                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1" style="cursor: pointer;" onclick="selectCarePreset(this, 'bi bi-brightness-high', '#ffc107')"><i class="bi bi-brightness-high me-1" style="color:#ffc107;"></i>Drying</span>
+                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1" style="cursor: pointer;" onclick="selectCarePreset(this, 'bi bi-archive', '#0e2187')"><i class="bi bi-archive me-1" style="color:#0e2187;"></i>Storage</span>
+                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1" style="cursor: pointer;" onclick="selectCarePreset(this, 'bi bi-thermometer-half', '#dc3545')"><i class="bi bi-thermometer-half me-1" style="color:#dc3545;"></i>Ironing</span>
+                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1" style="cursor: pointer;" onclick="selectCarePreset(this, 'bi bi-shield-check', '#198754')"><i class="bi bi-shield-check me-1 text-success"></i>Care</span>
+                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1" style="cursor: pointer;" onclick="selectCarePreset(this, 'bi bi-wind', '#6c757d')"><i class="bi bi-wind me-1 text-secondary"></i>Air</span>
+                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1" style="cursor: pointer;" onclick="selectCarePreset(this, 'bi bi-stars', '#ffc107')"><i class="bi bi-stars me-1 text-warning"></i>Sparkle</span>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label small fw-semibold">Card Title *</label>
+                                <input type="text" class="form-control" name="care_card_title[]" value="" placeholder="e.g. Washing" required>
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label small fw-semibold">Card Description *</label>
+                                <textarea class="form-control" name="care_card_desc[]" rows="2" placeholder="Brief 1-2 sentence instructions" required></textarea>
                             </div>
                         </div>
                     </div>

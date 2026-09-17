@@ -34,10 +34,11 @@ $flat_settings = [
     'whatsapp_number', 'wa_form_title', 'wa_form_subtitle', 'wa_show_product', 'wa_product_options',
     'wa_show_budget', 'wa_budget_options', 'wa_show_color', 'wa_color_options', 'wa_show_message',
     'wa_button_text', 'wa_form_note',
-    'product_highlights_enabled', 'product_highlights_title'
+    'product_highlights_enabled', 'product_highlights_title',
+    'product_care_enabled', 'product_care_title'
 ];
 
-$checkboxes = ['cta_show', 'wa_show_product', 'wa_show_budget', 'wa_show_color', 'wa_show_message', 'product_highlights_enabled'];
+$checkboxes = ['cta_show', 'wa_show_product', 'wa_show_budget', 'wa_show_color', 'wa_show_message', 'product_highlights_enabled', 'product_care_enabled'];
 foreach ($checkboxes as $cb) {
     if (!isset($_POST[$cb])) {
         $_POST[$cb] = '0';
@@ -56,7 +57,7 @@ if (!$has_section) {
 foreach ($flat_settings as $key) {
     $val = isset($_POST[$key]) ? $_POST[$key] : '';
     $val_safe = mysqli_real_escape_string($conn, $val);
-    $sec = (strpos($key, 'product_highlights_') === 0) ? 'product_page' : 'general';
+    $sec = (strpos($key, 'product_highlights_') === 0 || strpos($key, 'product_care_') === 0) ? 'product_page' : 'general';
     if ($has_section) {
         $sql = "INSERT INTO website_settings (setting_key, setting_value, section) 
                 VALUES ('$key', '$val_safe', '$sec') 
@@ -100,6 +101,38 @@ if (isset($_POST['highlight_card_title']) && is_array($_POST['highlight_card_tit
     }
     if (!mysqli_query($conn, $sql)) {
         $errors[] = "Setting 'product_highlights_cards': " . mysqli_error($conn);
+    }
+}
+
+// Process Product Care Instructions Cards
+if (isset($_POST['care_card_title']) && is_array($_POST['care_card_title'])) {
+    $saved_care = [];
+    foreach ($_POST['care_card_title'] as $idx => $title) {
+        $title = trim($title);
+        $icon = trim($_POST['care_card_icon'][$idx] ?? 'bi bi-droplet-half');
+        $color = trim($_POST['care_card_color'][$idx] ?? '#0dcaf0');
+        $desc = trim($_POST['care_card_desc'][$idx] ?? '');
+        if ($title !== '' || $desc !== '') {
+            $saved_care[] = [
+                'icon' => $icon,
+                'color' => $color,
+                'title' => $title,
+                'desc' => $desc
+            ];
+        }
+    }
+    $care_json = mysqli_real_escape_string($conn, json_encode($saved_care));
+    if ($has_section) {
+        $sql = "INSERT INTO website_settings (setting_key, setting_value, section) 
+                VALUES ('product_care_cards', '$care_json', 'product_page') 
+                ON DUPLICATE KEY UPDATE setting_value='$care_json'";
+    } else {
+        $sql = "INSERT INTO website_settings (setting_key, setting_value) 
+                VALUES ('product_care_cards', '$care_json') 
+                ON DUPLICATE KEY UPDATE setting_value='$care_json'";
+    }
+    if (!mysqli_query($conn, $sql)) {
+        $errors[] = "Setting 'product_care_cards': " . mysqli_error($conn);
     }
 }
 

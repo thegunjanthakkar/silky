@@ -370,7 +370,7 @@ if ($cat_res) {
                     LEFT JOIN order_items oi ON p.id = oi.product_id
                     WHERE p.status = '1' OR p.status = 'active'
                     GROUP BY p.id
-                    ORDER BY total_sold DESC, p.created_at DESC
+                    ORDER BY p.is_bestseller DESC, total_sold DESC, p.created_at DESC
                     LIMIT 8
                 ";
                 $bs_res = mysqli_query($conn, $bs_sql);

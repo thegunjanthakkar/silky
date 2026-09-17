@@ -8,6 +8,14 @@ require_once 'includes/permission-manager.php';
 checkPageAccess();
 require_once '../db_config.php';
 
+// Auto-ensure custom_care columns exist in products table
+$col_care_check = @mysqli_query($conn, "SHOW COLUMNS FROM products LIKE 'custom_care_enabled'");
+if ($col_care_check && mysqli_num_rows($col_care_check) == 0) {
+    @mysqli_query($conn, "ALTER TABLE `products` ADD COLUMN `custom_care_enabled` TINYINT(1) NOT NULL DEFAULT 0");
+    @mysqli_query($conn, "ALTER TABLE `products` ADD COLUMN `custom_care_title` VARCHAR(255) NULL");
+    @mysqli_query($conn, "ALTER TABLE `products` ADD COLUMN `custom_care_cards` TEXT NULL");
+}
+
 $product_id = intval($_GET['id'] ?? 0);
 if ($product_id <= 0) {
     $_SESSION['error'] = 'Invalid product ID.';
@@ -79,6 +87,35 @@ while ($row = mysqli_fetch_assoc($variants_result)) {
         'grams' => $row['grams'],
         'stock' => $row['stock_quantity']
     ];
+}
+
+// Auto-ensure addon columns exist
+$col_addon_check = @mysqli_query($conn, "SHOW COLUMNS FROM products LIKE 'addon_products'");
+if ($col_addon_check && mysqli_num_rows($col_addon_check) == 0) {
+    @mysqli_query($conn, "ALTER TABLE `products` ADD COLUMN `addon_title` VARCHAR(255) NULL");
+    @mysqli_query($conn, "ALTER TABLE `products` ADD COLUMN `addon_products` TEXT NULL");
+}
+
+// Fetch all other active products for addon selection
+$all_catalog_products = [];
+$catalog_sql = "SELECT id, name, price, image FROM products WHERE status = 'active' AND id != $product_id ORDER BY name ASC";
+$catalog_res = mysqli_query($conn, $catalog_sql);
+if ($catalog_res) {
+    while ($cp = mysqli_fetch_assoc($catalog_res)) {
+        $cp_img = 'assets/images/products/default.png';
+        if (!empty($cp['image'])) {
+            $dec = json_decode($cp['image'], true);
+            $cp_img = (is_array($dec) && !empty($dec)) ? $dec[0] : trim(explode(',', $cp['image'])[0]);
+        }
+        $cp['resolved_image'] = $cp_img;
+        $all_catalog_products[] = $cp;
+    }
+}
+
+// Parse existing saved addons
+$existing_addons = [];
+if (!empty($product['addon_products'])) {
+    $existing_addons = json_decode($product['addon_products'], true) ?: [];
 }
 ?>
 <!DOCTYPE html>
@@ -480,13 +517,23 @@ while ($row = mysqli_fetch_assoc($variants_result)) {
                                         </div>
                                     </div>
 
-                                    <div class="mb-3">
-                                        <label for="status" class="form-label">Status</label>
-                                        <select class="form-select" id="status" name="status" required>
-                                            <option value="active" <?php echo ($product['status'] === 'active') ? 'selected' : ''; ?>>Active</option>
-                                            <option value="inactive" <?php echo ($product['status'] === 'inactive') ? 'selected' : ''; ?>>Inactive</option>
-                                            <option value="draft" <?php echo ($product['status'] === 'draft') ? 'selected' : ''; ?>>Draft</option>
-                                        </select>
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label for="status" class="form-label">Status</label>
+                                            <select class="form-select" id="status" name="status" required>
+                                                <option value="active" <?php echo ($product['status'] === 'active') ? 'selected' : ''; ?>>Active</option>
+                                                <option value="inactive" <?php echo ($product['status'] === 'inactive') ? 'selected' : ''; ?>>Inactive</option>
+                                                <option value="draft" <?php echo ($product['status'] === 'draft') ? 'selected' : ''; ?>>Draft</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-6 mb-3 d-flex flex-column justify-content-center">
+                                            <label class="form-label mb-2">Best Seller</label>
+                                            <div class="form-check form-switch form-switch-warning">
+                                                <input class="form-check-input" type="checkbox" name="is_bestseller" value="1" id="is_bestseller" <?php echo (!empty($product['is_bestseller']) && $product['is_bestseller'] == 1) ? 'checked' : ''; ?>>
+                                                <label class="form-check-label fw-semibold fs-13" for="is_bestseller"><i class="fas fa-star text-warning me-1"></i>Mark as Best Seller</label>
+                                            </div>
+                                            <small class="text-muted">Featured in the Best Sellers section on the website.</small>
+                                        </div>
                                     </div>
 
                                     <div class="mb-4" id="variants-section" style="display: none;">
@@ -615,6 +662,203 @@ while ($row = mysqli_fetch_assoc($variants_result)) {
                                         </div>
                                         <div class="card-body py-2 text-muted fs-12 border-top" id="custom-highlights-placeholder" style="display: <?php echo $product_has_custom_hl ? 'none' : 'block'; ?>;">
                                             <i class="fas fa-check-circle me-1 text-success"></i> This product uses the <strong>global default highlights</strong> configured in <a href="edit-website.php#highlights" target="_blank" class="fw-semibold text-primary">Edit Website &rarr; Product Highlights</a>.
+                                        </div>
+                                    </div>
+
+                                    <!-- Care Instructions Section -->
+                                    <?php
+                                    // Fetch global care settings for reference/fallbacks
+                                    $global_care_res = @mysqli_query($conn, "SELECT setting_value FROM website_settings WHERE setting_key = 'product_care_cards'");
+                                    $global_care_cards = [];
+                                    if ($global_care_res && $r = mysqli_fetch_assoc($global_care_res)) {
+                                        $global_care_cards = json_decode($r['setting_value'], true) ?: [];
+                                    }
+                                    if (empty($global_care_cards)) {
+                                        $global_care_cards = [
+                                            ['icon' => 'bi bi-droplet-half', 'color' => '#0dcaf0', 'title' => 'Washing', 'desc' => 'Dry clean only for best results'],
+                                            ['icon' => 'bi bi-brightness-high', 'color' => '#ffc107', 'title' => 'Drying', 'desc' => 'Avoid drying in direct sunlight'],
+                                            ['icon' => 'bi bi-archive', 'color' => '#0e2187', 'title' => 'Storage', 'desc' => 'Store in a cool, dry place'],
+                                            ['icon' => 'bi bi-thermometer-half', 'color' => '#dc3545', 'title' => 'Ironing', 'desc' => 'Iron on reverse side on low heat']
+                                        ];
+                                    }
+
+                                    $product_has_custom_care = !empty($product['custom_care_enabled']);
+                                    $product_care_title = $product['custom_care_title'] ?? '';
+                                    $product_care_cards = [];
+                                    if (!empty($product['custom_care_cards'])) {
+                                        $product_care_cards = json_decode($product['custom_care_cards'], true) ?: [];
+                                    }
+                                    if (empty($product_care_cards)) {
+                                        $product_care_cards = $global_care_cards;
+                                    }
+                                    ?>
+                                    <div class="card border mb-4">
+                                        <div class="card-header d-flex justify-content-between align-items-center py-2">
+                                            <div>
+                                                <h4 class="card-title mb-0 fs-15"><i class="bi bi-droplet-half text-info me-1"></i> Specifications - Care Instructions Cards</h4>
+                                                <small class="text-muted">Cards shown in the "Care Instructions" section within the Specifications tab on this product's page</small>
+                                            </div>
+                                            <div class="form-check form-switch form-switch-success ms-3">
+                                                <input class="form-check-input" type="checkbox" name="custom_care_enabled" value="1" id="custom_care_enabled" <?php echo $product_has_custom_care ? 'checked' : ''; ?> onchange="toggleCustomCare(this.checked)">
+                                                <label class="form-check-label fw-semibold fs-13" for="custom_care_enabled">Customize for this product</label>
+                                            </div>
+                                        </div>
+                                        <div class="card-body" id="custom-care-panel" style="display: <?php echo $product_has_custom_care ? 'block' : 'none'; ?>;">
+                                            <div class="alert alert-info py-2 fs-13 d-flex justify-content-between align-items-center mb-3">
+                                                <span><i class="fas fa-info-circle me-1"></i> When customized, these specific care cards override the global default care instructions on this product's page.</span>
+                                                <button type="button" class="btn btn-sm btn-soft-primary text-nowrap ms-2" onclick="resetCareToGlobalDefaults()"><i class="fas fa-undo me-1"></i> Reset to Global Defaults</button>
+                                            </div>
+
+                                            <div class="mb-3">
+                                                <label class="form-label fw-semibold fs-13">Custom Section Heading</label>
+                                                <input type="text" class="form-control" name="custom_care_heading" id="custom_care_heading" value="<?php echo htmlspecialchars($product_care_title); ?>" placeholder="Leave blank to use global heading (e.g. Care Instructions)">
+                                            </div>
+
+                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                <label class="form-label fw-semibold fs-13 mb-0">Care Instruction Cards</label>
+                                                <button type="button" class="btn btn-sm btn-soft-primary" onclick="addProductCareCard()">
+                                                    <i class="fas fa-plus me-1"></i> Add Card
+                                                </button>
+                                            </div>
+
+                                            <div class="row g-3" id="product-care-cards-list">
+                                                <?php foreach ($product_care_cards as $idx => $card): 
+                                                    $cIcon = !empty($card['icon']) ? $card['icon'] : 'bi bi-droplet-half';
+                                                    $cColor = !empty($card['color']) ? $card['color'] : '#0dcaf0';
+                                                    $cTitle = $card['title'] ?? '';
+                                                    $cDesc = $card['desc'] ?? '';
+                                                ?>
+                                                <div class="col-md-6 prod-care-card-item">
+                                                    <div class="card border mb-0 h-100 shadow-none">
+                                                        <div class="card-header d-flex justify-content-between align-items-center py-2 px-3 border-bottom">
+                                                            <span class="fw-bold fs-12 text-primary">Card #<span class="care-pcard-num"><?php echo $idx + 1; ?></span></span>
+                                                            <button type="button" class="btn btn-sm btn-soft-danger py-0 px-2" onclick="removeProductCareCard(this)" title="Remove"><i class="fas fa-trash font-11"></i></button>
+                                                        </div>
+                                                        <div class="card-body p-3">
+                                                            <div class="mb-2">
+                                                                <label class="form-label fs-12 mb-1">Icon &amp; Color</label>
+                                                                <div class="input-group input-group-sm mb-1">
+                                                                    <span class="input-group-text prod-care-icon-preview-box" style="font-size: 1.1rem; color: <?php echo htmlspecialchars($cColor); ?>; width: 40px; justify-content: center;">
+                                                                        <i class="<?php echo htmlspecialchars($cIcon); ?>"></i>
+                                                                    </span>
+                                                                    <input type="text" class="form-control form-control-sm prod-care-card-icon-input" name="custom_care_card_icon[]" value="<?php echo htmlspecialchars($cIcon); ?>" oninput="updateProdCareIcon(this)" placeholder="e.g. bi bi-droplet-half">
+                                                                    <input type="color" class="form-control form-control-color prod-care-card-color-input" name="custom_care_card_color[]" value="<?php echo htmlspecialchars($cColor); ?>" onchange="updateProdCareColor(this)" title="Choose color" style="max-width: 40px; padding: 2px;">
+                                                                </div>
+                                                                <div class="d-flex flex-wrap gap-1">
+                                                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1 cursor-pointer" onclick="setProdCareIcon(this, 'bi bi-droplet-half', '#0dcaf0')"><i class="bi bi-droplet-half me-1" style="color:#0dcaf0;"></i>Washing</span>
+                                                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1 cursor-pointer" onclick="setProdCareIcon(this, 'bi bi-brightness-high', '#ffc107')"><i class="bi bi-brightness-high me-1" style="color:#ffc107;"></i>Drying</span>
+                                                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1 cursor-pointer" onclick="setProdCareIcon(this, 'bi bi-archive', '#0e2187')"><i class="bi bi-archive me-1" style="color:#0e2187;"></i>Storage</span>
+                                                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1 cursor-pointer" onclick="setProdCareIcon(this, 'bi bi-thermometer-half', '#dc3545')"><i class="bi bi-thermometer-half me-1" style="color:#dc3545;"></i>Ironing</span>
+                                                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1 cursor-pointer" onclick="setProdCareIcon(this, 'bi bi-shield-check', '#198754')"><i class="bi bi-shield-check me-1 text-success"></i>Care</span>
+                                                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1 cursor-pointer" onclick="setProdCareIcon(this, 'bi bi-wind', '#6c757d')"><i class="bi bi-wind me-1 text-secondary"></i>Air</span>
+                                                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1 cursor-pointer" onclick="setProdCareIcon(this, 'bi bi-stars', '#ffc107')"><i class="bi bi-stars me-1 text-warning"></i>Sparkle</span>
+                                                                </div>
+                                                            </div>
+                                                            <div class="mb-2">
+                                                                <label class="form-label fs-12 mb-1">Title</label>
+                                                                <input type="text" class="form-control form-control-sm" name="custom_care_card_title[]" value="<?php echo htmlspecialchars($cTitle); ?>" placeholder="e.g. Washing">
+                                                            </div>
+                                                            <div>
+                                                                <label class="form-label fs-12 mb-1">Description</label>
+                                                                <textarea class="form-control form-control-sm" name="custom_care_card_desc[]" rows="2" placeholder="Brief care instructions"><?php echo htmlspecialchars($cDesc); ?></textarea>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <?php endforeach; ?>
+                                            </div>
+                                        </div>
+                                        <div class="card-body py-2 text-muted fs-12 border-top" id="custom-care-placeholder" style="display: <?php echo $product_has_custom_care ? 'none' : 'block'; ?>;">
+                                            <i class="fas fa-check-circle me-1 text-success"></i> This product uses the <strong>global default care instructions</strong> configured in <a href="edit-website.php#care" target="_blank" class="fw-semibold text-primary">Edit Website &rarr; Care Instructions</a>.
+                                        </div>
+                                    </div>
+
+                                    <!-- Add-on Products Section -->
+                                    <div class="card border mb-4">
+                                        <div class="card-header py-2">
+                                            <h4 class="card-title mb-0 fs-15"><i class="fas fa-puzzle-piece text-primary me-1"></i> Add-on Products (Frequently Added Together)</h4>
+                                            <small class="text-muted">Select other items from your catalog that will be recommended as add-ons on this product's page</small>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="mb-3">
+                                                <label class="form-label fw-semibold fs-13">Section Heading</label>
+                                                <input type="text" class="form-control" name="addon_title" id="addon_title" value="<?php echo htmlspecialchars($product['addon_title'] ?? ''); ?>" placeholder="e.g. Frequently Added Together, Complete the Look, Matching Add-ons">
+                                                <small class="text-muted">Leave blank to use default heading "Frequently Added Together".</small>
+                                            </div>
+
+                                            <div class="row g-2 align-items-end mb-3">
+                                                <div class="col-md-8">
+                                                    <label class="form-label fw-semibold fs-13 mb-1">Select Product to Add as Add-on</label>
+                                                    <select id="addon_picker" class="form-select">
+                                                        <option value="">-- Choose a product --</option>
+                                                        <?php foreach ($all_catalog_products as $cp): ?>
+                                                        <option value="<?php echo $cp['id']; ?>" 
+                                                                data-name="<?php echo htmlspecialchars($cp['name']); ?>" 
+                                                                data-price="<?php echo htmlspecialchars($cp['price']); ?>" 
+                                                                data-image="<?php echo htmlspecialchars($cp['resolved_image']); ?>">
+                                                            <?php echo htmlspecialchars($cp['name']); ?> (₹<?php echo number_format($cp['price'], 2); ?>)
+                                                        </option>
+                                                        <?php endforeach; ?>
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <button type="button" class="btn btn-soft-primary w-100" onclick="addSelectedAddon()">
+                                                        <i class="fas fa-plus me-1"></i> Add as Add-on
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            <div class="table-responsive">
+                                                <table class="table table-bordered table-sm align-middle mb-0" id="addon-products-table" style="<?php echo empty($existing_addons) ? 'display:none;' : ''; ?>">
+                                                    <thead class="table-light">
+                                                        <tr>
+                                                            <th style="width: 50px;" class="text-center">Image</th>
+                                                            <th>Product Name</th>
+                                                            <th style="width: 140px;">Catalog Price</th>
+                                                            <th style="width: 210px;">Special Add-on Price (₹)</th>
+                                                            <th style="width: 60px;" class="text-center">Action</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody id="addon-products-tbody">
+                                                        <?php 
+                                                        $catalog_by_id = [];
+                                                        foreach ($all_catalog_products as $cp) {
+                                                            $catalog_by_id[$cp['id']] = $cp;
+                                                        }
+                                                        foreach ($existing_addons as $ad):
+                                                            $aid = intval($ad['product_id'] ?? 0);
+                                                            if (!isset($catalog_by_id[$aid])) continue;
+                                                            $item = $catalog_by_id[$aid];
+                                                            $cPrice = isset($ad['custom_price']) && is_numeric($ad['custom_price']) ? floatval($ad['custom_price']) : '';
+                                                        ?>
+                                                        <tr data-product-id="<?php echo $aid; ?>">
+                                                            <td class="text-center">
+                                                                <input type="hidden" name="addon_product_id[]" value="<?php echo $aid; ?>">
+                                                                <img src="<?php echo htmlspecialchars($item['resolved_image']); ?>" class="rounded border" style="width: 40px; height: 40px; object-fit: cover;" onerror="this.src='assets/images/products/default.png'">
+                                                            </td>
+                                                            <td>
+                                                                <strong class="fs-13"><?php echo htmlspecialchars($item['name']); ?></strong>
+                                                            </td>
+                                                            <td>
+                                                                <span class="text-muted">₹<?php echo number_format($item['price'], 2); ?></span>
+                                                            </td>
+                                                            <td>
+                                                                <div class="input-group input-group-sm">
+                                                                    <span class="input-group-text">₹</span>
+                                                                    <input type="number" step="0.01" min="0" class="form-control" name="addon_custom_price[]" value="<?php echo htmlspecialchars($cPrice); ?>" placeholder="Catalog Price (₹<?php echo number_format($item['price'], 2); ?>)">
+                                                                </div>
+                                                            </td>
+                                                            <td class="text-center">
+                                                                <button type="button" class="btn btn-sm btn-soft-danger py-0 px-2" onclick="removeAddonRow(this)" title="Remove"><i class="fas fa-trash font-11"></i></button>
+                                                            </td>
+                                                        </tr>
+                                                        <?php endforeach; ?>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                            <div id="addon-empty-placeholder" class="text-muted small py-3 text-center border rounded bg-light" style="<?php echo !empty($existing_addons) ? 'display:none;' : ''; ?>">
+                                                <i class="fas fa-info-circle me-1"></i> No add-on products added yet. Select a product above and click <strong>"Add as Add-on"</strong>.
+                                            </div>
                                         </div>
                                     </div>
 
@@ -872,6 +1116,184 @@ while ($row = mysqli_fetch_assoc($variants_result)) {
             globalDefaultCards.forEach(c => {
                 addProductHighlightCard(c.icon || 'bi bi-gem', c.title || '', c.desc || '');
             });
+        }
+
+        // Care Instructions JS Functions
+        const globalDefaultCareCards = <?php echo json_encode($global_care_cards); ?>;
+
+        function toggleCustomCare(enabled) {
+            const panel = document.getElementById('custom-care-panel');
+            const placeholder = document.getElementById('custom-care-placeholder');
+            if (panel) panel.style.display = enabled ? 'block' : 'none';
+            if (placeholder) placeholder.style.display = enabled ? 'none' : 'block';
+        }
+
+        function updateProdCareIcon(input) {
+            const wrap = input.closest('.mb-2');
+            const preview = wrap.querySelector('.prod-care-icon-preview-box i');
+            if (preview) {
+                let cls = input.value.trim();
+                if (cls.startsWith('bi-') && !cls.startsWith('bi bi-')) cls = 'bi ' + cls;
+                preview.className = cls || 'bi bi-droplet-half';
+            }
+        }
+
+        function updateProdCareColor(input) {
+            const wrap = input.closest('.mb-2');
+            const previewBox = wrap.querySelector('.prod-care-icon-preview-box');
+            if (previewBox) {
+                previewBox.style.color = input.value;
+            }
+        }
+
+        function setProdCareIcon(badge, iconClass, colorHex) {
+            const wrap = badge.closest('.mb-2');
+            const input = wrap.querySelector('.prod-care-card-icon-input');
+            const colorInput = wrap.querySelector('.prod-care-card-color-input');
+            const previewBox = wrap.querySelector('.prod-care-icon-preview-box');
+            const previewIcon = previewBox ? previewBox.querySelector('i') : null;
+            if (input) input.value = iconClass;
+            if (colorInput) colorInput.value = colorHex;
+            if (previewIcon) previewIcon.className = iconClass;
+            if (previewBox) previewBox.style.color = colorHex;
+        }
+
+        function reindexProductCareCards() {
+            const items = document.querySelectorAll('#product-care-cards-list .prod-care-card-item');
+            items.forEach((item, idx) => {
+                const num = item.querySelector('.care-pcard-num');
+                if (num) num.textContent = idx + 1;
+            });
+        }
+
+        function removeProductCareCard(btn) {
+            const item = btn.closest('.prod-care-card-item');
+            if (item) {
+                item.remove();
+                reindexProductCareCards();
+            }
+        }
+
+        function addProductCareCard(icon = 'bi bi-droplet-half', color = '#0dcaf0', title = '', desc = '') {
+            const list = document.getElementById('product-care-cards-list');
+            if (!list) return;
+            const count = list.querySelectorAll('.prod-care-card-item').length + 1;
+            const html = `
+                <div class="col-md-6 prod-care-card-item">
+                    <div class="card border mb-0 h-100 shadow-none">
+                        <div class="card-header d-flex justify-content-between align-items-center py-2 px-3 border-bottom">
+                            <span class="fw-bold fs-12 text-primary">Card #<span class="care-pcard-num">${count}</span></span>
+                            <button type="button" class="btn btn-sm btn-soft-danger py-0 px-2" onclick="removeProductCareCard(this)" title="Remove"><i class="fas fa-trash font-11"></i></button>
+                        </div>
+                        <div class="card-body p-3">
+                            <div class="mb-2">
+                                <label class="form-label fs-12 mb-1">Icon & Color</label>
+                                <div class="input-group input-group-sm mb-1">
+                                    <span class="input-group-text prod-care-icon-preview-box" style="font-size: 1.1rem; color: ${color}; width: 40px; justify-content: center;">
+                                        <i class="${icon}"></i>
+                                    </span>
+                                    <input type="text" class="form-control form-control-sm prod-care-card-icon-input" name="custom_care_card_icon[]" value="${icon}" oninput="updateProdCareIcon(this)" placeholder="e.g. bi bi-droplet-half">
+                                    <input type="color" class="form-control form-control-color prod-care-card-color-input" name="custom_care_card_color[]" value="${color}" onchange="updateProdCareColor(this)" title="Choose color" style="max-width: 40px; padding: 2px;">
+                                </div>
+                                <div class="d-flex flex-wrap gap-1">
+                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1 cursor-pointer" onclick="setProdCareIcon(this, 'bi bi-droplet-half', '#0dcaf0')"><i class="bi bi-droplet-half me-1" style="color:#0dcaf0;"></i>Washing</span>
+                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1 cursor-pointer" onclick="setProdCareIcon(this, 'bi bi-brightness-high', '#ffc107')"><i class="bi bi-brightness-high me-1" style="color:#ffc107;"></i>Drying</span>
+                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1 cursor-pointer" onclick="setProdCareIcon(this, 'bi bi-archive', '#0e2187')"><i class="bi bi-archive me-1" style="color:#0e2187;"></i>Storage</span>
+                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1 cursor-pointer" onclick="setProdCareIcon(this, 'bi bi-thermometer-half', '#dc3545')"><i class="bi bi-thermometer-half me-1" style="color:#dc3545;"></i>Ironing</span>
+                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1 cursor-pointer" onclick="setProdCareIcon(this, 'bi bi-shield-check', '#198754')"><i class="bi bi-shield-check me-1 text-success"></i>Care</span>
+                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1 cursor-pointer" onclick="setProdCareIcon(this, 'bi bi-wind', '#6c757d')"><i class="bi bi-wind me-1 text-secondary"></i>Air</span>
+                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1 cursor-pointer" onclick="setProdCareIcon(this, 'bi bi-stars', '#ffc107')"><i class="bi bi-stars me-1 text-warning"></i>Sparkle</span>
+                                </div>
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label fs-12 mb-1">Title</label>
+                                <input type="text" class="form-control form-control-sm" name="custom_care_card_title[]" value="${title.replace(/"/g, '&quot;')}" placeholder="e.g. Washing">
+                            </div>
+                            <div>
+                                <label class="form-label fs-12 mb-1">Description</label>
+                                <textarea class="form-control form-control-sm" name="custom_care_card_desc[]" rows="2" placeholder="Brief care instructions">${desc}</textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            list.insertAdjacentHTML('beforeend', html);
+        }
+
+        function resetCareToGlobalDefaults() {
+            if (!confirm('Replace current care cards with the global default care instructions?')) return;
+            const list = document.getElementById('product-care-cards-list');
+            if (!list) return;
+            list.innerHTML = '';
+            const headingInput = document.getElementById('custom_care_heading') || document.getElementById('custom_care_title');
+            if (headingInput) headingInput.value = '';
+            globalDefaultCareCards.forEach(c => {
+                addProductCareCard(c.icon || 'bi bi-droplet-half', c.color || '#0dcaf0', c.title || '', c.desc || '');
+            });
+        }
+
+        // Add-on products handling
+        function addSelectedAddon() {
+            const picker = document.getElementById('addon_picker');
+            if (!picker || !picker.value) {
+                alert('Please select a product first.');
+                return;
+            }
+            const opt = picker.options[picker.selectedIndex];
+            const id = opt.value;
+            const name = opt.dataset.name;
+            const price = parseFloat(opt.dataset.price || 0).toFixed(2);
+            let img = opt.dataset.image || 'assets/images/products/default.png';
+
+            const existing = document.querySelector(`#addon-products-tbody tr[data-product-id="${id}"]`);
+            if (existing) {
+                alert('This product is already in the add-ons list.');
+                return;
+            }
+
+            const tbody = document.getElementById('addon-products-tbody');
+            const table = document.getElementById('addon-products-table');
+            const placeholder = document.getElementById('addon-empty-placeholder');
+
+            const tr = document.createElement('tr');
+            tr.dataset.productId = id;
+            tr.innerHTML = `
+                <td class="text-center">
+                    <input type="hidden" name="addon_product_id[]" value="${id}">
+                    <img src="${img}" class="rounded border" style="width: 40px; height: 40px; object-fit: cover;" onerror="this.src='assets/images/products/default.png'">
+                </td>
+                <td>
+                    <strong class="fs-13">${name.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</strong>
+                </td>
+                <td>
+                    <span class="text-muted">₹${price}</span>
+                </td>
+                <td>
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text">₹</span>
+                        <input type="number" step="0.01" min="0" class="form-control" name="addon_custom_price[]" value="" placeholder="Catalog Price (₹${price})">
+                    </div>
+                </td>
+                <td class="text-center">
+                    <button type="button" class="btn btn-sm btn-soft-danger py-0 px-2" onclick="removeAddonRow(this)" title="Remove"><i class="fas fa-trash font-11"></i></button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+            table.style.display = '';
+            if (placeholder) placeholder.style.display = 'none';
+            picker.value = '';
+        }
+
+        function removeAddonRow(btn) {
+            const tr = btn.closest('tr');
+            if (tr) tr.remove();
+            const tbody = document.getElementById('addon-products-tbody');
+            const table = document.getElementById('addon-products-table');
+            const placeholder = document.getElementById('addon-empty-placeholder');
+            if (tbody && tbody.children.length === 0) {
+                if (table) table.style.display = 'none';
+                if (placeholder) placeholder.style.display = '';
+            }
         }
 
         // YouTube video handling
