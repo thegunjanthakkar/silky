@@ -192,7 +192,7 @@ function sendOrderConfirmationEmail($conn, $order_id, $order_number, $customer_e
                                     </tr>' : '') . '
                                     <tr>
                                         <td colspan="3" style="padding: 10px 15px; text-align: right; color: #555555;">Tax:</td>
-                                        <td style="padding: 10px 15px; text-align: right; color: #333333;">₹' . number_format($order['tax_amount'], 2) . '</td>
+                                        <td style="padding: 10px 15px; text-align: right; color: #333333;">' . (floatval($order['tax_amount'] ?? 0) > 0 ? ('₹' . number_format($order['tax_amount'], 2)) : '<span style="color: #28a745; font-weight: 600;">Included</span>') . '</td>
                                     </tr>
                                     <tr>
                                         <td colspan="3" style="padding: 15px; text-align: right; font-weight: 600; color: #555555;">Total:</td>

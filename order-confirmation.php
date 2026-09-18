@@ -72,6 +72,11 @@ while ($item = mysqli_fetch_assoc($items_result)) {
     $order_items[] = $item;
 }
 
+// Fetch tax setting to determine if tax is blank/included
+$tax_setting_query = mysqli_query($conn, "SELECT setting_value FROM general_settings WHERE setting_key = 'tax_percentage' LIMIT 1");
+$tax_setting_val = ($tax_setting_query && $trow = mysqli_fetch_assoc($tax_setting_query)) ? trim($trow['setting_value'] ?? '') : '';
+$tax_is_blank = ($tax_setting_val === '' || floatval($tax_setting_val) <= 0);
+
 // Parse shipping address
 $shipping_address = json_decode($order['shipping_address'], true);
 
@@ -344,6 +349,12 @@ if ($fav_category_id > 0) {
       padding: 1rem;
       border-bottom: 1px solid #f0f0f0;
       transition: background 0.2s ease;
+    }
+    
+    .order-item-row .badge {
+      white-space: normal !important;
+      word-break: break-word;
+      text-align: left;
     }
     
     .order-item-row:hover {
@@ -650,19 +661,113 @@ if ($fav_category_id > 0) {
               <div class="card-body p-0">
                 <?php foreach ($order_items as $item): ?>
                 <div class="order-item-row">
-                  <div class="row align-items-center">
-                    <div class="col-md-5">
+                  <div class="row align-items-start gy-2">
+                    <div class="col-12 col-md-6">
                       <strong class="d-block mb-1"><?php echo htmlspecialchars($item['product_name']); ?></strong>
-                      <?php if (!empty($item['variant_info'])): ?>
-                        <div class="text-muted small mb-1"><span class="badge bg-light text-dark border"><i class="bi bi-tag me-1"></i><?php echo htmlspecialchars($item['variant_info']); ?></span></div>
+                      <?php if (!empty($item['variant_info'])): 
+                        $vInfo = trim($item['variant_info']);
+                        $isAddon = (stripos($vInfo, 'add-on') !== false || stripos($vInfo, 'addon') !== false);
+                        $isCustom = (stripos($vInfo, 'custom') !== false);
+                        $cMeasurements = [];
+                        $cNotes = '';
+                        $colorPart = '';
+                        $sizePart = '';
+
+                        if (preg_match('/\(([^)]+)\)/', $vInfo, $pm)) {
+                          $parenStr = trim($pm[1]);
+                          $baseV = trim(str_replace($pm[0], '', $vInfo));
+                          foreach (preg_split('/[•\x{2022},;|\n\r]+/u', $parenStr) as $pr) {
+                            $pr = trim($pr);
+                            if ($pr === '') continue;
+                            if (strpos($pr, ':') !== false) {
+                              list($k, $v) = explode(':', $pr, 2);
+                              $k = trim($k);
+                              $v = trim($v);
+                              if (strtolower($k) === 'notes' || strtolower($k) === 'special instructions') {
+                                $cNotes = $v;
+                              } else {
+                                $cMeasurements[ucfirst($k)] = $v;
+                              }
+                            } else {
+                              if ($cNotes === '') $cNotes = $pr;
+                              else $cNotes .= ', ' . $pr;
+                            }
+                          }
+                        } else {
+                          $baseV = $vInfo;
+                        }
+
+                        // Fallback: detect measurements without parens
+                        if (empty($cMeasurements) && preg_match('/(bust|waist|hips?|chest|length|shoulder|sleeve|armhole|front\s*neck)\s*:/i', $vInfo)) {
+                          foreach (preg_split('/[•\x{2022},;|\n\r]+/u', $vInfo) as $pr) {
+                            $pr = trim($pr);
+                            if ($pr === '') continue;
+                            if (strpos($pr, ':') !== false) {
+                              list($k, $v) = explode(':', $pr, 2);
+                              $lowerK = strtolower(trim($k));
+                              if ($lowerK === 'notes') $cNotes = trim($v);
+                              elseif (in_array($lowerK, ['bust', 'chest', 'waist', 'hip', 'hips', 'length', 'shoulder', 'sleeve', 'armhole', 'front neck', 'fit'])) {
+                                $cMeasurements[ucfirst(trim($k))] = trim($v);
+                              }
+                            }
+                          }
+                        }
+
+                        $baseV = trim(preg_replace('/\s*\|\s*\|\s*/', ' | ', $baseV), " |");
+                        if (strpos($baseV, '|') !== false) {
+                          $bParts = array_map('trim', explode('|', $baseV));
+                          $colorPart = $bParts[0] ?? '';
+                          $sizePart = $bParts[1] ?? '';
+                        } else {
+                          if ($isCustom) $sizePart = 'Custom';
+                          elseif (!$isAddon) $sizePart = $baseV;
+                        }
+                      ?>
+                        <div class="mb-2">
+                          <div class="d-flex flex-wrap gap-1 align-items-center mb-1">
+                            <?php if ($isAddon): ?>
+                              <span class="badge bg-warning-subtle text-dark border border-warning-subtle" style="font-size: 11px;"><i class="fas fa-puzzle-piece text-warning me-1"></i>Add-on</span>
+                            <?php elseif ($isCustom): ?>
+                              <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle" style="font-size: 11px;"><i class="bi bi-scissors me-1"></i>Custom Tailoring</span>
+                            <?php endif; ?>
+                            <?php if ($colorPart !== ''): ?>
+                              <span class="badge bg-light text-dark border" style="font-size: 11px;"><i class="bi bi-palette me-1 text-muted"></i><?php echo htmlspecialchars($colorPart); ?></span>
+                            <?php endif; ?>
+                            <?php if ($sizePart !== '' && strtolower($sizePart) !== 'custom' && strtolower($sizePart) !== 'add-on'): ?>
+                              <span class="badge bg-light text-dark border" style="font-size: 11px;"><?php echo htmlspecialchars($sizePart); ?></span>
+                            <?php endif; ?>
+                          </div>
+
+                          <?php if (!empty($cMeasurements) || !empty($cNotes)): ?>
+                            <div class="p-2 rounded bg-light border" style="font-size: 11px; max-width: 100%; white-space: normal; word-break: break-word;">
+                              <div class="text-secondary fw-semibold mb-1"><i class="bi bi-rulers text-primary me-1"></i>Measurements (Inches):</div>
+                              <div class="d-flex flex-wrap gap-1">
+                                <?php foreach ($cMeasurements as $mk => $mv): ?>
+                                  <span class="badge bg-white text-dark border px-2 py-1 shadow-sm" style="font-size: 10.5px; font-weight: normal; white-space: normal;">
+                                    <span class="text-muted"><?php echo htmlspecialchars($mk); ?>:</span> <strong><?php echo htmlspecialchars($mv); ?></strong>
+                                  </span>
+                                <?php endforeach; ?>
+                              </div>
+                              <?php if (!empty($cNotes)): ?>
+                                <div class="text-muted mt-1 pt-1 border-top" style="font-size: 10.5px;">
+                                  <i class="bi bi-chat-left-text me-1 text-info"></i><strong>Notes:</strong> <?php echo htmlspecialchars($cNotes); ?>
+                                </div>
+                              <?php endif; ?>
+                            </div>
+                          <?php elseif (!$isAddon && !$isCustom && empty($colorPart) && empty($sizePart)): ?>
+                            <span class="badge bg-light text-dark border text-wrap text-start" style="font-size: 11px; max-width: 100%; white-space: normal; word-break: break-word;"><i class="bi bi-tag me-1"></i><?php echo htmlspecialchars($vInfo); ?></span>
+                          <?php endif; ?>
+                        </div>
                       <?php endif; ?>
-                      <small class="text-muted">Qty: <?php echo $item['quantity']; ?></small>
+                      <small class="text-muted d-block mt-1">Qty: <?php echo intval($item['quantity']); ?></small>
                     </div>
-                    <div class="col-md-3 text-md-center mt-2 mt-md-0">
+                    <div class="col-6 col-md-3 text-md-center">
+                      <small class="text-muted d-block d-md-none">Unit Price</small>
                       <span class="text-muted">₹<?php echo number_format($item['product_price'], 2); ?></span>
                     </div>
-                    <div class="col-md-4 text-md-end mt-2 mt-md-0">
-                      <strong class="text-primary">₹<?php echo number_format($item['subtotal'], 2); ?></strong>
+                    <div class="col-6 col-md-3 text-end">
+                      <small class="text-muted d-block d-md-none">Subtotal</small>
+                      <strong class="text-primary fs-6">₹<?php echo number_format($item['subtotal'], 2); ?></strong>
                     </div>
                   </div>
                 </div>
@@ -686,9 +791,15 @@ if ($fav_category_id > 0) {
                     <span>-₹<?php echo number_format($order['discount_amount'], 2); ?></span>
                   </div>
                   <?php endif; ?>
-                  <div class="order-summary-row d-flex justify-content-between">
+                  <div class="order-summary-row d-flex justify-content-between align-items-center">
                     <span>Tax</span>
-                    <span>₹<?php echo number_format($order['tax_amount'], 2); ?></span>
+                    <span>
+                      <?php if ($tax_is_blank || floatval($order['tax_amount'] ?? 0) <= 0): ?>
+                        <span class="text-success fw-semibold">Included</span>
+                      <?php else: ?>
+                        ₹<?php echo number_format($order['tax_amount'], 2); ?>
+                      <?php endif; ?>
+                    </span>
                   </div>
                   <div class="order-summary-row total d-flex justify-content-between">
                     <span>Total</span>

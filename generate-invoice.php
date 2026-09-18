@@ -11,7 +11,7 @@ $order_number = mysqli_real_escape_string($conn, $_GET['order']);
 
 // Fetch general settings (business email, phone, address)
 $settings = [];
-$settings_sql = "SELECT setting_key, setting_value FROM general_settings WHERE setting_key IN ('business_email', 'business_phone', 'business_address')";
+$settings_sql = "SELECT setting_key, setting_value FROM general_settings WHERE setting_key IN ('business_email', 'business_phone', 'business_address', 'tax_percentage')";
 $settings_result = mysqli_query($conn, $settings_sql);
 if ($settings_result) {
     while ($row = mysqli_fetch_assoc($settings_result)) {
@@ -240,6 +240,48 @@ td {
                     <?php if (!empty($item['product_code'])): ?>
                     <div style="font-size: 10px; color: #666; font-family: monospace;">Code: <?php echo htmlspecialchars($item['product_code']); ?></div>
                     <?php endif; ?>
+                    <?php 
+                    $vInfo = trim($item['variant_info'] ?? '');
+                    if ($vInfo !== '') {
+                        $isAddonInv = (stripos($vInfo, 'add-on') !== false || stripos($vInfo, 'addon') !== false);
+                        $isCustomInv = (stripos($vInfo, 'custom') !== false);
+                        $invMeas = [];
+                        $invNotes = '';
+                        if (preg_match('/\(([^)]+)\)/', $vInfo, $pmInv)) {
+                            foreach (preg_split('/[•\x{2022},;|\n\r]+/u', $pmInv[1]) as $pr) {
+                                if (strpos($pr, ':') !== false) {
+                                    list($k, $v) = explode(':', $pr, 2);
+                                    if (strtolower(trim($k)) === 'notes') $invNotes = trim($v);
+                                    else $invMeas[ucfirst(trim($k))] = trim($v);
+                                }
+                            }
+                        }
+                        echo '<div style="margin-top: 4px; font-size: 11px; color: #555;">';
+                        if ($isAddonInv) {
+                            echo '<span style="display:inline-block; background: #fff3cd; color: #856404; border: 1px solid #ffeeba; border-radius: 3px; padding: 1px 5px; font-weight: 600; margin-right: 5px; font-size: 10px;">Add-on</span>';
+                        } elseif ($isCustomInv) {
+                            echo '<span style="display:inline-block; background: #cff4fc; color: #055160; border: 1px solid #b6effb; border-radius: 3px; padding: 1px 5px; font-weight: 600; margin-right: 5px; font-size: 10px;">Custom Fit</span>';
+                        }
+                        $cleanV = trim(preg_replace('/\(([^)]+)\)/', '', $vInfo));
+                        if ($cleanV !== '' && strtolower($cleanV) !== 'add-on' && strtolower($cleanV) !== 'custom') {
+                            echo '<span>' . htmlspecialchars($cleanV) . '</span>';
+                        }
+                        if (!empty($invMeas)) {
+                            echo '<div style="margin-top: 3px; padding: 4px 6px; background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 4px; font-size: 10.5px;">';
+                            echo '<strong style="color:#495057;">Measurements:</strong> ';
+                            $mParts = [];
+                            foreach ($invMeas as $mk => $mv) {
+                                $mParts[] = htmlspecialchars($mk) . ': ' . htmlspecialchars($mv);
+                            }
+                            echo implode(' | ', $mParts);
+                            if (!empty($invNotes)) {
+                                echo '<br><strong style="color:#495057;">Notes:</strong> ' . htmlspecialchars($invNotes);
+                            }
+                            echo '</div>';
+                        }
+                        echo '</div>';
+                    }
+                    ?>
                 </td>
                 <td class="text-center"><?php echo $item['quantity']; ?></td>
                 <td class="text-right">₹<?php echo number_format($item['product_price'],2); ?></td>
@@ -268,7 +310,16 @@ td {
             <?php endif; ?>
             <tr>
                 <td>Tax</td>
-                <td class="text-right">₹<?php echo number_format($order['tax_amount'],2); ?></td>
+                <td class="text-right">
+                    <?php 
+                    $tax_setting_raw = $settings['tax_percentage'] ?? null;
+                    $tax_is_blank = ($tax_setting_raw === null || trim($tax_setting_raw) === '' || floatval($tax_setting_raw) <= 0);
+                    if ($tax_is_blank || floatval($order['tax_amount'] ?? 0) <= 0): ?>
+                        <span style="color: #28a745; font-weight: bold;">Included</span>
+                    <?php else: ?>
+                        ₹<?php echo number_format($order['tax_amount'], 2); ?>
+                    <?php endif; ?>
+                </td>
             </tr>
             <tr class="grand">
                 <td>Total</td>

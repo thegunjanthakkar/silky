@@ -12,7 +12,7 @@ $param_val = ($product_id_param > 0) ? $product_id_param : $product_slug;
 $sql = "SELECT p.*, c.name as category_name,
         IFNULL(stk.quantity, 0) as stock,
         GROUP_CONCAT(DISTINCT CONCAT(col.color_name, '|', col.color_code) SEPARATOR '~') as product_colors,
-        GROUP_CONCAT(DISTINCT s.size_label SEPARATOR '~') as product_sizes
+        GROUP_CONCAT(DISTINCT s.size_label ORDER BY FIELD(s.size_label, 'XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL', 'Free Size', 'Custom'), s.size_label SEPARATOR '~') as product_sizes
         FROM products p 
         LEFT JOIN stock stk ON p.id = stk.product_id
         LEFT JOIN categories c ON p.category_id = c.id 
@@ -166,6 +166,88 @@ if (isset($_SESSION['user_id'])) {
         if ($res_check && $res_check->num_rows > 0) {
             $has_reviewed = true;
             $can_review = false; // Only one review per user
+        }
+    }
+}
+
+// Fetch add-ons configured for this product
+$addon_products_data = [];
+$addon_section_title = !empty($product['addon_title']) ? $product['addon_title'] : 'Frequently Added Together';
+if (!empty($product['addon_products'])) {
+    $decoded_addons = json_decode($product['addon_products'], true);
+    if (is_array($decoded_addons) && count($decoded_addons) > 0) {
+        // Collect catalog IDs for a single DB query
+        $addon_ids = [];
+        $addon_meta = []; // indexed by product_id for catalog, or sequential for custom
+        foreach ($decoded_addons as $ad) {
+            $atype = $ad['type'] ?? (isset($ad['product_id']) ? 'catalog' : 'custom');
+            if ($atype === 'catalog') {
+                $aid = intval($ad['product_id'] ?? 0);
+                if ($aid > 0) {
+                    $addon_ids[] = $aid;
+                    $addon_meta[$aid] = $ad; // store the config
+                }
+            } else {
+                // Custom add-on — push directly without DB query
+                $cname  = trim($ad['custom_name'] ?? '');
+                if ($cname === '') continue;
+                $cimg   = !empty($ad['custom_image']) ? ltrim($ad['custom_image'], './') : 'assets/images/products/default.png';
+                $cprice = floatval($ad['custom_price'] ?? 0);
+                $addon_products_data[] = [
+                    'id'               => 'custom_' . count($addon_products_data),
+                    'type'             => 'custom',
+                    'name'             => $cname,
+                    'slug'             => '',
+                    'regular_price'    => $cprice,
+                    'effective_price'  => $cprice,
+                    'has_discount'     => false,
+                    'image'            => $cimg,
+                    'stock'            => 1, // custom items are always "in stock"
+                    'needs_measurement'=> !empty($ad['needs_measurement']),
+                ];
+            }
+        }
+        // Fetch catalog products from DB
+        if (!empty($addon_ids)) {
+            $ids_str = implode(',', $addon_ids);
+            $addons_sql = "SELECT p.id, p.name, p.slug, p.price, p.compare_price, p.image, IFNULL(stk.quantity, 0) as stock FROM products p LEFT JOIN stock stk ON p.id = stk.product_id WHERE p.id IN ($ids_str) AND p.status = 'active'";
+            $addons_res = mysqli_query($conn, $addons_sql);
+            if ($addons_res) {
+                $db_rows = [];
+                while ($a_row = mysqli_fetch_assoc($addons_res)) {
+                    $db_rows[intval($a_row['id'])] = $a_row;
+                }
+                // Maintain original order
+                foreach ($addon_ids as $aid) {
+                    if (!isset($db_rows[$aid])) continue;
+                    $a_row = $db_rows[$aid];
+                    $meta  = $addon_meta[$aid];
+                    $a_img = 'assets/images/products/default.png';
+                    if (!empty($a_row['image'])) {
+                        $aimg_dec = json_decode($a_row['image'], true);
+                        if (is_array($aimg_dec) && count($aimg_dec) > 0) {
+                            $a_img = $aimg_dec[0];
+                        } else {
+                            $a_img = trim(explode(',', $a_row['image'])[0]);
+                        }
+                        $a_img = ltrim($a_img, './');
+                    }
+                    $effective_price = (isset($meta['custom_price']) && is_numeric($meta['custom_price']) && floatval($meta['custom_price']) > 0)
+                        ? floatval($meta['custom_price']) : floatval($a_row['price']);
+                    $addon_products_data[] = [
+                        'id'               => $aid,
+                        'type'             => 'catalog',
+                        'name'             => $a_row['name'],
+                        'slug'             => $a_row['slug'] ?? '',
+                        'regular_price'    => floatval($a_row['price']),
+                        'effective_price'  => $effective_price,
+                        'has_discount'     => $effective_price < floatval($a_row['price']),
+                        'image'            => $a_img,
+                        'stock'            => intval($a_row['stock'] ?? 0),
+                        'needs_measurement'=> !empty($meta['needs_measurement']),
+                    ];
+                }
+            }
         }
     }
 }
@@ -705,6 +787,87 @@ if (isset($_SESSION['user_id'])) {
       color: #fff;
     }
 
+    .pd-size-btn-custom {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border-style: dashed;
+      position: relative;
+    }
+    .pd-size-btn-custom:hover {
+      border-color: #0e2187;
+      background: #f4f6fc;
+    }
+    .pd-size-btn-custom.active {
+      border-style: solid;
+      background: #0e2187;
+      border-color: #0e2187;
+      color: #fff;
+    }
+    .pd-size-btn-custom.active i {
+      color: #97c51d !important;
+    }
+
+    /* Custom Measurements Status Box */
+    .pd-custom-meas-box {
+      margin-top: -12px;
+      margin-bottom: 22px;
+      animation: fadeIn 0.25s ease;
+    }
+    .pd-custom-meas-card {
+      border-radius: 10px;
+      padding: 12px 16px;
+      font-size: 0.86rem;
+      transition: all 0.2s ease;
+    }
+    .pd-custom-meas-card.unfilled {
+      background: #fff9ed;
+      border: 1px solid #fde68a;
+      color: #92400e;
+    }
+    .pd-custom-meas-card.filled {
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+      color: #166534;
+    }
+
+    /* Custom Measurements Modal */
+    #customMeasurementsModal .modal-content {
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 15px 50px rgba(0,0,0,0.15);
+      border: none;
+    }
+    #customMeasurementsModal .modal-header {
+      background: linear-gradient(135deg, #0e2187, #1b3cc7);
+      color: #fff;
+      padding: 20px 24px;
+    }
+    #customMeasurementsModal .meas-unit-btn-group .btn {
+      font-size: 0.82rem;
+      font-weight: 600;
+      padding: 5px 14px;
+      border-radius: 6px;
+    }
+    #customMeasurementsModal .form-control:focus, 
+    #customMeasurementsModal .form-select:focus {
+      border-color: #0e2187;
+      box-shadow: 0 0 0 0.2rem rgba(14, 33, 135, 0.15);
+    }
+    #customMeasurementsModal .meas-label {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #374151;
+      margin-bottom: 4px;
+      display: flex;
+      justify-content: space-between;
+    }
+    #customMeasurementsModal .meas-tip {
+      font-size: 0.72rem;
+      color: #9ca3af;
+      font-weight: normal;
+    }
+
     /* Quantity */
     .pd-qty-row {
       display: flex;
@@ -836,6 +999,59 @@ if (isset($_SESSION['user_id'])) {
       border-color: #dc3545;
       color: #dc3545;
       background: rgba(220,53,69,0.05);
+    }
+
+    /* Add-on Products Styling */
+    .pd-addons-wrapper {
+      background: #fbfbfe;
+      border: 1.5px solid #edf0fb;
+      border-radius: 14px;
+      padding: 16px;
+      margin-bottom: 22px;
+    }
+    .pd-addons-title {
+      font-size: 0.96rem;
+      font-weight: 700;
+      color: #0e2187;
+      font-family: 'Montserrat', sans-serif;
+    }
+    .pd-addon-item {
+      background: #fff;
+      transition: all 0.2s ease;
+      cursor: pointer;
+    }
+    .pd-addon-item:hover {
+      border-color: #97c51d !important;
+      box-shadow: 0 4px 12px rgba(14,33,135,0.06);
+    }
+    .pd-addon-checkbox {
+      width: 18px;
+      height: 18px;
+      cursor: pointer;
+      border: 2px solid #ced4da;
+    }
+    .pd-addon-checkbox:checked {
+      background-color: #97c51d;
+      border-color: #97c51d;
+    }
+    .pd-addon-img {
+      width: 48px;
+      height: 48px;
+      object-fit: cover;
+    }
+    .pd-addon-name {
+      font-size: 0.86rem;
+      transition: color 0.2s;
+    }
+    .pd-addon-name:hover {
+      color: #0e2187 !important;
+    }
+    .pd-addon-price {
+      font-size: 0.9rem;
+    }
+    .pd-addons-total-box {
+      background: linear-gradient(135deg, rgba(14,33,135,0.05), rgba(151,197,29,0.07));
+      border: 1px dashed rgba(14,33,135,0.2);
     }
 
     /* Benefits */
@@ -1339,12 +1555,48 @@ if (isset($_SESSION['user_id'])) {
               <div class="mb-3">
                 <span class="pd-variant-label">Size</span>
                 <div class="pd-size-grid" id="pd-size-grid">
-                  <?php foreach ($sizes as $i => $size): ?>
-                  <button class="pd-size-btn <?php echo $i === 0 ? 'active' : ''; ?>"
-                          data-size="<?php echo htmlspecialchars($size); ?>">
-                    <?php echo htmlspecialchars($size); ?>
+                  <?php foreach ($sizes as $i => $size): 
+                    $isCustomSize = (strtolower(trim($size)) === 'custom');
+                  ?>
+                  <button class="pd-size-btn <?php echo $i === 0 ? 'active' : ''; ?> <?php echo $isCustomSize ? 'pd-size-btn-custom' : ''; ?>"
+                          data-size="<?php echo htmlspecialchars($size); ?>"
+                          <?php echo $isCustomSize ? 'data-is-custom="1"' : ''; ?>
+                          type="button">
+                    <?php if ($isCustomSize): ?>
+                      <i class="bi bi-scissors me-1 text-primary"></i>Custom
+                    <?php else: ?>
+                      <?php echo htmlspecialchars($size); ?>
+                    <?php endif; ?>
                   </button>
                   <?php endforeach; ?>
+                </div>
+
+                <!-- Custom Measurements Status Banner -->
+                <div id="custom-meas-status-box" class="pd-custom-meas-box" style="display: none;">
+                  <div id="custom-meas-card-unfilled" class="pd-custom-meas-card unfilled d-flex align-items-center justify-content-between">
+                    <div class="d-flex align-items-center gap-2">
+                      <i class="bi bi-rulers fs-5 text-warning"></i>
+                      <div>
+                        <strong>Custom measurements required:</strong>
+                        <div class="text-muted small">Please provide your garment measurements.</div>
+                      </div>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-dark px-3 py-1 fw-semibold fs-12 text-nowrap" id="openCustomMeasModalBtn">
+                      <i class="bi bi-pencil-square me-1"></i> Fill Measurements
+                    </button>
+                  </div>
+                  <div id="custom-meas-card-filled" class="pd-custom-meas-card filled d-flex align-items-center justify-content-between" style="display: none;">
+                    <div class="d-flex align-items-center gap-2">
+                      <i class="bi bi-check-circle-fill fs-5 text-success"></i>
+                      <div>
+                        <strong>Custom Measurements Attached</strong>
+                        <div class="text-muted small text-truncate" style="max-width: 340px;" id="custom-meas-summary-text"></div>
+                      </div>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-outline-success px-3 py-1 fw-semibold fs-12 text-nowrap" id="editCustomMeasModalBtn">
+                      <i class="bi bi-pencil-square me-1"></i> Edit
+                    </button>
+                  </div>
                 </div>
               </div>
               <?php endif; ?>
@@ -1364,6 +1616,108 @@ if (isset($_SESSION['user_id'])) {
                 </div>
                 <small class="text-muted" style="font-size: 0.8rem; font-weight: 500;">(Max 10 at a time)</small>
               </div>
+
+              <?php if (!empty($addon_products_data)): ?>
+              <!-- Add-on Products Section -->
+              <div class="pd-addons-wrapper">
+                <div class="pd-addons-header d-flex align-items-center justify-content-between mb-3">
+                  <h6 class="pd-addons-title mb-0">
+                    <i class="bi bi-gift-fill text-warning me-1"></i><?php echo htmlspecialchars($addon_section_title); ?>
+                  </h6>
+                  <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1" style="font-size: 11px;">
+                    Frequently Added
+                  </span>
+                </div>
+
+                <div class="pd-addons-list">
+                  <?php foreach ($addon_products_data as $ad_idx => $ad):
+                      $is_out_of_stock   = $ad['stock'] <= 0;
+                      $needs_measurement = !empty($ad['needs_measurement']);
+                      $ad_uid = 'addon-' . $ad_idx; // unique per page render
+                  ?>
+                  <div class="pd-addon-item d-flex flex-column gap-1 p-2 rounded border mb-2 <?php echo $is_out_of_stock ? 'opacity-50' : ''; ?>" 
+                       data-addon-id="<?php echo htmlspecialchars((string)$ad['id']); ?>" 
+                       data-addon-price="<?php echo $ad['effective_price']; ?>"
+                       data-needs-measurement="<?php echo $needs_measurement ? '1' : '0'; ?>"
+                       onclick="toggleAddonItem(event, '<?php echo htmlspecialchars((string)$ad['id']); ?>')">
+                    <div class="d-flex align-items-center gap-2">
+                      <div class="form-check m-0 p-0 d-flex align-items-center ps-1">
+                        <input class="form-check-input pd-addon-checkbox m-0" type="checkbox" 
+                               id="addon-check-<?php echo $ad_idx; ?>" 
+                               value="<?php echo htmlspecialchars((string)$ad['id']); ?>" 
+                               <?php echo $is_out_of_stock ? 'disabled' : ''; ?> 
+                               onclick="event.stopPropagation(); saveAddonSelections(); updateAddonsTotal();">
+                      </div>
+                      <a href="<?php echo !empty($ad['slug']) ? 'product/' . htmlspecialchars($ad['slug']) : '#'; ?>" 
+                         target="<?php echo !empty($ad['slug']) ? '_blank' : '_self'; ?>" 
+                         class="flex-shrink-0" onclick="event.stopPropagation();">
+                        <img src="<?php echo htmlspecialchars($ad['image']); ?>" 
+                             alt="<?php echo htmlspecialchars($ad['name']); ?>" 
+                             class="pd-addon-img rounded border" 
+                             onerror="this.onerror=null; this.src='assets/images/products/default.png'">
+                      </a>
+                      <div class="pd-addon-info flex-grow-1 overflow-hidden">
+                        <a href="<?php echo !empty($ad['slug']) ? 'product/' . htmlspecialchars($ad['slug']) : '#'; ?>" 
+                           target="<?php echo !empty($ad['slug']) ? '_blank' : '_self'; ?>" 
+                           class="pd-addon-name text-dark fw-semibold text-truncate d-block mb-1 text-decoration-none" 
+                           onclick="event.stopPropagation();">
+                          <?php echo htmlspecialchars($ad['name']); ?>
+                        </a>
+                        <div class="pd-addon-price-box d-flex align-items-center gap-2">
+                          <span class="pd-addon-price fw-bold text-success">₹<?php echo number_format($ad['effective_price'], 2); ?></span>
+                          <?php if ($ad['has_discount']): ?>
+                          <span class="text-muted text-decoration-line-through small" style="font-size: 11px;">₹<?php echo number_format($ad['regular_price'], 2); ?></span>
+                          <?php endif; ?>
+                          <?php if ($is_out_of_stock): ?>
+                          <span class="badge bg-danger-subtle text-danger" style="font-size: 10px;">Out of Stock</span>
+                          <?php endif; ?>
+                          <?php if ($needs_measurement): ?>
+                          <span class="badge bg-info-subtle text-info border border-info-subtle" style="font-size: 10px;">
+                            <i class="fas fa-ruler-combined me-1"></i>Measurements needed
+                          </span>
+                          <?php endif; ?>
+                        </div>
+                      </div>
+                    </div>
+                    <?php if ($needs_measurement): ?>
+                    <!-- Inline measurement form (shown when addon is checked) -->
+                    <div class="pd-addon-measurements mt-2 pt-2 border-top" id="meas-<?php echo $ad_idx; ?>" style="display:none;">
+                      <p class="mb-2 text-muted" style="font-size:12px;"><i class="fas fa-ruler-combined text-info me-1"></i>Please provide your measurements for <strong><?php echo htmlspecialchars($ad['name']); ?></strong> (in inches):</p>
+                      <div class="row g-2">
+                        <?php foreach (['Chest','Waist','Hip','Length','Shoulder'] as $mf): ?>
+                        <div class="col-6 col-md-4">
+                          <label class="form-label mb-0" style="font-size:11px;"><?php echo $mf; ?></label>
+                          <div class="input-group input-group-sm">
+                            <input type="number" step="0.5" min="1" 
+                                   class="form-control form-control-sm pd-addon-meas-input" 
+                                   data-meas-field="<?php echo strtolower($mf); ?>"
+                                   data-addon-id="<?php echo htmlspecialchars((string)$ad['id']); ?>"
+                                   placeholder="e.g. 36"
+                                   onclick="event.stopPropagation();"
+                                   oninput="saveAddonSelections();">
+                            <span class="input-group-text" style="font-size:11px;">in</span>
+                          </div>
+                        </div>
+                        <?php endforeach; ?>
+                      </div>
+                    </div>
+                    <?php endif; ?>
+                  </div>
+                  <?php endforeach; ?>
+                </div>
+
+                <!-- Combined Price Box -->
+                <div class="pd-addons-total-box p-2 px-3 rounded mt-2 d-flex justify-content-between align-items-center">
+                  <div>
+                    <span class="text-muted d-block" style="font-size: 11px;">Combined Total</span>
+                    <span class="pd-addons-total-val fw-bold fs-14 text-primary" id="pd-combined-total">₹0.00</span>
+                  </div>
+                  <span class="badge bg-white text-dark border px-2 py-1 fw-medium" id="pd-addons-count-badge" style="font-size: 11px;">
+                    1 item selected
+                  </span>
+                </div>
+              </div>
+              <?php endif; ?>
 
               <!-- Action Buttons -->
               <div class="pd-action-row">
@@ -1518,8 +1872,55 @@ if (isset($_SESSION['user_id'])) {
           <!-- Technical / Specs -->
           <div class="pd-tab-content-panel" id="tab-technical">
             <div class="pd-tech-wrapper">
+              <?php
+              // Fetch care instructions settings & cards
+              $show_care = false;
+              $care_title = '';
+              $care_cards = [];
+
+              $default_care_fallback = [
+                  ['icon' => 'bi bi-droplet-half', 'color' => '#0dcaf0', 'title' => 'Washing', 'desc' => 'Dry clean only for best results'],
+                  ['icon' => 'bi bi-brightness-high', 'color' => '#ffc107', 'title' => 'Drying', 'desc' => 'Avoid drying in direct sunlight'],
+                  ['icon' => 'bi bi-archive', 'color' => '#0e2187', 'title' => 'Storage', 'desc' => 'Store in a cool, dry place'],
+                  ['icon' => 'bi bi-thermometer-half', 'color' => '#dc3545', 'title' => 'Ironing', 'desc' => 'Iron on reverse side on low heat']
+              ];
+
+              $has_custom_care = !empty($product['custom_care_enabled']);
+              if ($has_custom_care) {
+                  $show_care = true;
+                  $care_title = !empty($product['custom_care_title']) 
+                      ? $product['custom_care_title'] 
+                      : ($website_settings['product_care_title'] ?? 'Care Instructions');
+                  
+                  if (!empty($product['custom_care_cards'])) {
+                      $p_care_cards = json_decode($product['custom_care_cards'], true);
+                      if (json_last_error() === JSON_ERROR_NONE && is_array($p_care_cards) && count($p_care_cards) > 0) {
+                          $care_cards = $p_care_cards;
+                      }
+                  }
+              } else {
+                  $global_care_enabled = ($website_settings['product_care_enabled'] ?? '1') !== '0';
+                  if ($global_care_enabled) {
+                      $show_care = true;
+                      $care_title = !empty($website_settings['product_care_title']) 
+                          ? $website_settings['product_care_title'] 
+                          : 'Care Instructions';
+                      
+                      if (!empty($website_settings['product_care_cards'])) {
+                          $g_care_cards = json_decode($website_settings['product_care_cards'], true);
+                          if (json_last_error() === JSON_ERROR_NONE && is_array($g_care_cards) && count($g_care_cards) > 0) {
+                              $care_cards = $g_care_cards;
+                          }
+                      }
+                  }
+              }
+
+              if ($show_care && empty($care_cards)) {
+                  $care_cards = $default_care_fallback;
+              }
+              ?>
               <div class="row g-5">
-                <div class="col-md-6">
+                <div class="<?php echo ($show_care && !empty($care_cards)) ? 'col-md-6' : 'col-md-12'; ?>">
                   <h3 class="pd-section-title">Product Specifications</h3>
                   <div class="pd-spec-table">
                     <div class="pd-spec-row">
@@ -1555,39 +1956,30 @@ if (isset($_SESSION['user_id'])) {
                   </div>
                 </div>
 
+                <?php if ($show_care && !empty($care_cards)): ?>
                 <div class="col-md-6">
-                  <h3 class="pd-section-title">Care Instructions</h3>
+                  <h3 class="pd-section-title"><?php echo htmlspecialchars($care_title); ?></h3>
                   <div class="pd-care-grid">
+                    <?php foreach ($care_cards as $c): 
+                        $c_icon = trim($c['icon'] ?? 'bi bi-droplet-half');
+                        if (strpos($c_icon, 'bi-') === 0 && strpos($c_icon, 'bi ') !== 0) {
+                            $c_icon = 'bi ' . $c_icon;
+                        }
+                        $c_color = !empty($c['color']) ? $c['color'] : '#0dcaf0';
+                        $c_title = $c['title'] ?? '';
+                        $c_desc  = $c['desc'] ?? '';
+                    ?>
                     <div class="pd-care-item">
-                      <i class="bi bi-droplet-half" style="color:#0dcaf0;"></i>
+                      <i class="<?php echo htmlspecialchars($c_icon); ?>" style="color:<?php echo htmlspecialchars($c_color); ?>;"></i>
                       <div class="care-text">
-                        <span class="care-title">Washing</span>
-                        Dry clean only for best results
+                        <span class="care-title"><?php echo htmlspecialchars($c_title); ?></span>
+                        <?php echo htmlspecialchars($c_desc); ?>
                       </div>
                     </div>
-                    <div class="pd-care-item">
-                      <i class="bi bi-brightness-high" style="color:#ffc107;"></i>
-                      <div class="care-text">
-                        <span class="care-title">Drying</span>
-                        Avoid drying in direct sunlight
-                      </div>
-                    </div>
-                    <div class="pd-care-item">
-                      <i class="bi bi-archive" style="color:#0e2187;"></i>
-                      <div class="care-text">
-                        <span class="care-title">Storage</span>
-                        Store in a cool, dry place
-                      </div>
-                    </div>
-                    <div class="pd-care-item">
-                      <i class="bi bi-thermometer-half" style="color:#dc3545;"></i>
-                      <div class="care-text">
-                        <span class="care-title">Ironing</span>
-                        Iron on reverse side on low heat
-                      </div>
-                    </div>
+                    <?php endforeach; ?>
                   </div>
                 </div>
+                <?php endif; ?>
               </div>
             </div>
           </div>
@@ -1692,6 +2084,164 @@ if (isset($_SESSION['user_id'])) {
             </button>
           </form>
           <div id="notifyMessage" class="mt-3" style="display: none; font-weight: 600;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Custom Tailoring Measurements Modal -->
+  <div class="modal fade" id="customMeasurementsModal" tabindex="-1" aria-labelledby="customMeasurementsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content border-0">
+        <div class="modal-header d-flex justify-content-between align-items-center">
+          <div>
+            <h5 class="modal-title text-white fw-bold mb-1" id="customMeasurementsModalLabel">
+              <i class="bi bi-scissors me-2" style="color: #97c51d;"></i>Custom Tailoring Measurements
+            </h5>
+            <small class="text-white-50">Provide your measurements for a made-to-measure fit.</small>
+          </div>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body p-4">
+          <form id="customMeasurementsForm">
+            <!-- Guidance Bar (Inches Only) -->
+            <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 pb-3 border-bottom gap-2">
+              <div class="d-flex align-items-center gap-2">
+                <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1 fs-12 fw-semibold">
+                  <i class="bi bi-rulers me-1"></i>All measurements in Inches (in)
+                </span>
+              </div>
+              <div class="text-muted fs-12">
+                <i class="bi bi-info-circle me-1 text-primary"></i>Use a standard flexible measuring tape
+              </div>
+            </div>
+
+            <!-- Measurement Fields -->
+            <div class="row g-3 mb-3">
+              <div class="col-6 col-md-4">
+                <label class="meas-label" for="meas_bust">
+                  <span>Bust / Chest *</span>
+                  <span class="meas-tip">Fullest point</span>
+                </label>
+                <div class="input-group input-group-sm">
+                  <input type="number" step="0.5" min="10" max="150" class="form-control" id="meas_bust" placeholder="e.g. 36" required>
+                  <span class="input-group-text meas-unit-badge">in</span>
+                </div>
+              </div>
+
+              <div class="col-6 col-md-4">
+                <label class="meas-label" for="meas_waist">
+                  <span>Waist *</span>
+                  <span class="meas-tip">Natural waist</span>
+                </label>
+                <div class="input-group input-group-sm">
+                  <input type="number" step="0.5" min="10" max="150" class="form-control" id="meas_waist" placeholder="e.g. 30" required>
+                  <span class="input-group-text meas-unit-badge">in</span>
+                </div>
+              </div>
+
+              <div class="col-6 col-md-4">
+                <label class="meas-label" for="meas_hips">
+                  <span>Hips</span>
+                  <span class="meas-tip">Widest part</span>
+                </label>
+                <div class="input-group input-group-sm">
+                  <input type="number" step="0.5" min="10" max="180" class="form-control" id="meas_hips" placeholder="e.g. 40">
+                  <span class="input-group-text meas-unit-badge">in</span>
+                </div>
+              </div>
+
+              <div class="col-6 col-md-4">
+                <label class="meas-label" for="meas_length">
+                  <span>Garment Length *</span>
+                  <span class="meas-tip">Shoulder to hem</span>
+                </label>
+                <div class="input-group input-group-sm">
+                  <input type="number" step="0.5" min="10" max="200" class="form-control" id="meas_length" placeholder="e.g. 42" required>
+                  <span class="input-group-text meas-unit-badge">in</span>
+                </div>
+              </div>
+
+              <div class="col-6 col-md-4">
+                <label class="meas-label" for="meas_shoulder">
+                  <span>Shoulder Width</span>
+                  <span class="meas-tip">Tip to tip across</span>
+                </label>
+                <div class="input-group input-group-sm">
+                  <input type="number" step="0.5" min="5" max="50" class="form-control" id="meas_shoulder" placeholder="e.g. 14.5">
+                  <span class="input-group-text meas-unit-badge">in</span>
+                </div>
+              </div>
+
+              <div class="col-6 col-md-4">
+                <label class="meas-label" for="meas_sleeve">
+                  <span>Sleeve Length</span>
+                  <span class="meas-tip">Shoulder to cuff</span>
+                </label>
+                <div class="input-group input-group-sm">
+                  <input type="number" step="0.5" min="1" max="60" class="form-control" id="meas_sleeve" placeholder="e.g. 16">
+                  <span class="input-group-text meas-unit-badge">in</span>
+                </div>
+              </div>
+
+              <div class="col-6 col-md-4">
+                <label class="meas-label" for="meas_armhole">
+                  <span>Armhole</span>
+                  <span class="meas-tip">Around shoulder joint</span>
+                </label>
+                <div class="input-group input-group-sm">
+                  <input type="number" step="0.5" min="5" max="50" class="form-control" id="meas_armhole" placeholder="e.g. 15">
+                  <span class="input-group-text meas-unit-badge">in</span>
+                </div>
+              </div>
+
+              <div class="col-6 col-md-4">
+                <label class="meas-label" for="meas_front_neck">
+                  <span>Front Neck Depth</span>
+                  <span class="meas-tip">Shoulder to center</span>
+                </label>
+                <div class="input-group input-group-sm">
+                  <input type="number" step="0.5" min="2" max="25" class="form-control" id="meas_front_neck" placeholder="e.g. 7">
+                  <span class="input-group-text meas-unit-badge">in</span>
+                </div>
+              </div>
+
+              <div class="col-6 col-md-4">
+                <label class="meas-label" for="meas_fit">
+                  <span>Fit Preference</span>
+                  <span class="meas-tip">Comfort level</span>
+                </label>
+                <select class="form-select form-select-sm" id="meas_fit">
+                  <option value="Regular" selected>Regular Fit (Standard)</option>
+                  <option value="Slim">Slim Fit (Form-fitting)</option>
+                  <option value="Relaxed">Relaxed Fit (Comfortable)</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Tailoring Notes -->
+            <div class="mb-3">
+              <label class="meas-label" for="meas_notes">
+                <span>Special Tailoring Notes / Customization Requests</span>
+                <span class="meas-tip">Optional</span>
+              </label>
+              <textarea class="form-control" id="meas_notes" rows="2" placeholder="e.g. Leave extra seam margin inside, pads in blouse, specific neck style, etc." style="font-size: 0.85rem; border-radius: 8px;"></textarea>
+            </div>
+
+            <!-- Notice & Actions -->
+            <div class="d-flex flex-wrap justify-content-between align-items-center pt-3 border-top gap-2">
+              <div class="d-flex align-items-center gap-2 text-muted fs-12">
+                <i class="bi bi-shield-check text-success fs-6"></i>
+                <span>Our master tailors craft this piece individually to your measurements.</span>
+              </div>
+              <div class="d-flex gap-2">
+                <button type="button" class="btn btn-sm btn-outline-secondary px-3" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" class="btn btn-sm btn-primary px-4 fw-semibold" id="saveCustomMeasBtn" style="background: linear-gradient(135deg, #0e2187, #1b3cc7); border: none;">
+                  <i class="bi bi-check2-circle me-1"></i> Save Measurements
+                </button>
+              </div>
+            </div>
+          </form>
         </div>
       </div>
     </div>
@@ -1935,42 +2485,19 @@ if (isset($_SESSION['user_id'])) {
       });
     });
 
-    /* ========== VARIANTS ========== */
-    let selectedColor = null;
-    let selectedSize  = null;
+    /* ========== PRODUCT DATA ========== */
+    const productId    = <?php echo (int)$product['id']; ?>;
+    const productName  = <?php echo json_encode($product['name']); ?>;
+    const productPrice = <?php echo (float)$product['price']; ?>;
+    const productImage = <?php echo json_encode($main_image); ?>;
+    const productSlug  = <?php echo json_encode(isset($product['slug']) ? $product['slug'] : ''); ?>;
 
-    const colorChips = document.querySelectorAll('.pd-color-chip');
-    if (colorChips.length > 0) {
-      selectedColor = colorChips[0].dataset.color;
-      colorChips.forEach(chip => {
-        chip.addEventListener('click', function () {
-          colorChips.forEach(c => c.classList.remove('active'));
-          this.classList.add('active');
-          selectedColor = this.dataset.color;
-          const nameEl = document.getElementById('selected-color-name');
-          if (nameEl) nameEl.textContent = selectedColor;
-          updateVariantDetails();
-        });
-      });
-    }
-
-    const sizeBtns = document.querySelectorAll('.pd-size-btn');
-    if (sizeBtns.length > 0) {
-      selectedSize = sizeBtns[0].dataset.size;
-      sizeBtns.forEach(btn => {
-        btn.addEventListener('click', function () {
-          sizeBtns.forEach(b => b.classList.remove('active'));
-          this.classList.add('active');
-          selectedSize = this.dataset.size;
-          updateVariantDetails();
-        });
-      });
-    }
-
-    /* ========== VARIANTS ========== */
+    /* ========== VARIANTS DATA & LOGIC ========== */
     const variantsData = <?php echo json_encode($variants); ?>;
     let currentPrice = <?php echo $product['price']; ?>;
     let currentStock = <?php echo max(0, $product['stock']); ?>;
+    let selectedColor = null;
+    let selectedSize  = null;
 
     function updateVariantDetails() {
       if (selectedColor && selectedSize) {
@@ -2030,9 +2557,194 @@ if (isset($_SESSION['user_id'])) {
               qtyInput.value = maxAllowed;
             }
           }
+          if (typeof updateAddonsTotal === 'function') {
+            updateAddonsTotal();
+          }
         }
       }
     }
+
+    const colorChips = document.querySelectorAll('.pd-color-chip');
+    if (colorChips.length > 0) {
+      selectedColor = colorChips[0].dataset.color;
+      colorChips.forEach(chip => {
+        chip.addEventListener('click', function () {
+          colorChips.forEach(c => c.classList.remove('active'));
+          this.classList.add('active');
+          selectedColor = this.dataset.color;
+          const nameEl = document.getElementById('selected-color-name');
+          if (nameEl) nameEl.textContent = selectedColor;
+          updateVariantDetails();
+        });
+      });
+    }
+
+    const sizeBtns = document.querySelectorAll('.pd-size-btn');
+    if (sizeBtns.length > 0) {
+      selectedSize = sizeBtns[0].dataset.size;
+      sizeBtns.forEach(btn => {
+        btn.addEventListener('click', function () {
+          const wasActive = this.classList.contains('active');
+          sizeBtns.forEach(b => b.classList.remove('active'));
+          this.classList.add('active');
+          selectedSize = this.dataset.size;
+          updateVariantDetails();
+          const isCust = isCustomSizeSelected();
+          if (isCust) {
+            handleCustomSizeUI(wasActive ? true : (!checkHasCustomMeasurements()));
+          } else {
+            handleCustomSizeUI(false);
+          }
+        });
+      });
+    }
+
+    /* ========== CUSTOM TAILORING MEASUREMENTS ========== */
+    const CUSTOM_MEAS_STORAGE_KEY = 'custom_meas_' + productId;
+    let customMeasurements = null;
+
+    try {
+      const savedMeas = localStorage.getItem(CUSTOM_MEAS_STORAGE_KEY);
+      if (savedMeas) {
+        customMeasurements = JSON.parse(savedMeas);
+      }
+    } catch (e) {
+      console.error('Error loading custom measurements:', e);
+    }
+
+    function isCustomSizeSelected() {
+      return !!(selectedSize && selectedSize.trim().toLowerCase() === 'custom');
+    }
+
+    function checkHasCustomMeasurements() {
+      if (!customMeasurements) return false;
+      const { bust, waist, hips, length, shoulder, sleeve, armhole, front_neck, notes } = customMeasurements;
+      return !!(bust || waist || hips || length || shoulder || sleeve || armhole || front_neck || notes);
+    }
+
+    function getCustomMeasurementsSummary() {
+      if (!customMeasurements) return '';
+      const u = ' in';
+      const parts = [];
+      if (customMeasurements.bust) parts.push(`Bust: ${customMeasurements.bust}${u}`);
+      if (customMeasurements.waist) parts.push(`Waist: ${customMeasurements.waist}${u}`);
+      if (customMeasurements.hips) parts.push(`Hips: ${customMeasurements.hips}${u}`);
+      if (customMeasurements.length) parts.push(`Length: ${customMeasurements.length}${u}`);
+      if (customMeasurements.shoulder) parts.push(`Shoulder: ${customMeasurements.shoulder}${u}`);
+      if (customMeasurements.sleeve) parts.push(`Sleeve: ${customMeasurements.sleeve}${u}`);
+      if (customMeasurements.armhole) parts.push(`Armhole: ${customMeasurements.armhole}${u}`);
+      if (customMeasurements.front_neck) parts.push(`Front Neck: ${customMeasurements.front_neck}${u}`);
+      if (customMeasurements.fit && customMeasurements.fit !== 'Regular') parts.push(`Fit: ${customMeasurements.fit}`);
+      if (customMeasurements.notes) parts.push(`Notes: ${customMeasurements.notes}`);
+      return parts.join(' • ');
+    }
+
+    function renderCustomMeasStatus(hasMeas) {
+      const statusBox = document.getElementById('custom-meas-status-box');
+      if (!statusBox) return;
+
+      if (!isCustomSizeSelected()) {
+        statusBox.style.display = 'none';
+        return;
+      }
+
+      statusBox.style.display = 'block';
+      const cardUnfilled = document.getElementById('custom-meas-card-unfilled');
+      const cardFilled   = document.getElementById('custom-meas-card-filled');
+      const summaryEl    = document.getElementById('custom-meas-summary-text');
+
+      if (hasMeas) {
+        if (cardUnfilled) cardUnfilled.style.display = 'none';
+        if (cardFilled) cardFilled.style.display = 'flex';
+        if (summaryEl) summaryEl.textContent = getCustomMeasurementsSummary();
+      } else {
+        if (cardUnfilled) cardUnfilled.style.display = 'flex';
+        if (cardFilled) cardFilled.style.display = 'none';
+      }
+    }
+
+    function handleCustomSizeUI(autoOpenIfEmpty = true) {
+      if (!isCustomSizeSelected()) {
+        renderCustomMeasStatus(false);
+        return;
+      }
+      const hasMeas = checkHasCustomMeasurements();
+      renderCustomMeasStatus(hasMeas);
+      if (!hasMeas && autoOpenIfEmpty) {
+        openCustomMeasurementsModal();
+      }
+    }
+
+    function openCustomMeasurementsModal() {
+      const modalEl = document.getElementById('customMeasurementsModal');
+      if (!modalEl) return;
+
+      if (customMeasurements) {
+        if (document.getElementById('meas_bust'))       document.getElementById('meas_bust').value       = customMeasurements.bust || '';
+        if (document.getElementById('meas_waist'))      document.getElementById('meas_waist').value      = customMeasurements.waist || '';
+        if (document.getElementById('meas_hips'))       document.getElementById('meas_hips').value       = customMeasurements.hips || '';
+        if (document.getElementById('meas_length'))     document.getElementById('meas_length').value     = customMeasurements.length || '';
+        if (document.getElementById('meas_shoulder'))   document.getElementById('meas_shoulder').value   = customMeasurements.shoulder || '';
+        if (document.getElementById('meas_sleeve'))     document.getElementById('meas_sleeve').value     = customMeasurements.sleeve || '';
+        if (document.getElementById('meas_armhole'))    document.getElementById('meas_armhole').value    = customMeasurements.armhole || '';
+        if (document.getElementById('meas_front_neck')) document.getElementById('meas_front_neck').value = customMeasurements.front_neck || '';
+        if (document.getElementById('meas_fit'))        document.getElementById('meas_fit').value        = customMeasurements.fit || 'Regular';
+        if (document.getElementById('meas_notes'))      document.getElementById('meas_notes').value      = customMeasurements.notes || '';
+      }
+
+      const modalInstance = bootstrap.Modal.getOrCreateInstance(modalEl);
+      modalInstance.show();
+      setTimeout(() => {
+        const bustInput = document.getElementById('meas_bust');
+        if (bustInput) bustInput.focus();
+      }, 400);
+    }
+
+    const customMeasForm = document.getElementById('customMeasurementsForm');
+    if (customMeasForm) {
+      customMeasForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const unit = 'in';
+        const bust = document.getElementById('meas_bust')?.value.trim() || '';
+        const waist = document.getElementById('meas_waist')?.value.trim() || '';
+        const hips = document.getElementById('meas_hips')?.value.trim() || '';
+        const length = document.getElementById('meas_length')?.value.trim() || '';
+        const shoulder = document.getElementById('meas_shoulder')?.value.trim() || '';
+        const sleeve = document.getElementById('meas_sleeve')?.value.trim() || '';
+        const armhole = document.getElementById('meas_armhole')?.value.trim() || '';
+        const front_neck = document.getElementById('meas_front_neck')?.value.trim() || '';
+        const fit = document.getElementById('meas_fit')?.value || 'Regular';
+        const notes = document.getElementById('meas_notes')?.value.trim() || '';
+
+        if (!bust && !waist && !length && !hips && !shoulder && !notes) {
+          alert('Please provide at least one key measurement (such as Bust, Waist, or Length).');
+          return;
+        }
+
+        customMeasurements = {
+          unit, bust, waist, hips, length, shoulder, sleeve, armhole, front_neck, fit, notes
+        };
+
+        try {
+          localStorage.setItem(CUSTOM_MEAS_STORAGE_KEY, JSON.stringify(customMeasurements));
+        } catch(err) {
+          console.error('Failed to persist custom measurements:', err);
+        }
+
+        renderCustomMeasStatus(true);
+
+        const modalEl = document.getElementById('customMeasurementsModal');
+        const modalInstance = bootstrap.Modal.getInstance(modalEl);
+        if (modalInstance) modalInstance.hide();
+
+        showToast('<i class="bi bi-check2-circle me-2"></i>Custom measurements saved successfully!', 'success');
+      });
+    }
+
+    document.getElementById('openCustomMeasModalBtn')?.addEventListener('click', openCustomMeasurementsModal);
+    document.getElementById('editCustomMeasModalBtn')?.addEventListener('click', openCustomMeasurementsModal);
+
+
     
     // Notify logic
     const isLoggedIn = <?php echo isset($_SESSION['user_id']) ? 'true' : 'false'; ?>;
@@ -2118,6 +2830,7 @@ if (isset($_SESSION['user_id'])) {
     
     // Initialize variant on load
     updateVariantDetails();
+    handleCustomSizeUI(false);
 
     /* ========== QUANTITY ========== */
     const qtyInput    = document.getElementById('product-quantity');
@@ -2140,13 +2853,19 @@ if (isset($_SESSION['user_id'])) {
     qtyDecrease?.addEventListener('click', () => {
       let v = parseInt(qtyInput.value, 10) || 1;
       const min = parseInt(qtyInput.min, 10) || 1;
-      if (v > min) qtyInput.value = v - 1;
+      if (v > min) {
+        qtyInput.value = v - 1;
+        if (typeof updateAddonsTotal === 'function') updateAddonsTotal();
+      }
     });
 
     qtyIncrease?.addEventListener('click', () => {
       let v = parseInt(qtyInput.value, 10) || 1;
       const max = Math.min(10, parseInt(qtyInput.max, 10) || 10);
-      if (v < max) qtyInput.value = v + 1;
+      if (v < max) {
+        qtyInput.value = v + 1;
+        if (typeof updateAddonsTotal === 'function') updateAddonsTotal();
+      }
     });
 
     qtyInput?.addEventListener('input', () => {
@@ -2155,10 +2874,17 @@ if (isset($_SESSION['user_id'])) {
       if (val > max) {
         qtyInput.value = max;
       }
+      if (typeof updateAddonsTotal === 'function') updateAddonsTotal();
     });
 
-    qtyInput?.addEventListener('change', enforceQtyBounds);
-    qtyInput?.addEventListener('blur', enforceQtyBounds);
+    qtyInput?.addEventListener('change', () => {
+      enforceQtyBounds();
+      if (typeof updateAddonsTotal === 'function') updateAddonsTotal();
+    });
+    qtyInput?.addEventListener('blur', () => {
+      enforceQtyBounds();
+      if (typeof updateAddonsTotal === 'function') updateAddonsTotal();
+    });
 
     /* ========== REVIEWS ========== */
     const ratingStars = document.querySelectorAll('.rating-select i');
@@ -2328,31 +3054,176 @@ if (isset($_SESSION['user_id'])) {
       });
     }
 
-    /* ========== PRODUCT DATA ========== */
-    const productId    = <?php echo $product['id']; ?>;
-    const productName  = <?php echo json_encode($product['name']); ?>;
-    const productPrice = <?php echo $product['price']; ?>;
-    const productImage = <?php echo json_encode($main_image); ?>;
-    const productSlug  = <?php echo json_encode(isset($product['slug']) ? $product['slug'] : ''); ?>;
+
+
+    /* ========== ADD-ON PRODUCTS ========== */
+    const addonsData = <?php echo json_encode($addon_products_data); ?>;
+
+    function toggleAddonItem(e, id) {
+        if (e.target.tagName === 'A' || e.target.tagName === 'INPUT') return;
+        const cb = document.querySelector(`.pd-addon-checkbox[value="${id}"]`);
+        if (cb && !cb.disabled) {
+            cb.checked = !cb.checked;
+            showMeasurementForm(id, cb.checked);
+            saveAddonSelections();
+            updateAddonsTotal();
+        }
+    }
+
+    function updateAddonsTotal() {
+        const qtyEl = document.getElementById('product-quantity');
+        let qty = parseInt(qtyEl?.value, 10) || 1;
+        // Use currentPrice (variant-resolved) or fall back to base productPrice
+        const basePrice = (typeof currentPrice !== 'undefined' && parseFloat(currentPrice) > 0)
+            ? parseFloat(currentPrice)
+            : parseFloat(productPrice) || 0;
+        let mainTotal = basePrice * qty;
+        let addonTotal = 0;
+        let selectedAddonsCount = 0;
+        document.querySelectorAll('.pd-addon-checkbox:checked').forEach(cb => {
+            const itemEl = cb.closest('.pd-addon-item');
+            if (itemEl) {
+                const p = parseFloat(itemEl.dataset.addonPrice || 0);
+                addonTotal += p;
+                selectedAddonsCount++;
+            }
+        });
+        const grandTotal = mainTotal + addonTotal;
+        const totalEl = document.getElementById('pd-combined-total');
+        if (totalEl) {
+            totalEl.textContent = '₹' + grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+        const badgeEl = document.getElementById('pd-addons-count-badge');
+        if (badgeEl) {
+            if (selectedAddonsCount > 0) {
+                badgeEl.textContent = qty + ' main + ' + selectedAddonsCount + ' add-on' + (selectedAddonsCount > 1 ? 's' : '');
+                badgeEl.className = 'badge bg-success-subtle text-success border border-success-subtle px-2 py-1 fw-semibold';
+            } else {
+                badgeEl.textContent = qty + ' item' + (qty > 1 ? 's' : '') + ' selected';
+                badgeEl.className = 'badge bg-white text-dark border px-2 py-1 fw-medium';
+            }
+        }
+    }
+
+    /* ========== ADDON PERSISTENCE (localStorage) ========== */
+    const ADDON_STORAGE_KEY = 'addon_sel_' + productId;
+    const ADDON_MEAS_KEY    = 'addon_meas2_' + productId;
+
+    function showMeasurementForm(addonId, show) {
+        // Find the .pd-addon-item containing this addon's checkbox
+        const cb = document.querySelector(`.pd-addon-checkbox[value="${addonId}"]`);
+        if (!cb) return;
+        const itemEl = cb.closest('.pd-addon-item');
+        if (!itemEl || itemEl.dataset.needsMeasurement !== '1') return;
+        const measDiv = itemEl.querySelector('.pd-addon-measurements');
+        if (measDiv) measDiv.style.display = show ? '' : 'none';
+    }
+
+    function saveAddonSelections() {
+        // Save checked IDs
+        const checked = [];
+        document.querySelectorAll('.pd-addon-checkbox:checked').forEach(cb => {
+            if (!cb.disabled) checked.push(String(cb.value));
+        });
+        localStorage.setItem(ADDON_STORAGE_KEY, JSON.stringify(checked));
+
+        // Save measurements
+        const meas = {};
+        document.querySelectorAll('.pd-addon-meas-input').forEach(inp => {
+            const addonId = inp.dataset.addonId;
+            const field   = inp.dataset.measField;
+            if (addonId && field && inp.value) {
+                if (!meas[addonId]) meas[addonId] = {};
+                meas[addonId][field] = inp.value;
+            }
+        });
+        localStorage.setItem(ADDON_MEAS_KEY, JSON.stringify(meas));
+    }
+
+    function restoreAddonSelections() {
+        try {
+            const saved = JSON.parse(localStorage.getItem(ADDON_STORAGE_KEY) || '[]');
+            if (!Array.isArray(saved)) return;
+            document.querySelectorAll('.pd-addon-checkbox').forEach(cb => {
+                if (!cb.disabled) {
+                    const isChecked = saved.includes(String(cb.value));
+                    cb.checked = isChecked;
+                    showMeasurementForm(cb.value, isChecked);
+                }
+            });
+        } catch(e) {}
+
+        // Restore measurement values
+        try {
+            const meas = JSON.parse(localStorage.getItem(ADDON_MEAS_KEY) || '{}');
+            document.querySelectorAll('.pd-addon-meas-input').forEach(inp => {
+                const addonId = inp.dataset.addonId;
+                const field   = inp.dataset.measField;
+                if (addonId && field && meas[addonId] && meas[addonId][field]) {
+                    inp.value = meas[addonId][field];
+                }
+            });
+        } catch(e) {}
+    }
+
+    // Initialise on load
+    function initAddons() {
+        restoreAddonSelections();
+        updateAddonsTotal();
+        document.querySelectorAll('.pd-addon-checkbox').forEach(cb => {
+            cb.addEventListener('change', () => {
+                showMeasurementForm(cb.value, cb.checked);
+                saveAddonSelections();
+                updateAddonsTotal();
+            });
+        });
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initAddons);
+    } else {
+        initAddons();
+    }
 
     /* ========== ADD TO CART ========== */
     async function addToCart(redirect = false) {
+      const isCustom = isCustomSizeSelected();
+      if (isCustom) {
+        const hasMeas = checkHasCustomMeasurements();
+        if (!hasMeas) {
+          showToast('<i class="bi bi-rulers me-2"></i>Please fill your custom measurements first!', 'warning');
+          openCustomMeasurementsModal();
+          return;
+        }
+      }
+
       let qty  = parseInt(qtyInput?.value, 10) || 1;
       if (qty > 10) qty = 10;
       if (qty < 1) qty = 1;
       if (qtyInput) qtyInput.value = qty;
       const cart = JSON.parse(localStorage.getItem('cart')) || [];
-      const idx  = cart.findIndex(i => i.id == productId && i.color == selectedColor && i.size == selectedSize);
 
-      const variantInfo = (selectedColor && selectedSize) 
-        ? (selectedColor + ' | ' + selectedSize) 
-        : (selectedColor || selectedSize || '');
+      let variantInfo = '';
+      if (isCustom) {
+        const measSummary = getCustomMeasurementsSummary();
+        const customLabel = measSummary ? ('Custom (' + measSummary + ')') : 'Custom';
+        variantInfo = selectedColor ? (selectedColor + ' | ' + customLabel) : customLabel;
+      } else {
+        variantInfo = (selectedColor && selectedSize) 
+          ? (selectedColor + ' | ' + selectedSize) 
+          : (selectedColor || selectedSize || '');
+      }
+
+      const idx  = cart.findIndex(i => i.id == productId && i.color == selectedColor && i.size == selectedSize && i.variant_info == variantInfo);
 
       if (idx !== -1) {
         cart[idx].quantity += qty;
         // Update price in case it changed
         cart[idx].price = currentPrice;
         cart[idx].variant_info = variantInfo;
+        if (isCustom) {
+          cart[idx].custom_measurements = customMeasurements;
+        }
       } else {
         cart.push({ 
           id: productId, 
@@ -2363,9 +3234,54 @@ if (isset($_SESSION['user_id'])) {
           quantity: qty, 
           color: selectedColor, 
           size: selectedSize,
-          variant_info: variantInfo
+          variant_info: variantInfo,
+          custom_measurements: isCustom ? customMeasurements : null
         });
       }
+
+      // Add selected add-on products
+      let addedAddonsCount = 0;
+      let savedMeas = {};
+      try {
+          savedMeas = JSON.parse(localStorage.getItem(ADDON_MEAS_KEY) || '{}');
+      } catch(e) {}
+
+      document.querySelectorAll('.pd-addon-checkbox:checked').forEach(cb => {
+          const aid = String(cb.value);
+          const addonObj = addonsData.find(a => String(a.id) === aid);
+          if (addonObj) {
+              const addonMeas = savedMeas[aid] || null;
+              let variantInfo = 'Add-on';
+              if (addonMeas && Object.keys(addonMeas).length > 0) {
+                  const measParts = [];
+                  for (const [k, v] of Object.entries(addonMeas)) {
+                      if (v) measParts.push(k.charAt(0).toUpperCase() + k.slice(1) + ': ' + v + ' in');
+                  }
+                  if (measParts.length > 0) {
+                      variantInfo = 'Add-on (' + measParts.join(', ') + ')';
+                  }
+              }
+
+              const aIdx = cart.findIndex(i => String(i.id) === String(addonObj.id) && i.variant_info === variantInfo);
+              if (aIdx !== -1) {
+                  cart[aIdx].quantity += 1;
+              } else {
+                  cart.push({
+                      id: addonObj.id,
+                      name: addonObj.name,
+                      price: addonObj.effective_price,
+                      image: addonObj.image,
+                      slug: addonObj.slug,
+                      quantity: 1,
+                      color: '',
+                      size: '',
+                      variant_info: variantInfo,
+                      measurements: addonMeas
+                  });
+              }
+              addedAddonsCount++;
+          }
+      });
 
       localStorage.setItem('cart', JSON.stringify(cart));
       updateCartBadge();
@@ -2394,7 +3310,11 @@ if (isset($_SESSION['user_id'])) {
           btn.style.background = 'linear-gradient(135deg, #198754, #146c43)';
           setTimeout(() => { btn.innerHTML = orig; btn.style.background = ''; }, 2000);
         }
-        showToast('<i class="bi bi-bag-check-fill me-2"></i>Added to cart successfully!', 'success');
+        let msg = '<i class="bi bi-bag-check-fill me-2"></i>Added to cart successfully!';
+        if (addedAddonsCount > 0) {
+          msg = '<i class="bi bi-bag-check-fill me-2"></i>Added main product + ' + addedAddonsCount + ' add-on' + (addedAddonsCount > 1 ? 's' : '') + ' to cart!';
+        }
+        showToast(msg, 'success');
       }
     }
 

@@ -610,27 +610,219 @@ if (isset($_GET['action']) && $_GET['action'] === 'modal_order' && isset($_GET['
         $idx = 0;
         foreach ($items as $it) {
             $idx++;
-            $variant = $it['variant_info'] ?? '';
+            $variant = trim($it['variant_info'] ?? '');
+            $isAddon = false;
+            $isCustom = false;
             $colorText = '';
             $sizeText = '';
+            $measurements = [];
+            $notes = '';
+
             $dec = json_decode($variant, true);
             if (json_last_error() === JSON_ERROR_NONE && is_array($dec)) {
+                if (!empty($dec['is_addon']) || (isset($dec['type']) && strtolower($dec['type']) === 'addon')) {
+                    $isAddon = true;
+                }
                 $colorText = $dec['color'] ?? $dec['colour'] ?? $dec['Color'] ?? '';
                 $sizeText = $dec['size'] ?? $dec['Size'] ?? '';
-            }
-            if (($colorText === '' || $sizeText === '') && $variant !== '') {
-                // Try separators like '/', ',', ';', '|'
-                $parts = preg_split('/[\|\/;,]+/', $variant);
-                if (count($parts) >= 2) {
-                    if ($colorText === '') $colorText = trim($parts[0]);
-                    if ($sizeText === '') $sizeText = trim($parts[1]);
+                if (stripos($sizeText, 'custom') !== false) {
+                    $isCustom = true;
+                }
+                if (!empty($dec['measurements']) && is_array($dec['measurements'])) {
+                    foreach ($dec['measurements'] as $mk => $mv) {
+                        if ($mv !== '' && $mv !== null) {
+                            if (strtolower($mk) === 'notes') {
+                                $notes = (string)$mv;
+                            } else {
+                                $measurements[ucfirst(str_replace('_', ' ', $mk))] = (string)$mv;
+                            }
+                        }
+                    }
+                }
+                if (!empty($dec['custom_measurements']) && is_array($dec['custom_measurements'])) {
+                    $isCustom = true;
+                    foreach ($dec['custom_measurements'] as $mk => $mv) {
+                        if ($mv !== '' && $mv !== null) {
+                            if (strtolower($mk) === 'notes') {
+                                $notes = (string)$mv;
+                            } else {
+                                $measurements[ucfirst(str_replace('_', ' ', $mk))] = (string)$mv;
+                            }
+                        }
+                    }
+                }
+                if (!empty($dec['notes'])) {
+                    $notes = (string)$dec['notes'];
+                }
+            } elseif ($variant !== '') {
+                if (preg_match('/\badd-?on\b/i', $variant)) {
+                    $isAddon = true;
+                }
+                if (preg_match('/\bcustom\b/i', $variant)) {
+                    $isCustom = true;
+                }
+
+                $parenContent = '';
+                if (preg_match('/\(([^)]+)\)/', $variant, $pm)) {
+                    $parenContent = trim($pm[1]);
+                    $baseString = trim(str_replace($pm[0], '', $variant));
                 } else {
-                    if (preg_match('/color\s*[:=]\s*([^,;\/]+)/i', $variant, $m)) $colorText = trim($m[1]);
-                    if (preg_match('/size\s*[:=]\s*([^,;\/]+)/i', $variant, $m2)) $sizeText = trim($m2[1]);
+                    $baseString = $variant;
+                }
+
+                if ($parenContent !== '') {
+                    $measPairs = preg_split('/[•\x{2022},;|\n\r]+/u', $parenContent);
+                    foreach ($measPairs as $pair) {
+                        $pair = trim($pair);
+                        if ($pair === '') continue;
+                        if (strpos($pair, ':') !== false) {
+                            list($mk, $mv) = explode(':', $pair, 2);
+                            $mk = trim($mk);
+                            $mv = trim($mv);
+                            if (strtolower($mk) === 'notes' || strtolower($mk) === 'special instructions') {
+                                $notes = $mv;
+                            } else {
+                                $measurements[ucfirst($mk)] = $mv;
+                            }
+                        } else {
+                            if ($notes === '') $notes = $pair;
+                            else $notes .= ', ' . $pair;
+                        }
+                    }
+                }
+
+                // Fallback: if no parens were found but string has custom measurements
+                if (empty($measurements) && preg_match('/(bust|waist|hips?|chest|length|shoulder|sleeve|armhole|front\s*neck)\s*:/i', $variant)) {
+                    $measPairs = preg_split('/[•\x{2022},;|\n\r]+/u', $variant);
+                    foreach ($measPairs as $pair) {
+                        $pair = trim($pair);
+                        if ($pair === '') continue;
+                        if (strpos($pair, ':') !== false) {
+                            list($mk, $mv) = explode(':', $pair, 2);
+                            $mk = trim($mk);
+                            $mv = trim($mv);
+                            $lowerK = strtolower($mk);
+                            if ($lowerK === 'notes' || $lowerK === 'special instructions') {
+                                $notes = $mv;
+                            } elseif (in_array($lowerK, ['bust', 'chest', 'waist', 'hip', 'hips', 'length', 'shoulder', 'sleeve', 'armhole', 'front neck', 'fit'])) {
+                                $measurements[ucfirst($mk)] = $mv;
+                            }
+                        }
+                    }
+                }
+
+                $baseString = trim(preg_replace('/\s*\|\s*\|\s*/', ' | ', $baseString), " |");
+                if (strpos($baseString, '|') !== false) {
+                    $parts = array_map('trim', explode('|', $baseString));
+                    $parts = array_values(array_filter($parts, function($p){ return $p !== ''; }));
+                    if (count($parts) === 2) {
+                        $colorText = $parts[0];
+                        $sizeText = $parts[1];
+                    } elseif (count($parts) >= 3) {
+                        if (preg_match('/^add-?on$/i', $parts[0])) {
+                            $isAddon = true;
+                            $colorText = $parts[1];
+                            $sizeText = $parts[2];
+                        } else {
+                            $colorText = $parts[0];
+                            $sizeText = implode(' / ', array_slice($parts, 1));
+                        }
+                    } elseif (count($parts) === 1) {
+                        $baseString = $parts[0];
+                    }
+                }
+
+                if ($colorText === '' && $sizeText === '') {
+                    if (preg_match('/^add-?on$/i', $baseString)) {
+                        $isAddon = true;
+                        $sizeText = '';
+                        $colorText = '';
+                    } elseif (preg_match('/^custom$/i', $baseString)) {
+                        $isCustom = true;
+                        $sizeText = 'Custom';
+                    } else {
+                        if (preg_match('/color\s*[:=]\s*([^,;\/|]+)/i', $baseString, $m)) $colorText = trim($m[1]);
+                        if (preg_match('/size\s*[:=]\s*([^,;\/|]+)/i', $baseString, $m2)) $sizeText = trim($m2[1]);
+                        
+                        if ($colorText === '' && $sizeText === '') {
+                            if (!$isAddon) {
+                                $legacyParts = preg_split('/[\/,;]+/', $baseString);
+                                if (count($legacyParts) >= 2) {
+                                    $colorText = trim($legacyParts[0]);
+                                    $sizeText = trim($legacyParts[1]);
+                                } else {
+                                    $sizeText = trim($baseString);
+                                }
+                            }
+                        }
+                    }
                 }
             }
-            $prodCodeDisplay = !empty($it['product_code']) ? '<br><small class="text-muted">Code: ' . htmlspecialchars($it['product_code']) . '</small>' : '';
-            $html .= '<tr><td>' . $idx . '</td><td>' . htmlspecialchars($it['product_name']) . $prodCodeDisplay . '</td><td>' . htmlspecialchars($colorText) . '</td><td>' . htmlspecialchars($sizeText) . '</td><td class="text-end">' . htmlspecialchars(number_format((float)$it['product_price'],2)) . '</td><td class="text-end">' . intval($it['quantity']) . '</td><td class="text-end">' . htmlspecialchars(number_format((float)$it['subtotal'],2)) . '</td></tr>';
+
+            // Product column display
+            $prodHtml = '<div>';
+            $prodHtml .= '<span class="fw-semibold text-dark">' . htmlspecialchars($it['product_name']) . '</span>';
+            if (!empty($it['product_code'])) {
+                $prodHtml .= '<br><small class="text-muted">Code: ' . htmlspecialchars($it['product_code']) . '</small>';
+            }
+            if ($isAddon) {
+                $prodHtml .= '<div class="mt-1">';
+                $prodHtml .= '<span class="badge bg-warning-subtle text-dark border border-warning-subtle px-2 py-1"><i class="fas fa-puzzle-piece text-warning me-1"></i>Add-on Product</span>';
+                $prodHtml .= '</div>';
+            } elseif ($isCustom) {
+                $prodHtml .= '<div class="mt-1">';
+                $prodHtml .= '<span class="badge bg-info-subtle text-info-emphasis border border-info-subtle px-2 py-1"><i class="bi bi-scissors me-1"></i>Custom Made-to-Measure</span>';
+                $prodHtml .= '</div>';
+            }
+
+            if (!empty($measurements) || !empty($notes)) {
+                $prodHtml .= '<div class="mt-2 p-2 rounded bg-light border" style="font-size: 11.5px; max-width: 520px;">';
+                $prodHtml .= '  <div class="fw-semibold text-secondary mb-1 d-flex align-items-center gap-1">';
+                $prodHtml .= '    <i class="fas fa-ruler-combined text-primary"></i> <span>Measurements (Inches):</span>';
+                $prodHtml .= '  </div>';
+                if (!empty($measurements)) {
+                    $prodHtml .= '  <div class="d-flex flex-wrap gap-1 mb-1">';
+                    foreach ($measurements as $mk => $mv) {
+                        $prodHtml .= '    <span class="badge bg-white text-dark border px-2 py-1 shadow-sm" style="font-size: 11px; font-weight: normal;">';
+                        $prodHtml .= '      <span class="text-muted">' . htmlspecialchars($mk) . ':</span> <strong class="text-dark">' . htmlspecialchars($mv) . '</strong>';
+                        $prodHtml .= '    </span>';
+                    }
+                    $prodHtml .= '  </div>';
+                }
+                if (!empty($notes)) {
+                    $prodHtml .= '  <div class="text-muted mt-1 pt-1 border-top" style="font-size: 11px;">';
+                    $prodHtml .= '    <i class="bi bi-chat-left-text me-1 text-info"></i><strong>Notes:</strong> ' . htmlspecialchars($notes);
+                    $prodHtml .= '  </div>';
+                }
+                $prodHtml .= '</div>';
+            }
+            $prodHtml .= '</div>';
+
+            // Color display
+            $colorHtml = $colorText !== '' ? htmlspecialchars($colorText) : '<span class="text-muted">—</span>';
+
+            // Size display
+            if ($sizeText !== '') {
+                if (strtolower($sizeText) === 'custom') {
+                    $sizeHtml = '<span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1"><i class="bi bi-scissors me-1"></i>Custom</span>';
+                } else {
+                    $sizeHtml = '<span class="badge bg-light text-dark border px-2 py-1">' . htmlspecialchars($sizeText) . '</span>';
+                }
+            } elseif ($isAddon) {
+                $sizeHtml = '<span class="badge bg-warning-subtle text-dark border border-warning-subtle px-2 py-1"><i class="fas fa-puzzle-piece text-warning me-1"></i>Add-on</span>';
+            } else {
+                $sizeHtml = '<span class="text-muted">—</span>';
+            }
+
+            $html .= '<tr>';
+            $html .= '<td class="align-middle">' . $idx . '</td>';
+            $html .= '<td class="align-middle">' . $prodHtml . '</td>';
+            $html .= '<td class="align-middle">' . $colorHtml . '</td>';
+            $html .= '<td class="align-middle">' . $sizeHtml . '</td>';
+            $html .= '<td class="align-middle text-end">' . htmlspecialchars(number_format((float)$it['product_price'], 2)) . '</td>';
+            $html .= '<td class="align-middle text-end">' . intval($it['quantity']) . '</td>';
+            $html .= '<td class="align-middle text-end">' . htmlspecialchars(number_format((float)$it['subtotal'], 2)) . '</td>';
+            $html .= '</tr>';
         }
     }
     $html .= '</tbody><tfoot><tr><th colspan="6" class="text-end">Total</th><th class="text-end">' . htmlspecialchars(number_format((float)$order['total_amount'],2)) . '</th></tr></tfoot></table></div>';
@@ -1213,7 +1405,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'modal_order' && isset($_GET['
 
         <!-- Order Modal -->
         <div class="modal fade" id="orderModal" tabindex="-1" aria-hidden="true">
-            <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-dialog modal-xl modal-dialog-scrollable">
                 <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title">Order Details</h5>

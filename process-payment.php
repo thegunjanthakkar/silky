@@ -8,36 +8,38 @@ if (!isset($_SESSION['user_id'])) {
     exit();
 }
 
-// Check if order details are in session
+$user_id = intval($_SESSION['user_id'] ?? 0);
+$order_param = isset($_GET['order']) ? mysqli_real_escape_string($conn, trim($_GET['order'])) : '';
+
+// 1. If an order parameter is passed, check its status in the database first
+if ($order_param !== '' && $user_id > 0) {
+    $check_sql = "SELECT id, order_number, total_amount, payment_method, payment_status, order_status FROM orders WHERE order_number = '$order_param' AND user_id = $user_id LIMIT 1";
+    $check_res = mysqli_query($conn, $check_sql);
+    if ($check_res && mysqli_num_rows($check_res) > 0) {
+        $existing_order = mysqli_fetch_assoc($check_res);
+        $pay_status = strtolower(trim($existing_order['payment_status'] ?? ''));
+        $ord_status = strtolower(trim($existing_order['order_status'] ?? ''));
+
+        // If the order is ALREADY PAID or confirmed, redirect directly to order confirmation
+        if ($pay_status === 'paid' || in_array($ord_status, ['confirmed', 'placed', 'processing', 'out for delivery', 'delivered'])) {
+            header("Location: order-confirmation.php?order=" . urlencode($existing_order['order_number']) . "&payment=success");
+            exit();
+        }
+
+        // If the order is still pending payment, restore session state so the user can pay smoothly
+        if (!isset($_SESSION['pending_order_number'])) {
+            $_SESSION['pending_order_id'] = intval($existing_order['id']);
+            $_SESSION['pending_order_number'] = $existing_order['order_number'];
+            $_SESSION['pending_order_amount'] = floatval($existing_order['total_amount']);
+            $_SESSION['pending_payment_method'] = $existing_order['payment_method'];
+        }
+    }
+}
+
+// 2. If still missing required session data or order parameter, redirect cleanly to checkout
 if (!isset($_SESSION['pending_order_number']) || !isset($_GET['order'])) {
-        // Show diagnostic info instead of silently redirecting so we can debug missing session/GET data
-        ?>
-        <!doctype html>
-        <html>
-        <head>
-            <meta charset="utf-8">
-            <title>Payment Initialization Error</title>
-            <link href="assets/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet">
-            <style>body{padding:20px}</style>
-        </head>
-        <body>
-            <div class="container">
-                <div class="alert alert-danger">
-                    <h4 class="alert-heading">Cannot initialize payment</h4>
-                    <p>The payment processing page was reached but required data is missing.</p>
-                    <hr>
-                    <p><strong>Session pending_order_number:</strong> <?php echo isset($_SESSION['pending_order_number']) ? htmlspecialchars($_SESSION['pending_order_number']) : '<em>NOT SET</em>'; ?></p>
-                    <p><strong>Session pending_order_id:</strong> <?php echo isset($_SESSION['pending_order_id']) ? htmlspecialchars($_SESSION['pending_order_id']) : '<em>NOT SET</em>'; ?></p>
-                    <p><strong>Session pending_order_amount:</strong> <?php echo isset($_SESSION['pending_order_amount']) ? htmlspecialchars($_SESSION['pending_order_amount']) : '<em>NOT SET</em>'; ?></p>
-                    <p><strong>Session pending_payment_method:</strong> <?php echo isset($_SESSION['pending_payment_method']) ? htmlspecialchars($_SESSION['pending_payment_method']) : '<em>NOT SET</em>'; ?></p>
-                    <p><strong>GET order parameter:</strong> <?php echo isset($_GET['order']) ? htmlspecialchars($_GET['order']) : '<em>NOT SET</em>'; ?></p>
-                </div>
-                <a href="checkout.php" class="btn btn-primary">Back to Checkout</a>
-            </div>
-        </body>
-        </html>
-        <?php
-        exit();
+    header("Location: checkout.php");
+    exit();
 }
 
 $order_number = $_SESSION['pending_order_number'];

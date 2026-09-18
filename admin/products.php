@@ -841,7 +841,7 @@ $result = mysqli_query($conn, $sql);
                     if (!mainImgPath.startsWith('../') && !mainImgPath.startsWith('http')) {
                         mainImgPath = '../' + mainImgPath;
                     }
-                    html += '<img id="mainProductImage" src="' + mainImgPath + '" class="img-fluid rounded border" alt="Product Image" style="width: 100%; height: 400px; object-fit: contain; background: #f8f9fa;" onerror="this.src=\'assets/images/products/default.png\'">';
+                    html += '<img id="mainProductImage" src="' + mainImgPath + '" class="img-fluid rounded border" alt="Product Image" style="width: 100%; height: 400px; object-fit: contain; background: #f8f9fa;" onerror="this.onerror=null; this.src=\'assets/images/products/default.png\'">';
                 } else {
                     html += '<img id="mainProductImage" src="assets/images/products/default.png" class="img-fluid rounded border" alt="No Image" style="width: 100%; height: 400px; object-fit: contain; background: #f8f9fa;">';
                 }
@@ -1020,7 +1020,7 @@ $result = mysqli_query($conn, $sql);
                         if (addon.custom_price !== null && addon.custom_price !== undefined) {
                             priceDisplay = '<span class="text-success fw-bold">₹' + parseFloat(addon.custom_price).toLocaleString('en-IN') + '</span> <span class="text-muted text-decoration-line-through fs-11">₹' + parseFloat(addon.regular_price).toLocaleString('en-IN') + '</span>';
                         }
-                        html += '<div class="col-6"><div class="d-flex align-items-center gap-2 p-2 border rounded bg-white small h-100"><img src="' + img + '" class="rounded border" style="width:36px;height:36px;object-fit:cover;" onerror="this.src=\'../assets/images/products/default.png\'"><div class="overflow-hidden flex-grow-1"><div class="text-truncate fw-semibold">' + escapeHtml(addon.name) + '</div><div class="small">' + priceDisplay + '</div></div></div></div>';
+                        html += '<div class="col-6"><div class="d-flex align-items-center gap-2 p-2 border rounded bg-white small h-100"><img src="' + img + '" class="rounded border" style="width:36px;height:36px;object-fit:cover;" onerror="this.onerror=null; this.src=\'../assets/images/products/default.png\'"><div class="overflow-hidden flex-grow-1"><div class="text-truncate fw-semibold">' + escapeHtml(addon.name) + '</div><div class="small">' + priceDisplay + '</div></div></div></div>';
                     });
                     html += '</div>';
                     html += '</div>';

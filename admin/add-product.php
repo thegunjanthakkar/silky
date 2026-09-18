@@ -35,6 +35,22 @@ if ($col_addon_check && mysqli_num_rows($col_addon_check) == 0) {
     @mysqli_query($conn, "ALTER TABLE `products` ADD COLUMN `addon_products` TEXT NULL");
 }
 
+if (!function_exists('getAdminImagePath')) {
+    function getAdminImagePath($path) {
+        if (empty($path)) return 'assets/images/products/default.png';
+        $p = trim($path);
+        if (strpos($p, 'http') === 0 || strpos($p, 'data:') === 0) return $p;
+        $clean = ltrim($p, './');
+        if (strpos($clean, 'uploads/') === 0) {
+            return '../' . $clean;
+        }
+        if (strpos($clean, 'assets/') === 0 && file_exists(__DIR__ . '/' . $clean)) {
+            return $clean;
+        }
+        return '../' . $clean;
+    }
+}
+
 // Fetch all active products for addon selection
 $all_catalog_products = [];
 $catalog_sql = "SELECT id, name, price, image FROM products WHERE status = 'active' ORDER BY name ASC";
@@ -302,17 +318,27 @@ if ($catalog_res) {
                                             <div class="mb-3">
                                                 <label class="form-label">Available Sizes *</label>
                                                 <div class="border rounded p-3" style="max-height: 200px; overflow-y: auto;">
-                                                    <?php while ($size = mysqli_fetch_assoc($sizes_result)): ?>
-                                                        <div class="form-check mb-2">
-                                                            <input class="form-check-input size-checkbox" type="checkbox" name="sizes[]" value="<?php echo $size['id']; ?>" id="size_<?php echo $size['id']; ?>" data-name="<?php echo htmlspecialchars($size['size_label']); ?>">
-                                                            <label class="form-check-label" for="size_<?php echo $size['id']; ?>">
+                                                    <?php while ($size = mysqli_fetch_assoc($sizes_result)): 
+                                                        $isCustom = (strtolower(trim($size['size_label'])) === 'custom');
+                                                    ?>
+                                                        <div class="form-check mb-2 <?php echo $isCustom ? 'p-2 rounded bg-light border border-primary-subtle' : ''; ?>">
+                                                            <input class="form-check-input size-checkbox" type="checkbox" name="sizes[]" value="<?php echo $size['id']; ?>" id="size_<?php echo $size['id']; ?>" data-name="<?php echo htmlspecialchars($size['size_label']); ?>" <?php echo $isCustom ? 'data-is-custom="1"' : ''; ?>>
+                                                            <label class="form-check-label w-100" for="size_<?php echo $size['id']; ?>">
                                                                 <strong><?php echo htmlspecialchars($size['size_label']); ?></strong>
+                                                                <?php if ($isCustom): ?>
+                                                                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle ms-1"><i class="fas fa-ruler-combined me-1"></i>Custom Tailoring</span>
+                                                                <?php endif; ?>
                                                                 <?php if (!empty($size['description'])): ?>
                                                                     <small class="text-muted d-block"><?php echo htmlspecialchars($size['description']); ?></small>
+                                                                <?php elseif ($isCustom): ?>
+                                                                    <small class="text-muted d-block">Prompts customers to submit body measurements in a modal on the website.</small>
                                                                 <?php endif; ?>
                                                             </label>
                                                         </div>
                                                     <?php endwhile; ?>
+                                                </div>
+                                                <div id="custom-size-admin-notice" class="alert alert-info py-2 px-3 mt-2 fs-12 mb-1" style="display: none;">
+                                                    <i class="fas fa-info-circle me-1"></i> <strong>Custom Size selected:</strong> Customers will be prompted with an interactive modal on the product page to enter body measurements (Bust, Waist, Hips, Length, etc.) before adding to cart.
                                                 </div>
                                                 <small class="text-muted">Select at least one size</small>
                                             </div>
@@ -560,7 +586,7 @@ if ($catalog_res) {
                                         <div class="card-header py-2 d-flex align-items-center justify-content-between flex-wrap gap-2">
                                             <div>
                                                 <h4 class="card-title mb-0 fs-15"><i class="fas fa-puzzle-piece text-primary me-1"></i> Add-on Products (Frequently Added Together)</h4>
-                                                <small class="text-muted">Add catalog products or create custom add-ons with images. Enable measurement collection per add-on.</small>
+                                                <small class="text-muted">Add catalog products or create custom add-ons with images, colors, sizes, and measurement options.</small>
                                             </div>
                                         </div>
                                         <div class="card-body">
@@ -570,8 +596,8 @@ if ($catalog_res) {
                                                 <small class="text-muted">Leave blank to use default heading "Frequently Added Together".</small>
                                             </div>
 
-                                            <!-- Picker row -->
-                                            <div class="row g-2 align-items-end mb-2">
+                                            <!-- Picker + Custom button row -->
+                                            <div class="row g-2 align-items-end mb-3">
                                                 <div class="col-md-7">
                                                     <label class="form-label fw-semibold fs-13 mb-1">Pick from Catalog</label>
                                                     <select id="addon_picker" class="form-select">
@@ -592,37 +618,9 @@ if ($catalog_res) {
                                                     </button>
                                                 </div>
                                                 <div class="col-md-3">
-                                                    <button type="button" class="btn btn-soft-success w-100" onclick="showCustomAddonForm()">
+                                                    <button type="button" class="btn btn-soft-success w-100" data-bs-toggle="modal" data-bs-target="#customAddonModal">
                                                         <i class="fas fa-paint-brush me-1"></i> Add Custom
                                                     </button>
-                                                </div>
-                                            </div>
-
-                                            <!-- Custom product mini-form -->
-                                            <div id="custom-addon-form" class="border rounded p-3 mb-3 bg-light" style="display:none;">
-                                                <h6 class="fw-semibold fs-13 mb-3"><i class="fas fa-paint-brush text-success me-1"></i> Custom Add-on Product</h6>
-                                                <div class="row g-2">
-                                                    <div class="col-md-4">
-                                                        <label class="form-label fs-13 mb-1">Product Name <span class="text-danger">*</span></label>
-                                                        <input type="text" id="custom_addon_name" class="form-control form-control-sm" placeholder="e.g. Matching Dupatta">
-                                                    </div>
-                                                    <div class="col-md-3">
-                                                        <label class="form-label fs-13 mb-1">Price (₹) <span class="text-danger">*</span></label>
-                                                        <input type="number" id="custom_addon_price" class="form-control form-control-sm" step="0.01" min="0" placeholder="0.00">
-                                                    </div>
-                                                    <div class="col-md-3">
-                                                        <label class="form-label fs-13 mb-1">Image</label>
-                                                        <input type="file" id="custom_addon_image_file" class="form-control form-control-sm" accept="image/*">
-                                                        <div id="custom_addon_image_preview" class="mt-1" style="display:none;">
-                                                            <img id="custom_addon_img_tag" src="" style="width:48px;height:48px;object-fit:cover;border-radius:6px;border:1px solid #dee2e6;">
-                                                            <small id="custom_addon_upload_status" class="text-muted ms-1"></small>
-                                                        </div>
-                                                    </div>
-                                                    <div class="col-md-2 d-flex align-items-end">
-                                                        <button type="button" class="btn btn-success btn-sm w-100" onclick="addCustomAddon()">
-                                                            <i class="fas fa-plus me-1"></i> Add
-                                                        </button>
-                                                    </div>
                                                 </div>
                                             </div>
 
@@ -632,9 +630,9 @@ if ($catalog_res) {
                                                         <tr>
                                                             <th style="width:50px;" class="text-center">Image</th>
                                                             <th>Name / Type</th>
-                                                            <th style="width:130px;">Price</th>
-                                                            <th style="width:200px;">Add-on Price (₹)</th>
-                                                            <th style="width:110px;" class="text-center">Measurement</th>
+                                                            <th style="width:100px;">Price</th>
+                                                            <th style="width:170px;">Add-on Price (₹)</th>
+                                                            <th style="width:90px;" class="text-center">Measurement</th>
                                                             <th style="width:50px;" class="text-center">Del</th>
                                                         </tr>
                                                     </thead>
@@ -646,6 +644,9 @@ if ($catalog_res) {
                                             </div>
                                         </div>
                                     </div>
+
+
+
 
                                     <div class="d-flex justify-content-between">
                                         <a href="products.php" class="btn btn-secondary">
@@ -736,7 +737,72 @@ if ($catalog_res) {
         </div>
     </div>
 
+    <!-- Custom Add-on Modal -->
+    <div class="modal fade" id="customAddonModal" tabindex="-1" aria-labelledby="customAddonModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="customAddonModalLabel"><i class="fas fa-paint-brush text-success me-2"></i>Add Custom Add-on Product</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <!-- Image -->
+                        <div class="col-12 text-center">
+                            <div id="ca_image_preview" class="mb-2" style="display:none;">
+                                <img id="ca_image_tag" src="" alt="Preview" class="rounded border" style="width:90px;height:160px;object-fit:cover;">
+                            </div>
+                            <label class="form-label fw-semibold fs-13 mb-1 d-block">Product Image</label>
+                            <input type="file" id="ca_image_file" class="form-control form-control-sm" accept="image/*">
+                            <small class="text-muted">Max 1.5 MB · 9:16 ratio will be cropped</small>
+                        </div>
+                        <!-- Name -->
+                        <div class="col-12">
+                            <label class="form-label fw-semibold fs-13 mb-1">Product Name <span class="text-danger">*</span></label>
+                            <input type="text" id="ca_name" class="form-control" placeholder="e.g. Matching Dupatta">
+                        </div>
+                        <!-- Price -->
+                        <div class="col-12">
+                            <label class="form-label fw-semibold fs-13 mb-1">Price (₹) <span class="text-danger">*</span></label>
+                            <div class="input-group">
+                                <span class="input-group-text">₹</span>
+                                <input type="number" id="ca_price" class="form-control" step="0.01" min="0" placeholder="0.00">
+                            </div>
+                        </div>
+                        <!-- Color -->
+                        <div class="col-6">
+                            <label class="form-label fw-semibold fs-13 mb-1">Color</label>
+                            <input type="text" id="ca_color" class="form-control" placeholder="e.g. Red, Navy Blue">
+                        </div>
+                        <!-- Size -->
+                        <div class="col-6">
+                            <label class="form-label fw-semibold fs-13 mb-1">Size</label>
+                            <input type="text" id="ca_size" class="form-control" placeholder="e.g. Free Size, S/M/L/XL">
+                        </div>
+                        <!-- Measurement toggle -->
+                        <div class="col-12">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="ca_needs_measurement" role="switch">
+                                <label class="form-check-label fw-semibold fs-13" for="ca_needs_measurement">
+                                    <i class="fas fa-ruler-combined text-info me-1"></i> Require customer measurements
+                                </label>
+                            </div>
+                            <small class="text-muted">Customer will be asked for Chest, Waist, Hip, Length, Shoulder (in inches)</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-success" onclick="addCustomAddon()">
+                        <i class="fas fa-plus me-1"></i> Add to List
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Cropper Modal -->
+
     <div class="modal fade" id="cropperModal" tabindex="-1">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
@@ -1012,27 +1078,51 @@ if ($catalog_res) {
 
         // Add-on products handling
         let addonRowIndex = 0;
+        let customAddonCropperInstance = null;
+        let customAddonImagePath = '';
+        let customAddonImageBlob = null;
 
         function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
-        function buildAddonRow(idx, type, id, name, catalogPrice, img, customPrice, needsMeasurement) {
+        function resolveAdminImgJs(path) {
+            if (!path) return 'assets/images/products/default.png';
+            if (path.startsWith('http') || path.startsWith('data:')) return path;
+            const clean = path.replace(/^\.\//, '');
+            if (clean.startsWith('uploads/')) {
+                return '../' + clean;
+            }
+            if (clean.startsWith('assets/')) {
+                return clean;
+            }
+            return clean.startsWith('../') ? clean : '../' + clean;
+        }
+
+        function buildAddonRow(idx, type, id, name, catalogPrice, img, customPrice, needsMeasurement, color, size) {
             const priceDisplay = parseFloat(catalogPrice || 0).toFixed(2);
             const customVal    = customPrice ? parseFloat(customPrice).toFixed(2) : '';
             const badge        = type === 'custom'
                 ? '<span class="badge bg-success-subtle text-success border border-success-subtle" style="font-size:10px;">Custom</span>'
                 : '<span class="badge bg-primary-subtle text-primary border border-primary-subtle" style="font-size:10px;">Catalog</span>';
             const measChecked  = needsMeasurement ? 'checked' : '';
+            const metaLine     = (color || size)
+                ? `<small class="text-muted d-block" style="font-size:10px;">${color ? '🎨 '+esc(color) : ''}${color && size ? ' &nbsp;|&nbsp; ' : ''}${size ? '📐 '+esc(size) : ''}</small>`
+                : '';
+            // Always emit ALL hidden fields — empty for the type that doesn't use them.
+            // This ensures PHP array indices stay aligned regardless of row order.
             return `
-            <tr data-addon-row="${idx}" data-product-id="${type === 'catalog' ? id : ''}">
+            <tr data-addon-row="${idx}" data-product-id="${type === 'catalog' ? esc(id) : ''}">
                 <td class="text-center">
                     <input type="hidden" name="addon_type[]" value="${esc(type)}">
-                    ${type === 'catalog'
-                        ? `<input type="hidden" name="addon_product_id[]" value="${esc(id)}">` 
-                        : `<input type="hidden" name="addon_custom_name[]" value="${esc(name)}"><input type="hidden" name="addon_custom_image_path[]" value="${esc(img)}">`}
-                    <img src="${esc(img || 'assets/images/products/default.png')}" class="rounded border" style="width:40px;height:40px;object-fit:cover;" onerror="this.src='assets/images/products/default.png'">
+                    <input type="hidden" name="addon_product_id[]" value="${type === 'catalog' ? esc(id) : ''}">
+                    <input type="hidden" name="addon_custom_name[]" value="${type === 'custom' ? esc(name) : ''}">
+                    <input type="hidden" name="addon_custom_image_path[]" value="${type === 'custom' ? esc(img) : ''}">
+                    <input type="hidden" name="addon_custom_color[]" value="${esc(color||'')}">
+                    <input type="hidden" name="addon_custom_size[]" value="${esc(size||'')}">
+                    <img src="${esc(resolveAdminImgJs(img))}" class="rounded border" style="width:40px;height:40px;object-fit:cover;" onerror="this.onerror=null; this.src='assets/images/products/default.png'">
                 </td>
                 <td>
                     <strong class="fs-13">${esc(name)}</strong> ${badge}
+                    ${metaLine}
                 </td>
                 <td><span class="text-muted">₹${priceDisplay}</span></td>
                 <td>
@@ -1064,71 +1154,93 @@ if ($catalog_res) {
             const name  = opt.dataset.name;
             const price = opt.dataset.price || 0;
             const img   = opt.dataset.image || 'assets/images/products/default.png';
-            appendAddonRow('catalog', id, name, price, img, '', false);
+            appendAddonRow('catalog', id, name, price, img, '', false, '', '');
             picker.value = '';
         }
 
-        function showCustomAddonForm() {
-            const f = document.getElementById('custom-addon-form');
-            f.style.display = f.style.display === 'none' ? '' : 'none';
-        }
-
-        let customAddonImagePath = '';
+        /* ---- Custom Add-on Modal Logic ---- */
         document.addEventListener('DOMContentLoaded', () => {
-            const fileInput = document.getElementById('custom_addon_image_file');
-            if (fileInput) {
-                fileInput.addEventListener('change', async function() {
-                    if (!this.files.length) return;
-                    const statusEl = document.getElementById('custom_addon_upload_status');
-                    const previewWrap = document.getElementById('custom_addon_image_preview');
-                    const imgTag = document.getElementById('custom_addon_img_tag');
-                    statusEl.textContent = 'Uploading...';
-                    previewWrap.style.display = '';
-                    const fd = new FormData();
-                    fd.append('image', this.files[0]);
-                    fd.append('type', 'addon');
-                    try {
-                        const r = await fetch('upload-image.php', { method: 'POST', body: fd });
-                        const j = await r.json();
-                        if (j.success) {
-                            customAddonImagePath = j.path;
-                            imgTag.src = j.path;
-                            statusEl.textContent = '✓ Uploaded';
-                            statusEl.className = 'text-success ms-1';
-                        } else {
-                            statusEl.textContent = j.message || 'Upload failed';
-                            statusEl.className = 'text-danger ms-1';
-                        }
-                    } catch(e) {
-                        statusEl.textContent = 'Upload error';
-                        statusEl.className = 'text-danger ms-1';
-                    }
-                });
-            }
+            const modalEl = document.getElementById('customAddonModal');
+            if (!modalEl) return;
+
+            // File input -> open cropper
+            modalEl.addEventListener('change', function(e) {
+                if (!e.target.matches('#ca_image_file')) return;
+                const file = e.target.files[0];
+                if (!file) return;
+                const maxBytes = 1.5 * 1024 * 1024;
+                if (file.size > maxBytes) { alert('Image too large. Max 1.5 MB allowed.'); e.target.value=''; return; }
+                const reader = new FileReader();
+                reader.onload = ev => {
+                    // Show cropper inside the modal (re-use #crop-image / #cropperModal)
+                    document.getElementById('crop-image').src = ev.target.result;
+                    document.querySelector('#cropperModal .modal-title').textContent = 'Crop Add-on Image';
+                    // Store callback so cropAndUpload knows where to put result
+                    window._addonCropCallback = true;
+                    // Hide custom modal, show crop modal
+                    bootstrap.Modal.getInstance(modalEl)?.hide();
+                    bootstrap.Modal.getOrCreateInstance(document.getElementById('cropperModal')).show();
+                    if (cropper) { cropper.destroy(); cropper = null; }
+                    cropper = new Cropper(document.getElementById('crop-image'), {
+                        aspectRatio: 9 / 16,
+                        viewMode: 1,
+                        autoCropArea: 1,
+                        responsive: true,
+                        guides: true,
+                        center: true,
+                        highlight: false,
+                        cropBoxMovable: true,
+                        cropBoxResizable: true,
+                        toggleDragModeOnDblclick: false
+                    });
+                };
+                reader.readAsDataURL(file);
+            });
+
+            // When cropper modal is hidden, re-open custom addon modal if it was for an addon
+            document.getElementById('cropperModal').addEventListener('hidden.bs.modal', function() {
+                if (window._addonCropCallback) {
+                    window._addonCropCallback = false;
+                    bootstrap.Modal.getOrCreateInstance(modalEl).show();
+                }
+            });
+
+            modalEl.addEventListener('hidden.bs.modal', resetCustomAddonModal);
         });
 
         function addCustomAddon() {
-            const name  = document.getElementById('custom_addon_name').value.trim();
-            const price = document.getElementById('custom_addon_price').value.trim();
-            if (!name) { alert('Please enter a product name.'); return; }
+            const name  = document.getElementById('ca_name').value.trim();
+            const price = document.getElementById('ca_price').value.trim();
+            const color = document.getElementById('ca_color').value.trim();
+            const size  = document.getElementById('ca_size').value.trim();
+            const needM = document.getElementById('ca_needs_measurement').checked;
+            if (!name)  { alert('Please enter a product name.'); return; }
             if (!price || isNaN(parseFloat(price))) { alert('Please enter a valid price.'); return; }
-            appendAddonRow('custom', '', name, price, customAddonImagePath || 'assets/images/products/default.png', price, false);
-            // Reset form
-            document.getElementById('custom_addon_name').value = '';
-            document.getElementById('custom_addon_price').value = '';
-            document.getElementById('custom_addon_image_file').value = '';
-            document.getElementById('custom_addon_image_preview').style.display = 'none';
-            customAddonImagePath = '';
-            document.getElementById('custom-addon-form').style.display = 'none';
+            const img = customAddonImagePath || 'assets/images/products/default.png';
+            appendAddonRow('custom', '', name, price, img, price, needM, color, size);
+            bootstrap.Modal.getInstance(document.getElementById('customAddonModal'))?.hide();
         }
 
-        function appendAddonRow(type, id, name, price, img, customPrice, needsMeasurement) {
+        function resetCustomAddonModal() {
+            document.getElementById('ca_name').value = '';
+            document.getElementById('ca_price').value = '';
+            document.getElementById('ca_color').value = '';
+            document.getElementById('ca_size').value = '';
+            document.getElementById('ca_needs_measurement').checked = false;
+            const fileEl = document.getElementById('ca_image_file');
+            if (fileEl) fileEl.value = '';
+            const prev = document.getElementById('ca_image_preview');
+            if (prev) prev.style.display = 'none';
+            customAddonImagePath = '';
+        }
+
+        function appendAddonRow(type, id, name, price, img, customPrice, needsMeasurement, color, size) {
             const tbody = document.getElementById('addon-products-tbody');
             const table = document.getElementById('addon-products-table');
             const placeholder = document.getElementById('addon-empty-placeholder');
             const idx = addonRowIndex++;
             const tmp = document.createElement('tbody');
-            tmp.innerHTML = buildAddonRow(idx, type, id, name, price, img, customPrice, needsMeasurement);
+            tmp.innerHTML = buildAddonRow(idx, type, id, name, price, img, customPrice, needsMeasurement, color, size);
             tbody.appendChild(tmp.firstElementChild);
             table.style.display = '';
             if (placeholder) placeholder.style.display = 'none';
@@ -1271,23 +1383,36 @@ if ($catalog_res) {
         function cropAndUpload() {
             if (!cropper) return;
 
+            const isAddon = window._addonCropCallback === true;
+
             cropper.getCroppedCanvas({
                 width: 900,
                 height: 1600,
                 imageSmoothingEnabled: true,
                 imageSmoothingQuality: 'high'
-            }).toBlob((blob) => {
+            }).toBlob(async (blob) => {
                 const formData = new FormData();
-                formData.append('image', blob, selectedFile.name);
-                formData.append('type', 'product');
+                const filename = isAddon
+                    ? ('addon_' + Date.now() + '.jpg')
+                    : (selectedFile && selectedFile.name ? selectedFile.name : 'product_' + Date.now() + '.jpg');
+                formData.append('image', blob, filename);
+                formData.append('type', isAddon ? 'addon' : 'product');
 
-                fetch('upload-image.php', {
+                try {
+                    const response = await fetch('upload-image.php', {
                         method: 'POST',
                         body: formData
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
+                    });
+                    const data = await response.json();
+
+                    if (data.success) {
+                        if (isAddon) {
+                            customAddonImagePath = data.path;
+                            const prev = document.getElementById('ca_image_preview');
+                            const img  = document.getElementById('ca_image_tag');
+                            if (prev) prev.style.display = '';
+                            if (img)  img.src = resolveAdminImgJs(data.path);
+                        } else {
                             uploadedImages.push(data.path);
                             updateImagesDisplay();
                             updateImagesInput();
@@ -1295,24 +1420,24 @@ if ($catalog_res) {
                             // Remove current image from queue
                             imagesToCrop.shift();
 
-                            const cropModal = bootstrap.Modal.getInstance(document.getElementById('cropperModal')) || bootstrap.Modal.getOrCreateInstance(document.getElementById('cropperModal'));
-                            if (cropModal) cropModal.hide();
-
                             // Process next image if available
                             setTimeout(() => {
                                 if (imagesToCrop.length > 0) {
                                     startCropping();
                                 }
                             }, 500);
-
-                        } else {
-                            alert('Upload failed: ' + data.message);
                         }
-                    })
-                    .catch(error => {
-                        console.error('Error:', error);
-                        alert('Upload failed: ' + error.message);
-                    });
+
+                        const cropModal = bootstrap.Modal.getInstance(document.getElementById('cropperModal')) || bootstrap.Modal.getOrCreateInstance(document.getElementById('cropperModal'));
+                        if (cropModal) cropModal.hide();
+
+                    } else {
+                        alert('Upload failed: ' + data.message);
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert('Upload failed: ' + error.message);
+                }
             }, 'image/jpeg', 0.9);
         }
 
@@ -1479,8 +1604,14 @@ if ($catalog_res) {
         function updateVariantsTable() {
             const colorCheckboxes = document.querySelectorAll('.color-checkbox');
             const selectedColors = Array.from(colorCheckboxes).filter(c => c.checked).map(c => ({id: c.value, name: c.dataset.name}));
-            const selectedSizes = Array.from(sizeCheckboxes).filter(s => s.checked).map(s => ({id: s.value, name: s.dataset.name}));
+            const selectedSizes = Array.from(sizeCheckboxes).filter(s => s.checked).map(s => ({id: s.value, name: s.dataset.name, isCustom: s.dataset.isCustom === '1' || s.dataset.name === 'Custom'}));
             
+            const customNotice = document.getElementById('custom-size-admin-notice');
+            if (customNotice) {
+                const hasCustom = selectedSizes.some(s => s.isCustom);
+                customNotice.style.display = hasCustom ? 'block' : 'none';
+            }
+
             if (selectedColors.length === 0 || selectedSizes.length === 0) {
                 variantsSection.style.display = 'none';
                 tbody.innerHTML = '';

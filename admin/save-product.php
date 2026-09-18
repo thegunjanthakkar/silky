@@ -241,6 +241,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $addon_custom_imgs  = isset($_POST['addon_custom_image_path']) && is_array($_POST['addon_custom_image_path']) ? $_POST['addon_custom_image_path'] : [];
     $addon_custom_prices= isset($_POST['addon_custom_price'])      && is_array($_POST['addon_custom_price'])      ? $_POST['addon_custom_price']      : [];
     $addon_needs_meas   = isset($_POST['addon_needs_measurement']) && is_array($_POST['addon_needs_measurement']) ? $_POST['addon_needs_measurement'] : [];
+    $addon_custom_colors= isset($_POST['addon_custom_color'])      && is_array($_POST['addon_custom_color'])      ? $_POST['addon_custom_color']      : [];
+    $addon_custom_sizes = isset($_POST['addon_custom_size'])       && is_array($_POST['addon_custom_size'])       ? $_POST['addon_custom_size']       : [];
 
     foreach ($addon_types as $idx => $atype) {
         $atype = ($atype === 'custom') ? 'custom' : 'catalog';
@@ -263,6 +265,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'custom_name'       => $cname,
                 'custom_image'      => trim($addon_custom_imgs[$idx] ?? ''),
                 'custom_price'      => (is_numeric($custom_p) && floatval($custom_p) > 0) ? floatval($custom_p) : 0,
+                'custom_color'      => trim($addon_custom_colors[$idx] ?? ''),
+                'custom_size'       => trim($addon_custom_sizes[$idx] ?? ''),
                 'needs_measurement' => in_array((string)$idx, $addon_needs_meas) ? true : false,
             ];
         }

@@ -48,3 +48,21 @@ if (!defined('BASE_URL')) {
 }
 
 $base_url = BASE_URL;
+
+// Ensure default product placeholder images exist
+$admin_def_img = __DIR__ . '/admin/assets/images/products/default.png';
+if (!file_exists($admin_def_img)) {
+    $src_sample = __DIR__ . '/admin/assets/images/products/01.png';
+    if (file_exists($src_sample)) {
+        @copy($src_sample, $admin_def_img);
+    }
+}
+$root_def_img = __DIR__ . '/assets/images/products/default.png';
+if (!file_exists($root_def_img)) {
+    if (!is_dir(__DIR__ . '/assets/images/products')) {
+        @mkdir(__DIR__ . '/assets/images/products', 0755, true);
+    }
+    if (file_exists($admin_def_img)) {
+        @copy($admin_def_img, $root_def_img);
+    }
+}
