@@ -54,7 +54,7 @@ $announcement_3 = $website_settings['topbar_announcement_3'] ?? '🎁 20% off on
             </div>
           </div>
 
-          <div class="col-lg-4 col-6 d-flex justify-content-end">
+          <!-- <div class="col-lg-4 col-6 d-flex justify-content-end">
             <div class="d-flex justify-content-end">
               <div class="top-bar-item dropdown me-3">
                 <a href="#" class="dropdown-toggle" data-bs-toggle="dropdown">
@@ -78,7 +78,7 @@ $announcement_3 = $website_settings['topbar_announcement_3'] ?? '🎁 20% off on
                 </ul>
               </div>
             </div>
-          </div>
+          </div> -->
         </div>
       </div>
     </div>

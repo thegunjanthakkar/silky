@@ -106,10 +106,25 @@ try {
             $aids = [];
             $c_prices = [];
             foreach ($decoded_addons as $ad) {
-                $aid = intval($ad['product_id'] ?? 0);
-                if ($aid > 0) {
-                    $aids[] = $aid;
-                    $c_prices[$aid] = (isset($ad['custom_price']) && is_numeric($ad['custom_price'])) ? floatval($ad['custom_price']) : null;
+                if (($ad['type'] ?? '') === 'custom' || (!empty($ad['custom_name']) && empty($ad['product_id']))) {
+                    $c_img = !empty($ad['custom_image']) ? $ad['custom_image'] : 'assets/images/products/default.png';
+                    $addon_items[] = [
+                        'id' => null,
+                        'name' => trim($ad['custom_name'] ?? '') . ' (Custom)',
+                        'regular_price' => floatval($ad['custom_price'] ?? 0),
+                        'custom_price' => null,
+                        'image' => $c_img,
+                        'type' => 'custom',
+                        'color' => $ad['custom_color'] ?? '',
+                        'size' => $ad['custom_size'] ?? '',
+                        'needs_measurement' => !empty($ad['needs_measurement'])
+                    ];
+                } else {
+                    $aid = intval($ad['product_id'] ?? 0);
+                    if ($aid > 0) {
+                        $aids[] = $aid;
+                        $c_prices[$aid] = (isset($ad['custom_price']) && is_numeric($ad['custom_price'])) ? floatval($ad['custom_price']) : null;
+                    }
                 }
             }
             if (!empty($aids)) {
@@ -128,7 +143,8 @@ try {
                             'name' => $arow['name'],
                             'regular_price' => floatval($arow['price']),
                             'custom_price' => $c_prices[$aid] ?? null,
-                            'image' => $aimg
+                            'image' => $aimg,
+                            'type' => 'catalog'
                         ];
                     }
                 }

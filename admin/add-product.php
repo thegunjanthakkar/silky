@@ -72,6 +72,36 @@ if ($catalog_res) {
         $all_catalog_products[] = $cp;
     }
 }
+
+// Fetch all existing custom add-ons across all products to allow re-use in dropdown
+$all_custom_addons = [];
+$custom_addons_seen = [];
+$ca_query = "SELECT addon_products FROM products WHERE addon_products IS NOT NULL AND addon_products != '' AND addon_products != '[]'";
+$ca_res = @mysqli_query($conn, $ca_query);
+if ($ca_res) {
+    while ($row = mysqli_fetch_assoc($ca_res)) {
+        $arr = json_decode($row['addon_products'], true);
+        if (is_array($arr)) {
+            foreach ($arr as $item) {
+                if (isset($item['type']) && $item['type'] === 'custom' && !empty($item['custom_name'])) {
+                    $dedup_key = strtolower(trim($item['custom_name']));
+                    if (!isset($custom_addons_seen[$dedup_key])) {
+                        $custom_addons_seen[$dedup_key] = true;
+                        $ca_img = !empty($item['custom_image']) ? $item['custom_image'] : 'assets/images/products/default.png';
+                        $all_custom_addons[] = [
+                            'custom_name'        => trim($item['custom_name']),
+                            'custom_price'       => floatval($item['custom_price'] ?? 0),
+                            'custom_image'       => $ca_img,
+                            'custom_color'       => $item['custom_color'] ?? '',
+                            'custom_size'        => $item['custom_size'] ?? '',
+                            'needs_measurement'  => !empty($item['needs_measurement']),
+                        ];
+                    }
+                }
+            }
+        }
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="en" dir="ltr" data-startbar="light" data-bs-theme="light" id="html-root">
@@ -634,17 +664,38 @@ if ($catalog_res) {
                                             <!-- Picker + Custom button row -->
                                             <div class="row g-2 align-items-end mb-3">
                                                 <div class="col-md-7">
-                                                    <label class="form-label fw-semibold fs-13 mb-1">Pick from Catalog</label>
+                                                    <label class="form-label fw-semibold fs-13 mb-1">Pick Add-on (Catalog or Custom)</label>
                                                     <select id="addon_picker" class="form-select">
-                                                        <option value="">-- Choose a product --</option>
-                                                        <?php foreach ($all_catalog_products as $cp): ?>
-                                                        <option value="<?php echo $cp['id']; ?>"
-                                                                data-name="<?php echo htmlspecialchars($cp['name']); ?>"
-                                                                data-price="<?php echo htmlspecialchars($cp['price']); ?>"
-                                                                data-image="<?php echo htmlspecialchars($cp['resolved_image']); ?>">
-                                                            <?php echo htmlspecialchars($cp['name']); ?> (₹<?php echo number_format($cp['price'], 2); ?>)
-                                                        </option>
-                                                        <?php endforeach; ?>
+                                                        <option value="">-- Choose an add-on product --</option>
+                                                        <?php if (!empty($all_custom_addons)): ?>
+                                                        <optgroup label="✨ Custom Add-ons (Saved from other products)" id="custom_addons_optgroup">
+                                                            <?php foreach ($all_custom_addons as $c_idx => $ca): ?>
+                                                            <option value="custom_saved_<?php echo $c_idx; ?>"
+                                                                    data-type="custom"
+                                                                    data-name="<?php echo htmlspecialchars($ca['custom_name']); ?>"
+                                                                    data-price="<?php echo htmlspecialchars($ca['custom_price']); ?>"
+                                                                    data-image="<?php echo htmlspecialchars($ca['custom_image']); ?>"
+                                                                    data-color="<?php echo htmlspecialchars($ca['custom_color']); ?>"
+                                                                    data-size="<?php echo htmlspecialchars($ca['custom_size']); ?>"
+                                                                    data-needs-measurement="<?php echo $ca['needs_measurement'] ? '1' : '0'; ?>">
+                                                                <?php echo htmlspecialchars($ca['custom_name']); ?> (Custom Add-on · ₹<?php echo number_format($ca['custom_price'], 2); ?>)
+                                                            </option>
+                                                            <?php endforeach; ?>
+                                                        </optgroup>
+                                                        <?php else: ?>
+                                                        <optgroup label="✨ Custom Add-ons" id="custom_addons_optgroup" style="display:none;"></optgroup>
+                                                        <?php endif; ?>
+                                                        <optgroup label="Catalog Products">
+                                                            <?php foreach ($all_catalog_products as $cp): ?>
+                                                            <option value="<?php echo $cp['id']; ?>"
+                                                                    data-type="catalog"
+                                                                    data-name="<?php echo htmlspecialchars($cp['name']); ?>"
+                                                                    data-price="<?php echo htmlspecialchars($cp['price']); ?>"
+                                                                    data-image="<?php echo htmlspecialchars($cp['resolved_image']); ?>">
+                                                                <?php echo htmlspecialchars($cp['name']); ?> (₹<?php echo number_format($cp['price'], 2); ?>)
+                                                            </option>
+                                                            <?php endforeach; ?>
+                                                        </optgroup>
                                                     </select>
                                                 </div>
                                                 <div class="col-md-2">
@@ -1181,15 +1232,35 @@ if ($catalog_res) {
 
         function addSelectedAddon() {
             const picker = document.getElementById('addon_picker');
-            if (!picker || !picker.value) { alert('Please select a product first.'); return; }
+            if (!picker || !picker.value) { alert('Please select an add-on product first.'); return; }
             const opt = picker.options[picker.selectedIndex];
+            const type = opt.dataset.type || 'catalog';
+            const name  = opt.dataset.name;
+            const price = opt.dataset.price || 0;
+            const img   = opt.dataset.image || 'assets/images/products/default.png';
+
+            if (type === 'custom') {
+                const color = opt.dataset.color || '';
+                const size  = opt.dataset.size || '';
+                const needsM = opt.dataset.needsMeasurement === '1';
+
+                // Check if already in the list
+                const existingNames = Array.from(document.querySelectorAll('input[name="addon_custom_name[]"]')).map(inp => inp.value.trim().toLowerCase());
+                if (existingNames.includes(name.trim().toLowerCase())) {
+                    alert('This custom add-on is already in the add-ons list.');
+                    return;
+                }
+
+                appendAddonRow('custom', '', name, price, img, price, needsM, color, size);
+                picker.value = '';
+                return;
+            }
+
+            // Catalog product
             const id  = opt.value;
             if (document.querySelector(`#addon-products-tbody tr[data-product-id="${id}"]`)) {
                 alert('This product is already in the add-ons list.'); return;
             }
-            const name  = opt.dataset.name;
-            const price = opt.dataset.price || 0;
-            const img   = opt.dataset.image || 'assets/images/products/default.png';
             appendAddonRow('catalog', id, name, price, img, '', false, '', '');
             picker.value = '';
         }
@@ -1254,6 +1325,24 @@ if ($catalog_res) {
             if (!price || isNaN(parseFloat(price))) { alert('Please enter a valid price.'); return; }
             const img = customAddonImagePath || 'assets/images/products/default.png';
             appendAddonRow('custom', '', name, price, img, price, needM, color, size);
+
+            // Also dynamically add into the dropdown for immediate re-use
+            const optgroup = document.getElementById('custom_addons_optgroup');
+            if (optgroup) {
+                optgroup.style.display = '';
+                const newOpt = document.createElement('option');
+                newOpt.value = 'custom_runtime_' + Date.now();
+                newOpt.dataset.type = 'custom';
+                newOpt.dataset.name = name;
+                newOpt.dataset.price = price;
+                newOpt.dataset.image = img;
+                newOpt.dataset.color = color;
+                newOpt.dataset.size = size;
+                newOpt.dataset.needsMeasurement = needM ? '1' : '0';
+                newOpt.textContent = name + ' (Custom Add-on · ₹' + parseFloat(price).toFixed(2) + ')';
+                optgroup.appendChild(newOpt);
+            }
+
             bootstrap.Modal.getInstance(document.getElementById('customAddonModal'))?.hide();
         }
 
