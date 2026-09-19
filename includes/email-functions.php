@@ -1,6 +1,27 @@
 <?php
 // Email helper functions for Silky Saree
 
+/**
+ * Helper to get the brand logo URL for emails.
+ * Uses a direct hosted HTTPS URL so that the logo loads cleanly in the email body
+ * WITHOUT attaching any file or showing an attachment badge/chip in the inbox.
+ *
+ * @param \PHPMailer\PHPMailer\PHPMailer|null $mail Optional mail instance
+ * @return string Public Logo URL
+ */
+function getEmailLogoSrc($mail = null) {
+    $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http";
+    $host = $_SERVER['HTTP_HOST'] ?? '';
+    $burl = defined('BASE_URL') ? BASE_URL : '/';
+    
+    // When running on localhost / private IP or CLI, use the public live URL so mail clients (e.g. Gmail proxy) can load the logo
+    if (empty($host) || in_array($host, ['localhost', '127.0.0.1', '::1']) || strpos($host, 'localhost:') === 0) {
+        return 'https://silkysaree.in/assets/img/silky.png';
+    }
+    
+    return $protocol . '://' . $host . $burl . 'assets/img/silky.png';
+}
+
 // Function to send order confirmation email
 function sendOrderConfirmationEmail($conn, $order_id, $order_number, $customer_email) {
     // Get email settings
@@ -111,11 +132,8 @@ function sendOrderConfirmationEmail($conn, $order_id, $order_number, $customer_e
         // Content
         $mail->isHTML(true);
         
-        // Logo URL
-        $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http";
-        $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
-        $burl = defined('BASE_URL') ? BASE_URL : '/';
-        $logo_src = $protocol . '://' . $host . $burl . 'assets/img/silky-png.png';
+        // Logo URL & embedding
+        $logo_src = getEmailLogoSrc($mail);
         
         $mail->Subject = 'Order Confirmation - Order #' . htmlspecialchars($order_number) . ' - Silky Saree';
         $mail->Body = '
@@ -124,7 +142,7 @@ function sendOrderConfirmationEmail($conn, $order_id, $order_number, $customer_e
                 <div style="max-width: 650px; margin: 40px auto; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.05);">
                     <!-- Header -->
                     <div style="background: #ffffff; padding: 30px 20px; text-align: center; border-bottom: 1px solid #f0f0f0;">
-                        ' . ($logo_src ? '<img src="' . $logo_src . '" alt="Silky Saree" style="max-width: 160px; height: auto;">' : '') . '
+                        ' . ($logo_src ? '<img src="' . $logo_src . '" alt="Silky Saree" style="max-width: 160px; height: auto; display: inline-block; border: 0;">' : '<h1 style="color: #0e2187; margin: 0; font-size: 26px;">Silky Saree</h1>') . '
                     </div>
                     
                     <div style="text-align: center; margin-top: 30px;">
@@ -491,11 +509,8 @@ function sendOrderStatusUpdateEmail($conn, $order_id) {
         // Content
         $mail->isHTML(true);
         
-        // Logo URL
-        $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http";
-        $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
-        $burl = defined('BASE_URL') ? BASE_URL : '/';
-        $logo_src = $protocol . '://' . $host . $burl . 'assets/img/silky-png.png';
+        // Logo URL & embedding
+        $logo_src = getEmailLogoSrc($mail);
         
         // Financial calculations
         $subtotal = floatval($order['subtotal'] ?? 0);
@@ -512,7 +527,7 @@ function sendOrderStatusUpdateEmail($conn, $order_id) {
                 <div style="max-width: 650px; margin: 40px auto; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.05);">
                     <!-- Header -->
                     <div style="background: #ffffff; padding: 30px 20px; text-align: center; border-bottom: 1px solid #f0f0f0;">
-                        ' . ($logo_src ? '<img src="' . $logo_src . '" alt="Silky Saree" style="max-width: 160px; height: auto;">' : '') . '
+                        ' . ($logo_src ? '<img src="' . $logo_src . '" alt="Silky Saree" style="max-width: 160px; height: auto; display: inline-block; border: 0;">' : '<h1 style="color: #0e2187; margin: 0; font-size: 26px;">Silky Saree</h1>') . '
                     </div>
                     
                     <div style="text-align: center; margin-top: 30px; padding: 0 20px;">
@@ -774,17 +789,22 @@ function sendStockNotificationEmail($conn, $notification_id) {
         $mail->isHTML(true);
         
         // Logo URL
-        $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http";
-        $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
-        $burl = defined('BASE_URL') ? BASE_URL : '/';
-        $logo_src = $protocol . '://' . $host . $burl . 'assets/img/silky-png.png';
-        $image_url = "";
+        $logo_src = getEmailLogoSrc($mail);
         
-        if (!empty($product_image_path) && file_exists($product_image_path)) {
-            $mail->AddEmbeddedImage($product_image_path, 'product_img', basename($product_image_path));
-            $image_url = 'cid:product_img';
+        $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http";
+        $host = $_SERVER['HTTP_HOST'] ?? '';
+        $burl = defined('BASE_URL') ? BASE_URL : '/';
+        $site_base = (empty($host) || in_array($host, ['localhost', '127.0.0.1', '::1']) || strpos($host, 'localhost:') === 0) 
+            ? 'https://silkysaree.in/' 
+            : ($protocol . '://' . $host . $burl);
+
+        $image_url = "";
+        if (!empty($product['main_image'])) {
+            $image_url = filter_var($product['main_image'], FILTER_VALIDATE_URL) 
+                ? $product['main_image'] 
+                : rtrim($site_base, '/') . '/' . ltrim($product['main_image'], '/');
         } else {
-            $image_url = $protocol . '://' . $host . $burl . 'assets/img/products/placeholder.jpg';
+            $image_url = 'https://silkysaree.in/admin/assets/images/products/default.png';
         }
         
         $mail->Subject = 'Back in Stock: ' . htmlspecialchars($product_name) . ' - Silky Saree';
@@ -794,7 +814,7 @@ function sendStockNotificationEmail($conn, $notification_id) {
                 <div style="max-width: 600px; margin: 40px auto; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.05);">
                     <!-- Header -->
                     <div style="background: #ffffff; padding: 30px 20px; text-align: center; border-bottom: 1px solid #f0f0f0;">
-                        ' . ($logo_src ? '<img src="' . $logo_src . '" alt="Silky Saree" style="max-width: 160px; height: auto;">' : '') . '
+                        ' . ($logo_src ? '<img src="' . $logo_src . '" alt="Silky Saree" style="max-width: 160px; height: auto; display: inline-block; border: 0;">' : '<h1 style="color: #0e2187; margin: 0; font-size: 26px;">Silky Saree</h1>') . '
                     </div>
                     
                     <!-- Content -->
@@ -910,13 +930,10 @@ function sendVerificationEmail($conn, $customer_email, $first_name, $otp_code) {
         
         // Content
         $mail->isHTML(true);
-        $mail->Subject = "Your Verification Code";
+        $mail->Subject = "Your Verification Code - Silky Saree";
         
-        // Logo URL
-        $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http";
-        $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
-        $burl = defined('BASE_URL') ? BASE_URL : '/';
-        $logo_src = $protocol . '://' . $host . $burl . 'assets/img/silky-png.png';
+        // Logo URL & embedding
+        $logo_src = getEmailLogoSrc($mail);
 
         $message_html = '
         <html>
@@ -924,16 +941,16 @@ function sendVerificationEmail($conn, $customer_email, $first_name, $otp_code) {
             <div style="max-width: 600px; margin: 40px auto; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.05);">
                 <!-- Header -->
                 <div style="background: #ffffff; padding: 30px 20px; text-align: center; border-bottom: 1px solid #f0f0f0;">
-                    ' . ($logo_src ? '<img src="' . $logo_src . '" alt="Silky Saree" style="max-width: 160px; height: auto;">' : '<h1 style="color: #4CAF50; margin: 0;">Silky Saree</h1>') . '
+                    ' . ($logo_src ? '<img src="' . $logo_src . '" alt="Silky Saree" style="max-width: 170px; height: auto; display: inline-block; border: 0;">' : '<h1 style="color: #0e2187; margin: 0; font-size: 26px; font-weight: 700;">Silky Saree</h1>') . '
                 </div>
                 <!-- Body -->
                 <div style="padding: 40px 30px; text-align: center;">
-                    <h2 style="color: #2c3e50; margin-top: 0; font-size: 24px;">Verify Your Email</h2>
+                    <h2 style="color: #0e2187; margin-top: 0; font-size: 24px; font-weight: 700;">Verify Your Email</h2>
                     <p style="font-size: 16px; color: #555;">Hello ' . htmlspecialchars($first_name) . ',</p>
                     <p style="font-size: 16px; color: #555; margin-bottom: 30px;">Thank you for registering. Please use the following 6-digit verification code to complete your signup process:</p>
                     
-                    <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; border: 1px dashed #ced4da; margin-bottom: 30px;">
-                        <span style="font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #4CAF50;">
+                    <div style="background-color: #f0f4ff; padding: 22px 20px; border-radius: 10px; border: 2px dashed #0e2187; margin-bottom: 30px; display: inline-block; min-width: 240px;">
+                        <span style="font-size: 34px; font-weight: 800; letter-spacing: 8px; color: #0e2187; font-family: monospace;">
                             ' . htmlspecialchars($otp_code) . '
                         </span>
                     </div>

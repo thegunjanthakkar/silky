@@ -204,6 +204,8 @@ if (!empty($product['addon_products'])) {
                     'image'            => $cimg,
                     'stock'            => 1, // custom items are always "in stock"
                     'needs_measurement'=> !empty($ad['needs_measurement']),
+                    'color'            => trim($ad['custom_color'] ?? ''),
+                    'size'             => trim($ad['custom_size'] ?? ''),
                 ];
             }
         }
@@ -251,6 +253,23 @@ if (!empty($product['addon_products'])) {
         }
     }
 }
+
+// Parse admin-configured measurement fields
+$custom_meas_fields = [];
+if (!empty($product['custom_measurement_fields'])) {
+    $dec = json_decode($product['custom_measurement_fields'], true);
+    if (is_array($dec) && count($dec) > 0) {
+        $custom_meas_fields = $dec;
+    }
+}
+// Default custom size measurement fields if none configured
+if (empty($custom_meas_fields)) {
+    $custom_meas_fields = ['Bust / Chest', 'Waist', 'Hips', 'Garment Length', 'Shoulder Width', 'Sleeve Length', 'Armhole', 'Front Neck Depth'];
+}
+
+// Standard measurement fields for add-on garments that require tailoring
+$addon_meas_fields = ['Chest', 'Below Chest', 'Armhole', 'Apex Point', 'Shoulder', 'Front Deep', 'Back Deep',
+    'Sleeves Length', 'Biceps Round', 'Above Elbow Round', 'Wrist Round', 'Additional message / Remarks'];
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -1663,6 +1682,13 @@ if (!empty($product['addon_products'])) {
                            onclick="event.stopPropagation();">
                           <?php echo htmlspecialchars($ad['name']); ?>
                         </a>
+                        <?php if (!empty($ad['color']) || !empty($ad['size'])): ?>
+                        <div class="text-muted small mb-1" style="font-size: 11px;">
+                          <?php if (!empty($ad['color'])) echo '<span>🎨 ' . htmlspecialchars($ad['color']) . '</span>'; ?>
+                          <?php if (!empty($ad['color']) && !empty($ad['size'])) echo ' &nbsp;|&nbsp; '; ?>
+                          <?php if (!empty($ad['size'])) echo '<span>📐 ' . htmlspecialchars($ad['size']) . '</span>'; ?>
+                        </div>
+                        <?php endif; ?>
                         <div class="pd-addon-price-box d-flex align-items-center gap-2">
                           <span class="pd-addon-price fw-bold text-success">₹<?php echo number_format($ad['effective_price'], 2); ?></span>
                           <?php if ($ad['has_discount']): ?>
@@ -1684,19 +1710,31 @@ if (!empty($product['addon_products'])) {
                     <div class="pd-addon-measurements mt-2 pt-2 border-top" id="meas-<?php echo $ad_idx; ?>" style="display:none;">
                       <p class="mb-2 text-muted" style="font-size:12px;"><i class="fas fa-ruler-combined text-info me-1"></i>Please provide your measurements for <strong><?php echo htmlspecialchars($ad['name']); ?></strong> (in inches):</p>
                       <div class="row g-2">
-                        <?php foreach (['Chest','Waist','Hip','Length','Shoulder'] as $mf): ?>
-                        <div class="col-6 col-md-4">
-                          <label class="form-label mb-0" style="font-size:11px;"><?php echo $mf; ?></label>
+                        <?php foreach ($addon_meas_fields as $mf):
+                            $mf_key = preg_replace('/[^a-z0-9]+/', '_', strtolower(trim($mf)));
+                            $is_text = stripos($mf, 'remark') !== false || stripos($mf, 'message') !== false || stripos($mf, 'note') !== false;
+                        ?>
+                        <div class="<?php echo $is_text ? 'col-12' : 'col-6 col-md-4'; ?>">
+                          <label class="form-label mb-0" style="font-size:11px;"><?php echo htmlspecialchars($mf); ?></label>
+                          <?php if ($is_text): ?>
+                          <textarea class="form-control form-control-sm pd-addon-meas-input"
+                                    data-meas-field="<?php echo htmlspecialchars($mf_key); ?>"
+                                    data-addon-id="<?php echo htmlspecialchars((string)$ad['id']); ?>"
+                                    rows="2" placeholder="Enter details..."
+                                    onclick="event.stopPropagation();"
+                                    oninput="saveAddonSelections();"></textarea>
+                          <?php else: ?>
                           <div class="input-group input-group-sm">
                             <input type="number" step="0.5" min="1" 
                                    class="form-control form-control-sm pd-addon-meas-input" 
-                                   data-meas-field="<?php echo strtolower($mf); ?>"
+                                   data-meas-field="<?php echo htmlspecialchars($mf_key); ?>"
                                    data-addon-id="<?php echo htmlspecialchars((string)$ad['id']); ?>"
                                    placeholder="e.g. 36"
                                    onclick="event.stopPropagation();"
                                    oninput="saveAddonSelections();">
                             <span class="input-group-text" style="font-size:11px;">in</span>
                           </div>
+                          <?php endif; ?>
                         </div>
                         <?php endforeach; ?>
                       </div>
@@ -2116,116 +2154,34 @@ if (!empty($product['addon_products'])) {
               </div>
             </div>
 
-            <!-- Measurement Fields -->
-            <div class="row g-3 mb-3">
-              <div class="col-6 col-md-4">
-                <label class="meas-label" for="meas_bust">
-                  <span>Bust / Chest *</span>
-                  <span class="meas-tip">Fullest point</span>
+            <!-- Dynamic Measurement Fields -->
+            <div class="row g-3 mb-3" id="custom-meas-fields-container">
+              <?php foreach ($custom_meas_fields as $cmf):
+                  $cmf_key = preg_replace('/[^a-z0-9]+/', '_', strtolower(trim($cmf)));
+                  $is_text_field = stripos($cmf, 'remark') !== false || stripos($cmf, 'message') !== false || stripos($cmf, 'note') !== false;
+              ?>
+              <div class="<?php echo $is_text_field ? 'col-12' : 'col-6 col-md-4'; ?>">
+                <label class="meas-label" for="meas_<?php echo htmlspecialchars($cmf_key); ?>">
+                  <span><?php echo htmlspecialchars($cmf); ?></span>
                 </label>
+                <?php if ($is_text_field): ?>
+                <textarea class="form-control" id="meas_<?php echo htmlspecialchars($cmf_key); ?>" 
+                          data-meas-key="<?php echo htmlspecialchars($cmf_key); ?>" 
+                          data-meas-label="<?php echo htmlspecialchars($cmf); ?>"
+                          rows="2" placeholder="Enter details..."
+                          style="font-size: 0.85rem; border-radius: 8px;"></textarea>
+                <?php else: ?>
                 <div class="input-group input-group-sm">
-                  <input type="number" step="0.5" min="10" max="150" class="form-control" id="meas_bust" placeholder="e.g. 36" required>
+                  <input type="number" step="0.5" min="1" max="300" class="form-control meas-dynamic-input"
+                         id="meas_<?php echo htmlspecialchars($cmf_key); ?>"
+                         data-meas-key="<?php echo htmlspecialchars($cmf_key); ?>"
+                         data-meas-label="<?php echo htmlspecialchars($cmf); ?>"
+                         placeholder="e.g. 36">
                   <span class="input-group-text meas-unit-badge">in</span>
                 </div>
+                <?php endif; ?>
               </div>
-
-              <div class="col-6 col-md-4">
-                <label class="meas-label" for="meas_waist">
-                  <span>Waist *</span>
-                  <span class="meas-tip">Natural waist</span>
-                </label>
-                <div class="input-group input-group-sm">
-                  <input type="number" step="0.5" min="10" max="150" class="form-control" id="meas_waist" placeholder="e.g. 30" required>
-                  <span class="input-group-text meas-unit-badge">in</span>
-                </div>
-              </div>
-
-              <div class="col-6 col-md-4">
-                <label class="meas-label" for="meas_hips">
-                  <span>Hips</span>
-                  <span class="meas-tip">Widest part</span>
-                </label>
-                <div class="input-group input-group-sm">
-                  <input type="number" step="0.5" min="10" max="180" class="form-control" id="meas_hips" placeholder="e.g. 40">
-                  <span class="input-group-text meas-unit-badge">in</span>
-                </div>
-              </div>
-
-              <div class="col-6 col-md-4">
-                <label class="meas-label" for="meas_length">
-                  <span>Garment Length *</span>
-                  <span class="meas-tip">Shoulder to hem</span>
-                </label>
-                <div class="input-group input-group-sm">
-                  <input type="number" step="0.5" min="10" max="200" class="form-control" id="meas_length" placeholder="e.g. 42" required>
-                  <span class="input-group-text meas-unit-badge">in</span>
-                </div>
-              </div>
-
-              <div class="col-6 col-md-4">
-                <label class="meas-label" for="meas_shoulder">
-                  <span>Shoulder Width</span>
-                  <span class="meas-tip">Tip to tip across</span>
-                </label>
-                <div class="input-group input-group-sm">
-                  <input type="number" step="0.5" min="5" max="50" class="form-control" id="meas_shoulder" placeholder="e.g. 14.5">
-                  <span class="input-group-text meas-unit-badge">in</span>
-                </div>
-              </div>
-
-              <div class="col-6 col-md-4">
-                <label class="meas-label" for="meas_sleeve">
-                  <span>Sleeve Length</span>
-                  <span class="meas-tip">Shoulder to cuff</span>
-                </label>
-                <div class="input-group input-group-sm">
-                  <input type="number" step="0.5" min="1" max="60" class="form-control" id="meas_sleeve" placeholder="e.g. 16">
-                  <span class="input-group-text meas-unit-badge">in</span>
-                </div>
-              </div>
-
-              <div class="col-6 col-md-4">
-                <label class="meas-label" for="meas_armhole">
-                  <span>Armhole</span>
-                  <span class="meas-tip">Around shoulder joint</span>
-                </label>
-                <div class="input-group input-group-sm">
-                  <input type="number" step="0.5" min="5" max="50" class="form-control" id="meas_armhole" placeholder="e.g. 15">
-                  <span class="input-group-text meas-unit-badge">in</span>
-                </div>
-              </div>
-
-              <div class="col-6 col-md-4">
-                <label class="meas-label" for="meas_front_neck">
-                  <span>Front Neck Depth</span>
-                  <span class="meas-tip">Shoulder to center</span>
-                </label>
-                <div class="input-group input-group-sm">
-                  <input type="number" step="0.5" min="2" max="25" class="form-control" id="meas_front_neck" placeholder="e.g. 7">
-                  <span class="input-group-text meas-unit-badge">in</span>
-                </div>
-              </div>
-
-              <div class="col-6 col-md-4">
-                <label class="meas-label" for="meas_fit">
-                  <span>Fit Preference</span>
-                  <span class="meas-tip">Comfort level</span>
-                </label>
-                <select class="form-select form-select-sm" id="meas_fit">
-                  <option value="Regular" selected>Regular Fit (Standard)</option>
-                  <option value="Slim">Slim Fit (Form-fitting)</option>
-                  <option value="Relaxed">Relaxed Fit (Comfortable)</option>
-                </select>
-              </div>
-            </div>
-
-            <!-- Tailoring Notes -->
-            <div class="mb-3">
-              <label class="meas-label" for="meas_notes">
-                <span>Special Tailoring Notes / Customization Requests</span>
-                <span class="meas-tip">Optional</span>
-              </label>
-              <textarea class="form-control" id="meas_notes" rows="2" placeholder="e.g. Leave extra seam margin inside, pads in blouse, specific neck style, etc." style="font-size: 0.85rem; border-radius: 8px;"></textarea>
+              <?php endforeach; ?>
             </div>
 
             <!-- Notice & Actions -->
@@ -2600,7 +2556,7 @@ if (!empty($product['addon_products'])) {
     }
 
     /* ========== CUSTOM TAILORING MEASUREMENTS ========== */
-    const CUSTOM_MEAS_STORAGE_KEY = 'custom_meas_' + productId;
+    const CUSTOM_MEAS_STORAGE_KEY = 'custom_meas3_' + productId; // v3 = dynamic fields
     let customMeasurements = null;
 
     try {
@@ -2617,25 +2573,22 @@ if (!empty($product['addon_products'])) {
     }
 
     function checkHasCustomMeasurements() {
-      if (!customMeasurements) return false;
-      const { bust, waist, hips, length, shoulder, sleeve, armhole, front_neck, notes } = customMeasurements;
-      return !!(bust || waist || hips || length || shoulder || sleeve || armhole || front_neck || notes);
+      if (!customMeasurements || typeof customMeasurements !== 'object') return false;
+      return Object.values(customMeasurements).some(v => v && String(v).trim() !== '');
     }
 
     function getCustomMeasurementsSummary() {
       if (!customMeasurements) return '';
-      const u = ' in';
       const parts = [];
-      if (customMeasurements.bust) parts.push(`Bust: ${customMeasurements.bust}${u}`);
-      if (customMeasurements.waist) parts.push(`Waist: ${customMeasurements.waist}${u}`);
-      if (customMeasurements.hips) parts.push(`Hips: ${customMeasurements.hips}${u}`);
-      if (customMeasurements.length) parts.push(`Length: ${customMeasurements.length}${u}`);
-      if (customMeasurements.shoulder) parts.push(`Shoulder: ${customMeasurements.shoulder}${u}`);
-      if (customMeasurements.sleeve) parts.push(`Sleeve: ${customMeasurements.sleeve}${u}`);
-      if (customMeasurements.armhole) parts.push(`Armhole: ${customMeasurements.armhole}${u}`);
-      if (customMeasurements.front_neck) parts.push(`Front Neck: ${customMeasurements.front_neck}${u}`);
-      if (customMeasurements.fit && customMeasurements.fit !== 'Regular') parts.push(`Fit: ${customMeasurements.fit}`);
-      if (customMeasurements.notes) parts.push(`Notes: ${customMeasurements.notes}`);
+      Object.entries(customMeasurements).forEach(([key, val]) => {
+        if (val && String(val).trim()) {
+          // Find the label from the DOM
+          const el = document.getElementById('meas_' + key);
+          const label = el ? (el.dataset.measLabel || key) : key;
+          const isText = el && el.tagName === 'TEXTAREA';
+          parts.push(label + ': ' + val + (isText ? '' : ' in'));
+        }
+      });
       return parts.join(' • ');
     }
 
@@ -2679,24 +2632,19 @@ if (!empty($product['addon_products'])) {
       const modalEl = document.getElementById('customMeasurementsModal');
       if (!modalEl) return;
 
+      // Populate saved values back into fields
       if (customMeasurements) {
-        if (document.getElementById('meas_bust'))       document.getElementById('meas_bust').value       = customMeasurements.bust || '';
-        if (document.getElementById('meas_waist'))      document.getElementById('meas_waist').value      = customMeasurements.waist || '';
-        if (document.getElementById('meas_hips'))       document.getElementById('meas_hips').value       = customMeasurements.hips || '';
-        if (document.getElementById('meas_length'))     document.getElementById('meas_length').value     = customMeasurements.length || '';
-        if (document.getElementById('meas_shoulder'))   document.getElementById('meas_shoulder').value   = customMeasurements.shoulder || '';
-        if (document.getElementById('meas_sleeve'))     document.getElementById('meas_sleeve').value     = customMeasurements.sleeve || '';
-        if (document.getElementById('meas_armhole'))    document.getElementById('meas_armhole').value    = customMeasurements.armhole || '';
-        if (document.getElementById('meas_front_neck')) document.getElementById('meas_front_neck').value = customMeasurements.front_neck || '';
-        if (document.getElementById('meas_fit'))        document.getElementById('meas_fit').value        = customMeasurements.fit || 'Regular';
-        if (document.getElementById('meas_notes'))      document.getElementById('meas_notes').value      = customMeasurements.notes || '';
+        Object.entries(customMeasurements).forEach(([key, val]) => {
+          const el = document.getElementById('meas_' + key);
+          if (el) el.value = val || '';
+        });
       }
 
       const modalInstance = bootstrap.Modal.getOrCreateInstance(modalEl);
       modalInstance.show();
       setTimeout(() => {
-        const bustInput = document.getElementById('meas_bust');
-        if (bustInput) bustInput.focus();
+        const firstInput = modalEl.querySelector('input[type="number"], textarea');
+        if (firstInput) firstInput.focus();
       }, 400);
     }
 
@@ -2704,26 +2652,21 @@ if (!empty($product['addon_products'])) {
     if (customMeasForm) {
       customMeasForm.addEventListener('submit', function(e) {
         e.preventDefault();
-        const unit = 'in';
-        const bust = document.getElementById('meas_bust')?.value.trim() || '';
-        const waist = document.getElementById('meas_waist')?.value.trim() || '';
-        const hips = document.getElementById('meas_hips')?.value.trim() || '';
-        const length = document.getElementById('meas_length')?.value.trim() || '';
-        const shoulder = document.getElementById('meas_shoulder')?.value.trim() || '';
-        const sleeve = document.getElementById('meas_sleeve')?.value.trim() || '';
-        const armhole = document.getElementById('meas_armhole')?.value.trim() || '';
-        const front_neck = document.getElementById('meas_front_neck')?.value.trim() || '';
-        const fit = document.getElementById('meas_fit')?.value || 'Regular';
-        const notes = document.getElementById('meas_notes')?.value.trim() || '';
 
-        if (!bust && !waist && !length && !hips && !shoulder && !notes) {
-          alert('Please provide at least one key measurement (such as Bust, Waist, or Length).');
+        // Collect all dynamic fields
+        const data = {};
+        customMeasForm.querySelectorAll('[data-meas-key]').forEach(function(el) {
+          const key = el.dataset.measKey;
+          const val = el.value.trim();
+          if (val) data[key] = val;
+        });
+
+        if (Object.keys(data).length === 0) {
+          alert('Please provide at least one measurement.');
           return;
         }
 
-        customMeasurements = {
-          unit, bust, waist, hips, length, shoulder, sleeve, armhole, front_neck, fit, notes
-        };
+        customMeasurements = data;
 
         try {
           localStorage.setItem(CUSTOM_MEAS_STORAGE_KEY, JSON.stringify(customMeasurements));

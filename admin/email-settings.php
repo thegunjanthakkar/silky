@@ -153,11 +153,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 // Content
                 $mail->isHTML(true);
                 $mail->Subject = 'Test Email from Silky Saree - ' . date('d/m/Y h:i:s A');
+
+                // Logo URL (hosted to avoid Gmail attachment chip)
+                $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http";
+                $host = $_SERVER['HTTP_HOST'] ?? '';
+                $burl = defined('BASE_URL') ? BASE_URL : '/';
+                if (empty($host) || in_array($host, ['localhost', '127.0.0.1', '::1']) || strpos($host, 'localhost:') === 0) {
+                    $logo_src = 'https://silkysaree.in/assets/img/silky.png';
+                } else {
+                    $logo_src = $protocol . '://' . $host . $burl . 'assets/img/silky.png';
+                }
+
                 $mail->Body = '
                     <html>
-                    <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-                        <div style="max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 5px;">
-                            <h2 style="color: #0e2187; border-bottom: 2px solid #0e2187; padding-bottom: 10px;">Test Email</h2>
+                    <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 20px; background-color: #f4f7f6;">
+                        <div style="max-width: 600px; margin: 0 auto; padding: 25px; border: 1px solid #ddd; border-radius: 8px; background: #ffffff;">
+                            <div style="text-align: center; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid #eee;">
+                                <img src="' . $logo_src . '" alt="Silky Saree" style="max-width: 160px; height: auto; display: inline-block; border: 0;">
+                            </div>
+                            <h2 style="color: #0e2187; border-bottom: 2px solid #0e2187; padding-bottom: 10px; margin-top: 0;">Test Email</h2>
                             <p>This is a test email from <strong>Silky Saree</strong> email system.</p>
                             <p>If you received this email, your SMTP configuration is working correctly!</p>
                             <div style="background-color: #f8f9fa; padding: 15px; border-left: 4px solid #0e2187; margin: 20px 0;">

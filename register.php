@@ -120,443 +120,977 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 ?>
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-  <meta charset="utf-8">
-  <meta content="width=device-width, initial-scale=1.0" name="viewport">
-  <title>Register - Silky Saree</title>
-  <meta name="description" content="">
-  <meta name="keywords" content="">
+    <meta charset="utf-8">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <title>Register - Silky Saree</title>
+    <meta name="description" content="Create an account with Silky Saree to explore exclusive designer sarees, track orders, and enjoy tailored shopping.">
+    <meta name="keywords" content="Silky Saree register, create account, saree shopping, ethnic wear">
 
-  <!-- Favicons -->
-  <link rel="shortcut icon" href="./assets/img/silky-jpg.jpg" type="image/x-icon">
+    <!-- Favicons -->
+    <link href="assets/img/favicon.png" rel="icon">
+    <link href="assets/img/apple-touch-icon.png" rel="apple-touch-icon">
 
-  <!-- Fonts -->
-  <link href="https://fonts.googleapis.com" rel="preconnect">
-  <link href="https://fonts.gstatic.com" rel="preconnect" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&family=Montserrat:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap" rel="stylesheet">
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com" rel="preconnect">
+    <link href="https://fonts.gstatic.com" rel="preconnect" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Poppins:wght@300;400;500;600;700&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
 
-  <!-- Vendor CSS Files -->
-  <link href="assets/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet">
-  <link href="assets/vendor/bootstrap-icons/bootstrap-icons.css" rel="stylesheet">
-  <link href="assets/vendor/swiper/swiper-bundle.min.css" rel="stylesheet">
-  <link href="assets/vendor/aos/aos.css" rel="stylesheet">
-  <link href="assets/vendor/glightbox/css/glightbox.min.css" rel="stylesheet">
-  <link href="assets/vendor/drift-zoom/drift-basic.css" rel="stylesheet">
+    <!-- Vendor CSS Files -->
+    <link href="assets/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+    <link href="assets/vendor/bootstrap-icons/bootstrap-icons.css" rel="stylesheet">
 
-  <!-- Main CSS File -->
-  <link href="assets/css/main.css" rel="stylesheet">
+    <!-- Main CSS File -->
+    <link href="assets/css/main.css" rel="stylesheet">
 
-  <!-- Intl-tel-input CSS -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/18.2.1/css/intlTelInput.css">
-  
-  <!-- Google Identity Services -->
-  <script src="https://accounts.google.com/gsi/client" async defer></script>
-  
-  <style>
-    .iti { width: 100%; display: block; }
-    .iti__flag-container { z-index: 5; }
-    .btn-google-large {
-      background: #ffffff;
-      border: 1.5px solid #dadce0;
-      border-radius: 50px;
-      color: #3c4043;
-      padding: 15px 30px;
-      font-weight: 600;
-      font-size: 1.15rem;
-      transition: all 0.25s ease;
-      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
-      cursor: pointer;
-      width: 100% !important;
-      max-width: 100%;
-      white-space: nowrap;
-      display: flex !important;
-      align-items: center;
-      justify-content: center;
-    }
-    .btn-google-large:hover {
-      background: #f8f9fa;
-      border-color: #d2e3fc;
-      box-shadow: 0 4px 12px rgba(66, 133, 244, 0.15) !important;
-      transform: translateY(-1px);
-      color: #1a73e8;
-    }
-  </style></head>
+    <!-- Intl-tel-input CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/18.2.1/css/intlTelInput.css">
+
+    <!-- Google Identity Services -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+
+    <style>
+        :root {
+            --brand-navy: #0e2187;
+            --brand-navy-dark: #0a1863;
+            --brand-navy-light: #1e35b5;
+            --brand-accent: #97c51d;
+            --brand-accent-hover: #83ab18;
+            --text-primary: #1e293b;
+            --text-muted: #64748b;
+            --border-light: #e2e8f0;
+            --border-focus: #0e2187;
+            --card-bg: #ffffff;
+            --bg-page: #f8fafc;
+        }
+
+        body.register-page {
+            background: radial-gradient(circle at 10% 20%, rgba(14, 33, 135, 0.04) 0%, transparent 45%),
+                        radial-gradient(circle at 90% 80%, rgba(151, 197, 29, 0.06) 0%, transparent 45%),
+                        linear-gradient(180deg, #ffffff 0%, #f4f6fb 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 40px 16px;
+            font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            color: var(--text-primary);
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        /* Ambient Decorative Spheres */
+        .ambient-shape {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(75px);
+            pointer-events: none;
+            z-index: 0;
+        }
+        .ambient-1 {
+            width: 400px;
+            height: 400px;
+            background: rgba(14, 33, 135, 0.06);
+            top: -100px;
+            left: -100px;
+        }
+        .ambient-2 {
+            width: 350px;
+            height: 350px;
+            background: rgba(151, 197, 29, 0.07);
+            bottom: -80px;
+            right: -80px;
+        }
+
+        /* Back to Store Navigation */
+        .back-to-store {
+            position: absolute;
+            top: 24px;
+            left: 28px;
+            z-index: 10;
+        }
+        .back-to-store a {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            font-weight: 500;
+            text-decoration: none;
+            padding: 9px 16px;
+            border-radius: 50px;
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--border-light);
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+        }
+        .back-to-store a:hover {
+            color: var(--brand-navy);
+            border-color: rgba(14, 33, 135, 0.3);
+            background: #ffffff;
+            box-shadow: 0 6px 16px rgba(14, 33, 135, 0.08);
+            transform: translateX(-3px);
+        }
+
+        /* Main Card Container */
+        .auth-card-container {
+            width: 100%;
+            max-width: 620px;
+            position: relative;
+            z-index: 1;
+            margin: 40px auto 20px;
+            animation: fadeInUp 0.5s ease-out both;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .auth-card {
+            background: var(--card-bg);
+            border-radius: 24px;
+            padding: 38px 40px 36px;
+            border: 1px solid rgba(14, 33, 135, 0.08);
+            box-shadow: 0 20px 50px -12px rgba(14, 33, 135, 0.09),
+                        0 0 1px 1px rgba(0, 0, 0, 0.02);
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Top Accent Brand Line */
+        .auth-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--brand-navy) 0%, #1e35b5 60%, var(--brand-accent) 100%);
+        }
+
+        /* Brand Header */
+        .brand-header {
+            text-align: center;
+            margin-bottom: 28px;
+        }
+        .brand-logo-wrapper {
+            display: inline-block;
+            margin-bottom: 12px;
+            transition: transform 0.3s ease;
+        }
+        .brand-logo-wrapper:hover {
+            transform: scale(1.04);
+        }
+        .brand-logo {
+            height: 52px;
+            width: auto;
+            object-fit: contain;
+        }
+        .brand-title {
+            font-family: 'Montserrat', sans-serif;
+            font-weight: 700;
+            font-size: 1.65rem;
+            color: var(--brand-navy);
+            margin: 0 0 6px;
+            letter-spacing: -0.3px;
+        }
+        .brand-subtitle {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            margin: 0;
+        }
+
+        /* Modern Input Groups */
+        .input-group-modern {
+            position: relative;
+            margin-bottom: 18px;
+        }
+        .input-group-modern .input-label {
+            display: block;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #334155;
+            margin-bottom: 7px;
+            letter-spacing: 0.1px;
+        }
+        .input-group-modern .input-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+        .input-group-modern .field-icon {
+            position: absolute;
+            left: 15px;
+            color: #94a3b8;
+            font-size: 1.15rem;
+            pointer-events: none;
+            transition: color 0.25s ease;
+            z-index: 2;
+        }
+        .input-group-modern .form-control,
+        .input-group-modern .form-select {
+            width: 100%;
+            padding: 12px 15px 12px 44px;
+            font-size: 0.95rem;
+            border-radius: 12px;
+            border: 1.5px solid var(--border-light);
+            background-color: #fcfdfe;
+            color: var(--text-primary);
+            transition: all 0.25s ease;
+            height: auto;
+        }
+        .input-group-modern .form-control.has-toggle {
+            padding-right: 46px;
+        }
+        .input-group-modern .form-control::placeholder {
+            color: #94a3b8;
+            font-size: 0.9rem;
+        }
+        .input-group-modern .form-control:focus,
+        .input-group-modern .form-select:focus {
+            border-color: var(--brand-navy);
+            background-color: #ffffff;
+            box-shadow: 0 0 0 3.5px rgba(14, 33, 135, 0.12);
+            outline: none;
+        }
+        .input-group-modern .input-wrapper:focus-within .field-icon {
+            color: var(--brand-navy);
+        }
+
+        /* Password Toggle Button */
+        .password-toggle-btn {
+            position: absolute;
+            right: 12px;
+            background: transparent;
+            border: none;
+            color: #94a3b8;
+            font-size: 1.15rem;
+            padding: 6px 8px;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: color 0.2s ease, background-color 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2;
+        }
+        .password-toggle-btn:hover {
+            color: var(--brand-navy);
+            background-color: rgba(14, 33, 135, 0.05);
+        }
+
+        /* Password Criteria Hint */
+        .field-hint {
+            font-size: 0.76rem;
+            color: #64748b;
+            margin-top: 5px;
+            padding-left: 2px;
+        }
+
+        /* Intl-tel-input specific styles */
+        .iti {
+            width: 100%;
+            display: block;
+            position: relative;
+        }
+        .iti__flag-container {
+            z-index: 5;
+        }
+        .iti .iti__selected-flag {
+            padding: 0 8px 0 14px;
+            border-radius: 12px 0 0 12px;
+            background-color: transparent;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .iti .iti__selected-dial-code {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: #334155;
+            margin-left: 2px;
+        }
+        .iti input#phone {
+            padding-left: 95px !important;
+        }
+
+        /* Checkbox Terms */
+        .terms-checkbox-wrap {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            margin: 20px 0 24px;
+            font-size: 0.88rem;
+            color: #475569;
+        }
+        .terms-checkbox-wrap input[type="checkbox"] {
+            width: 17px;
+            height: 17px;
+            accent-color: var(--brand-navy);
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 2px;
+            flex-shrink: 0;
+        }
+        .terms-checkbox-wrap label {
+            cursor: pointer;
+            margin: 0;
+            line-height: 1.4;
+        }
+        .terms-checkbox-wrap a {
+            color: var(--brand-navy);
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .terms-checkbox-wrap a:hover {
+            color: var(--brand-navy-light);
+            text-decoration: underline;
+        }
+
+        /* Silky Signature Gradient Button */
+        .btn-auth-submit {
+            width: 100%;
+            padding: 14px 24px;
+            background: linear-gradient(135deg, #0e2187 0%, #97c51d 100%);
+            border: none;
+            border-radius: 50px;
+            color: #ffffff;
+            font-size: 0.95rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            box-shadow: 0 6px 20px rgba(151, 197, 29, 0.38), 0 3px 10px rgba(14, 33, 135, 0.2);
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 1;
+        }
+
+        /* Signature Shining Shimmer Sweep Effect */
+        .btn-auth-submit::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 50%;
+            height: 100%;
+            background: linear-gradient(to right, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.6) 50%, rgba(255, 255, 255, 0) 100%);
+            transform: skewX(-25deg);
+            transition: left 0.7s ease;
+            pointer-events: none;
+            z-index: 2;
+        }
+
+        .btn-auth-submit:hover {
+            background: linear-gradient(135deg, #0a1863 0%, #85b016 100%);
+            box-shadow: 0 10px 28px rgba(151, 197, 29, 0.5), 0 4px 14px rgba(14, 33, 135, 0.3);
+            transform: translateY(-2px) scale(1.02);
+            color: #ffffff;
+        }
+
+        .btn-auth-submit:hover::before {
+            left: 170%;
+        }
+
+        .btn-auth-submit:hover .submit-arrow {
+            transform: translateX(5px);
+        }
+
+        .btn-auth-submit:active {
+            transform: translateY(0) scale(0.99);
+            box-shadow: 0 3px 10px rgba(151, 197, 29, 0.3);
+        }
+
+        .submit-arrow {
+            transition: transform 0.25s ease;
+            font-size: 1.15rem;
+            position: relative;
+            z-index: 3;
+        }
+
+        /* Divider */
+        .divider-modern {
+            position: relative;
+            text-align: center;
+            margin: 24px 0 20px;
+        }
+        .divider-modern::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background-color: var(--border-light);
+        }
+        .divider-modern span {
+            position: relative;
+            background-color: var(--card-bg);
+            padding: 0 14px;
+            font-size: 0.76rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: #94a3b8;
+        }
+
+        /* Google Button */
+        .btn-google-auth {
+            width: 100%;
+            padding: 12px 18px;
+            background: #ffffff;
+            border: 1.5px solid var(--border-light);
+            border-radius: 12px;
+            color: #334155;
+            font-size: 0.92rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+        }
+        .btn-google-auth:hover {
+            background: #f8fafc;
+            border-color: #cbd5e1;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+            transform: translateY(-1px);
+            color: #0f172a;
+        }
+        .btn-google-auth svg {
+            flex-shrink: 0;
+        }
+
+        /* Alert Styling */
+        .custom-alert {
+            border-radius: 12px;
+            padding: 12px 16px;
+            font-size: 0.88rem;
+            font-weight: 500;
+            margin-bottom: 22px;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            animation: fadeIn 0.3s ease;
+        }
+        .custom-alert-danger {
+            background-color: #fef2f2;
+            color: #991b1b;
+            border: 1px solid #fecaca;
+        }
+        .custom-alert-success {
+            background-color: #f0fdf4;
+            color: #166534;
+            border: 1px solid #bbf7d0;
+        }
+        .custom-alert ul {
+            margin: 0;
+            padding-left: 18px;
+        }
+
+        /* Footer Links */
+        .auth-footer {
+            text-align: center;
+            margin-top: 24px;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
+        .auth-footer a {
+            color: var(--brand-navy);
+            font-weight: 700;
+            text-decoration: none;
+            margin-left: 4px;
+            transition: color 0.2s ease;
+        }
+        .auth-footer a:hover {
+            color: var(--brand-navy-light);
+            text-decoration: underline;
+        }
+
+        /* Security Trust Badge */
+        .trust-badge {
+            text-align: center;
+            margin-top: 18px;
+            font-size: 0.78rem;
+            color: #94a3b8;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+        .trust-badge i {
+            color: var(--brand-accent);
+            font-size: 0.95rem;
+        }
+
+        @media (max-width: 576px) {
+            .back-to-store {
+                position: static;
+                margin-bottom: 16px;
+                align-self: flex-start;
+            }
+            .auth-card-container {
+                margin: 20px auto;
+            }
+            .auth-card {
+                padding: 30px 20px 26px;
+                border-radius: 20px;
+            }
+            .brand-title {
+                font-size: 1.45rem;
+            }
+        }
+    </style>
+</head>
 
 <body class="register-page">
 
-  <main class="main">
+    <!-- Ambient Glowing Shapes -->
+    <div class="ambient-shape ambient-1"></div>
+    <div class="ambient-shape ambient-2"></div>
 
-    
+    <!-- Back to Store Navigation -->
+    <div class="back-to-store">
+        <a href="index.php">
+            <i class="bi bi-arrow-left"></i>
+            <span>Back to Store</span>
+        </a>
+    </div>
 
-    <!-- Register Section -->
-    <section id="register" class="register section">
-
-      <div class="container" data-aos="fade-up" data-aos-delay="100">
-
-        <div class="row justify-content-center">
-          <div class="col-lg-10">
-            <div class="registration-form-wrapper">
-              <div class="form-header text-center">
-                <h2>Create Your Account</h2>
-                <p>Create your account and start shopping with us</p>
-              </div>
-
-              <div class="row">
-                <div class="col-lg-8 mx-auto">
-                  <?php if (!empty($response['errors'])): ?>
-                    <div class="alert alert-danger">
-                      <ul class="mb-0">
-                        <?php foreach ($response['errors'] as $error): ?>
-                          <li><?php echo htmlspecialchars($error); ?></li>
-                        <?php endforeach; ?>
-                      </ul>
-                    </div>
-                  <?php endif; ?>
-
-                  <?php if ($response['success']): ?>
-                    <div class="alert alert-success">
-                      <?php echo htmlspecialchars($response['message']); ?>
-                      <br><a href="login.php">Click here to login</a>
-                    </div>
-                  <?php endif; ?>
-
-                  <form action="register.php" method="post" autocomplete="off">
-                    <div class="row mb-3">
-                      <div class="col-md-6">
-                        <div class="form-floating">
-                          <input type="text" class="form-control" id="first_name" name="first_name" placeholder="First Name" required="" autocomplete="given-name" value="<?php echo isset($_POST['first_name']) ? htmlspecialchars($_POST['first_name']) : ''; ?>">
-                          <label for="first_name">First Name</label>
-                        </div>
-                      </div>
-                      <div class="col-md-6">
-                        <div class="form-floating">
-                          <input type="text" class="form-control" id="last_name" name="last_name" placeholder="Last Name" required="" autocomplete="family-name" value="<?php echo isset($_POST['last_name']) ? htmlspecialchars($_POST['last_name']) : ''; ?>">
-                          <label for="last_name">Last Name</label>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div class="form-floating mb-3">
-                      <input type="email" class="form-control" id="email" name="email" placeholder="Email Address" required="" autocomplete="email" value="<?php echo isset($_POST['email']) ? htmlspecialchars($_POST['email']) : ''; ?>">
-                      <label for="email">Email Address</label>
-                    </div>
-
-                    <div class="mb-3">
-                      <label for="phone" class="form-label" style="font-size: 0.9rem; color: #6c757d;">Phone Number</label>
-                      <input type="tel" class="form-control" id="phone" name="phone" placeholder="Phone Number" autocomplete="new-password" maxlength="20" required value="<?php echo isset($_POST['phone']) ? htmlspecialchars($_POST['phone']) : ''; ?>" style="padding: 0.75rem 0.75rem 0.75rem 3.5rem;">
-                    </div>
-
-                    <div class="row mb-3">
-                      <div class="col-md-6">
-                        <div class="form-floating position-relative">
-                          <input type="password" class="form-control" id="password" name="password" placeholder="Password" required minlength="8" autocomplete="new-password" style="padding-right: 2.5rem;">
-                          <label for="password">Password</label>
-                          <button type="button" class="btn btn-sm toggle-password position-absolute end-0 top-50 translate-middle-y me-2 text-muted" data-target="password" style="z-index: 10; border: none; background: transparent;" aria-label="Toggle password visibility">
-                            <i class="bi bi-eye-slash"></i>
-                          </button>
-                        </div>
-                        <div class="form-text text-muted ms-1" style="font-size: 0.75rem;">
-                          Must have 8+ chars, 1 uppercase, 1 lowercase, 1 number & 1 special char.
-                        </div>
-                      </div>
-                      <div class="col-md-6">
-                        <div class="form-floating position-relative">
-                          <input type="password" class="form-control" id="confirmPassword" name="confirmPassword" placeholder="Confirm Password" required minlength="8" autocomplete="new-password" style="padding-right: 2.5rem;">
-                          <label for="confirmPassword">Confirm Password</label>
-                          <button type="button" class="btn btn-sm toggle-password position-absolute end-0 top-50 translate-middle-y me-2 text-muted" data-target="confirmPassword" style="z-index: 10; border: none; background: transparent;" aria-label="Toggle confirm password visibility">
-                            <i class="bi bi-eye-slash"></i>
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div class="row mb-3">
-                      <div class="col-md-6">
-                        <div class="form-floating">
-                          <input type="date" class="form-control" id="date_of_birth" name="date_of_birth" placeholder="Date of Birth" value="<?php echo isset($_POST['date_of_birth']) ? htmlspecialchars($_POST['date_of_birth']) : ''; ?>">
-                          <label for="date_of_birth">Date of Birth (Optional)</label>
-                        </div>
-                      </div>
-                      <div class="col-md-6">
-                        <div class="form-floating">
-                          <select class="form-select" id="gender" name="gender">
-                            <option value="" selected="">Prefer not to say</option>
-                            <option value="male" <?php echo (isset($_POST['gender']) && $_POST['gender'] === 'male') ? 'selected' : ''; ?>>Male</option>
-                            <option value="female" <?php echo (isset($_POST['gender']) && $_POST['gender'] === 'female') ? 'selected' : ''; ?>>Female</option>
-                            <option value="other" <?php echo (isset($_POST['gender']) && $_POST['gender'] === 'other') ? 'selected' : ''; ?>>Other</option>
-                          </select>
-                          <label for="gender">Gender (Optional)</label>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div class="form-check mb-4">
-                      <input class="form-check-input" type="checkbox" id="termsCheck" name="termsCheck" required="">
-                      <label class="form-check-label" for="termsCheck">
-                        I agree to the <a href="tos.html">Terms of Service</a> and <a href="privacy.html">Privacy Policy</a>
-                      </label>
-                    </div>
-
-                    <div class="d-grid mb-4">
-                      <button type="submit" class="btn btn-register">Create Account</button>
-                    </div>
-
-                    <div class="login-link text-center">
-                      <p>Already have an account? <a href="login.php">Sign in</a></p>
-                    </div>
-                  </form>
-                </div>
-              </div>
-
-              <div class="social-login">
-                <div class="row">
-                  <div class="col-lg-8 mx-auto">
-                    <div class="divider">
-                      <span>or sign up with</span>
-                    </div>
-                    <div class="social-buttons mt-3 w-100 mx-auto">
-                      <button type="button" id="btn-google-signup" class="btn btn-google-large w-100 d-flex align-items-center justify-content-center">
-                        <svg class="me-2" width="28" height="28" viewBox="0 0 48 48">
-                          <path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z"/>
-                          <path fill="#FF3D00" d="m6.306 14.691 6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 16.318 4 9.656 8.337 6.306 14.691z"/>
-                          <path fill="#4CAF50" d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238A11.91 11.91 0 0 1 24 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44z"/>
-                          <path fill="#1976D2" d="M43.611 20.083H42V20H24v8h11.303a12.04 12.04 0 0 1-4.087 5.571l.003-.002 6.19 5.238C36.971 39.205 44 34 44 24c0-1.341-.138-2.65-.389-3.917z"/>
-                        </svg>
-                        <span>Sign up with Google</span>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div class="decorative-elements">
-                <div class="circle circle-1"></div>
-                <div class="circle circle-2"></div>
-                <div class="circle circle-3"></div>
-                <div class="square square-1"></div>
-                <div class="square square-2"></div>
-              </div>
+    <!-- Main Auth Card Container -->
+    <div class="auth-card-container">
+        <div class="auth-card">
+            
+            <!-- Brand Header -->
+            <div class="brand-header">
+                <a href="index.php" class="brand-logo-wrapper" title="Silky Saree Home">
+                    <img src="assets/img/silky.png" alt="Silky Saree" class="brand-logo">
+                </a>
+                <h1 class="brand-title">Create Account</h1>
+                <p class="brand-subtitle">Join Silky Saree to explore handcrafted luxury ethnic wear</p>
             </div>
-          </div>
+
+            <!-- Error Notifications -->
+            <?php if (!empty($response['errors'])): ?>
+                <div class="custom-alert custom-alert-danger" role="alert">
+                    <i class="bi bi-exclamation-circle-fill fs-5 flex-shrink-0"></i>
+                    <div>
+                        <?php if (count($response['errors']) === 1): ?>
+                            <?php echo htmlspecialchars($response['errors'][0]); ?>
+                        <?php else: ?>
+                            <ul>
+                                <?php foreach ($response['errors'] as $error): ?>
+                                    <li><?php echo htmlspecialchars($error); ?></li>
+                                <?php endforeach; ?>
+                            </ul>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            <?php endif; ?>
+
+            <!-- Success Notification -->
+            <?php if ($response['success']): ?>
+                <div class="custom-alert custom-alert-success" role="alert">
+                    <i class="bi bi-check-circle-fill fs-5 flex-shrink-0"></i>
+                    <div>
+                        <?php echo htmlspecialchars($response['message']); ?>
+                        <div class="mt-1"><a href="login.php" class="text-success fw-bold">Click here to sign in</a></div>
+                    </div>
+                </div>
+            <?php endif; ?>
+
+            <!-- Registration Form -->
+            <form action="register.php" method="post" autocomplete="off" id="registerForm">
+                
+                <!-- Name Row (2 columns) -->
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="input-group-modern">
+                            <label for="first_name" class="input-label">First Name <span class="text-danger">*</span></label>
+                            <div class="input-wrapper">
+                                <i class="bi bi-person field-icon"></i>
+                                <input type="text" class="form-control" id="first_name" name="first_name" placeholder="First Name" required autocomplete="given-name" value="<?php echo isset($_POST['first_name']) ? htmlspecialchars($_POST['first_name']) : ''; ?>">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="input-group-modern">
+                            <label for="last_name" class="input-label">Last Name <span class="text-danger">*</span></label>
+                            <div class="input-wrapper">
+                                <i class="bi bi-person field-icon"></i>
+                                <input type="text" class="form-control" id="last_name" name="last_name" placeholder="Last Name" required autocomplete="family-name" value="<?php echo isset($_POST['last_name']) ? htmlspecialchars($_POST['last_name']) : ''; ?>">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Email Address -->
+                <div class="input-group-modern">
+                    <label for="email" class="input-label">Email Address <span class="text-danger">*</span></label>
+                    <div class="input-wrapper">
+                        <i class="bi bi-envelope field-icon"></i>
+                        <input type="email" class="form-control" id="email" name="email" placeholder="name@example.com" required autocomplete="email" value="<?php echo isset($_POST['email']) ? htmlspecialchars($_POST['email']) : ''; ?>">
+                    </div>
+                </div>
+
+                <!-- Phone Number -->
+                <div class="input-group-modern">
+                    <label for="phone" class="input-label">Phone Number <span class="text-danger">*</span></label>
+                    <div class="input-wrapper">
+                        <input type="tel" class="form-control" id="phone" name="phone" placeholder="Phone Number" autocomplete="tel" maxlength="25" required value="<?php echo isset($_POST['phone']) ? htmlspecialchars($_POST['phone']) : ''; ?>">
+                    </div>
+                </div>
+
+                <!-- Password Row (2 columns) -->
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="input-group-modern">
+                            <label for="password" class="input-label">Password <span class="text-danger">*</span></label>
+                            <div class="input-wrapper">
+                                <i class="bi bi-shield-lock field-icon"></i>
+                                <input type="password" class="form-control has-toggle" id="password" name="password" placeholder="Create password" required minlength="8" autocomplete="new-password">
+                                <button type="button" class="password-toggle-btn toggle-password" data-target="password" aria-label="Toggle password visibility">
+                                    <i class="bi bi-eye-slash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="input-group-modern">
+                            <label for="confirmPassword" class="input-label">Confirm Password <span class="text-danger">*</span></label>
+                            <div class="input-wrapper">
+                                <i class="bi bi-shield-check field-icon"></i>
+                                <input type="password" class="form-control has-toggle" id="confirmPassword" name="confirmPassword" placeholder="Confirm password" required minlength="8" autocomplete="new-password">
+                                <button type="button" class="password-toggle-btn toggle-password" data-target="confirmPassword" aria-label="Toggle confirm password visibility">
+                                    <i class="bi bi-eye-slash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="field-hint mb-3">
+                    Must have at least 8 characters with 1 uppercase, 1 lowercase, 1 number & 1 special character.
+                </div>
+
+                <!-- Optional Details (Date of Birth & Gender) -->
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="input-group-modern">
+                            <label for="date_of_birth" class="input-label">Date of Birth <span class="text-muted fw-normal">(Optional)</span></label>
+                            <div class="input-wrapper">
+                                <i class="bi bi-calendar3 field-icon"></i>
+                                <input type="date" class="form-control" id="date_of_birth" name="date_of_birth" value="<?php echo isset($_POST['date_of_birth']) ? htmlspecialchars($_POST['date_of_birth']) : ''; ?>">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="input-group-modern">
+                            <label for="gender" class="input-label">Gender <span class="text-muted fw-normal">(Optional)</span></label>
+                            <div class="input-wrapper">
+                                <i class="bi bi-gender-ambiguous field-icon"></i>
+                                <select class="form-select" id="gender" name="gender">
+                                    <option value="" selected>Prefer not to say</option>
+                                    <option value="female" <?php echo (isset($_POST['gender']) && $_POST['gender'] === 'female') ? 'selected' : ''; ?>>Female</option>
+                                    <option value="male" <?php echo (isset($_POST['gender']) && $_POST['gender'] === 'male') ? 'selected' : ''; ?>>Male</option>
+                                    <option value="other" <?php echo (isset($_POST['gender']) && $_POST['gender'] === 'other') ? 'selected' : ''; ?>>Other</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Terms & Conditions Checkbox -->
+                <div class="terms-checkbox-wrap">
+                    <input type="checkbox" id="termsCheck" name="termsCheck" required>
+                    <label for="termsCheck">
+                        I agree to the <a href="tos.html" target="_blank">Terms of Service</a> and <a href="privacy.html" target="_blank">Privacy Policy</a>
+                    </label>
+                </div>
+
+                <!-- Submit Button with Signature Gradient -->
+                <button type="submit" class="btn-auth-submit" id="btnRegister">
+                    <span>Create Account</span>
+                    <i class="bi bi-arrow-right submit-arrow"></i>
+                </button>
+
+                <!-- Divider -->
+                <div class="divider-modern">
+                    <span>or continue with</span>
+                </div>
+
+                <!-- Google Sign-Up Button -->
+                <button type="button" class="btn-google-auth" id="btn-google-signup">
+                    <svg width="20" height="20" viewBox="0 0 48 48">
+                        <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+                        <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+                        <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+                        <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+                    </svg>
+                    <span>Sign up with Google</span>
+                </button>
+
+                <!-- Sign In Footer Link -->
+                <div class="auth-footer">
+                    <span>Already have an account?</span>
+                    <a href="login">Sign in</a>
+                </div>
+
+            </form>
+
         </div>
 
-      </div>
+        <!-- Trust & Security Badge -->
+        <div class="trust-badge">
+            <i class="bi bi-shield-check"></i>
+            <span>256-Bit SSL Secure & Encrypted Connection</span>
+        </div>
+    </div>
 
-    </section><!-- /Register Section -->
+    <!-- Vendor JS Files -->
+    <script src="assets/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
 
-  </main>
+    <!-- Intl-tel-input JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/18.2.1/js/intlTelInput.min.js"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            const phoneInput = document.querySelector("#phone");
+            let iti = null;
+            if (phoneInput) {
+                // Initialize intlTelInput
+                iti = window.intlTelInput(phoneInput, {
+                    utilsScript: "https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/18.2.1/js/utils.js",
+                    initialCountry: "auto",
+                    geoIpLookup: function(callback) {
+                        fetch("https://ipapi.co/json")
+                            .then(function(res) { return res.json(); })
+                            .then(function(data) { callback(data.country_code); })
+                            .catch(function() { callback("in"); });
+                    },
+                    separateDialCode: true,
+                });
 
-  
+                // Dynamically adjust padding-left according to dial code width
+                const adjustPhonePadding = () => {
+                    const selectedFlag = phoneInput.closest('.iti')?.querySelector('.iti__selected-flag');
+                    if (selectedFlag) {
+                        const width = selectedFlag.offsetWidth;
+                        if (width > 0) {
+                            phoneInput.style.setProperty('padding-left', (width + 12) + 'px', 'important');
+                        }
+                    }
+                };
 
-  <!-- Scroll Top -->
-  <a href="#" id="scroll-top" class="scroll-top d-flex align-items-center justify-content-center"><i class="bi bi-arrow-up-short"></i></a>
+                // Lock maxlength to 25 so intlTelInput utilsScript doesn't truncate
+                const enforceMaxLen = () => {
+                    if (phoneInput.getAttribute('maxlength') !== '25') {
+                        phoneInput.setAttribute('maxlength', '25');
+                    }
+                };
+                enforceMaxLen();
+                adjustPhonePadding();
+                phoneInput.addEventListener('countrychange', () => {
+                    enforceMaxLen();
+                    setTimeout(adjustPhonePadding, 10);
+                });
+                setTimeout(adjustPhonePadding, 50);
+                setTimeout(adjustPhonePadding, 250);
+                const observer = new MutationObserver(enforceMaxLen);
+                observer.observe(phoneInput, { attributes: true, attributeFilter: ['maxlength'] });
 
-  <!-- Preloader -->
-  <div id="preloader"></div>
+                // Clean input on typing / pasting / autofill
+                const cleanPhoneInput = () => {
+                    let val = phoneInput.value;
+                    if (val.includes('+')) {
+                        iti.setNumber(val);
+                        val = phoneInput.value; 
+                    }
+                    
+                    let cleaned = val.replace(/\D/g, '');
+                    cleaned = cleaned.replace(/^0+/, '');
+                    
+                    let countryData = iti.getSelectedCountryData();
+                    if (countryData && countryData.dialCode) {
+                        let dialCode = countryData.dialCode;
+                        if (cleaned.startsWith(dialCode) && cleaned.length > dialCode.length) {
+                            let possibleNational = cleaned.substring(dialCode.length);
+                            if (cleaned.length > 10 || possibleNational.length === 10) {
+                                cleaned = possibleNational;
+                            } else if (window.intlTelInputUtils && typeof window.intlTelInputUtils.isValidNumber === 'function') {
+                                if (window.intlTelInputUtils.isValidNumber(possibleNational, countryData.iso2)) {
+                                    cleaned = possibleNational;
+                                }
+                            }
+                        }
+                    }
+                    
+                    if (phoneInput.value !== cleaned) {
+                        phoneInput.value = cleaned;
+                    }
+                };
 
+                phoneInput.addEventListener('input', function() {
+                    cleanPhoneInput();
+                    setTimeout(cleanPhoneInput, 10);
+                    setTimeout(cleanPhoneInput, 100);
+                });
+                phoneInput.addEventListener('change', cleanPhoneInput);
+                phoneInput.addEventListener('blur', cleanPhoneInput);
 
+                // Before form submit, format phone value with country code
+                const form = phoneInput.closest('form');
+                if (form) {
+                    form.addEventListener('submit', function() {
+                        cleanPhoneInput();
+                        if (phoneInput.value.trim() !== '' && iti) {
+                            phoneInput.value = iti.getNumber();
+                        }
+                    });
+                }
+            }
 
-  <!-- Vendor JS Files -->
-  <script src="assets/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
-  <script src="assets/vendor/php-email-form/validate.js"></script>
-  <script src="assets/vendor/swiper/swiper-bundle.min.js"></script>
-  <script src="assets/vendor/aos/aos.js"></script>
-  <script src="assets/vendor/glightbox/js/glightbox.min.js"></script>
-  <script src="assets/vendor/drift-zoom/Drift.min.js"></script>
-  <script src="assets/vendor/purecounter/purecounter_vanilla.js"></script>
+            // Password Visibility Toggles
+            document.querySelectorAll('.toggle-password').forEach(button => {
+                button.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const targetId = this.getAttribute('data-target');
+                    const targetInput = document.getElementById(targetId);
+                    const icon = this.querySelector('i');
+                    
+                    if (targetInput) {
+                        const isPassword = targetInput.type === 'password';
+                        targetInput.type = isPassword ? 'text' : 'password';
+                        if (icon) {
+                            icon.className = isPassword ? 'bi bi-eye' : 'bi bi-eye-slash';
+                        }
+                        this.setAttribute('aria-label', isPassword ? 'Hide password' : 'Show password');
+                    }
+                });
+            });
 
-  <!-- Main JS File -->
-  <script src="assets/js/main.js"></script>
+            // Google Sign-Up Integration
+            let googleTokenClient = null;
 
-  <!-- Intl-tel-input JS -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/18.2.1/js/intlTelInput.min.js"></script>
-  <script>
-    document.addEventListener("DOMContentLoaded", function() {
-      const phoneInput = document.querySelector("#phone");
-      if (!phoneInput) return;
-      
-      // Initialize intlTelInput
-      const iti = window.intlTelInput(phoneInput, {
-        utilsScript: "https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/18.2.1/js/utils.js",
-        initialCountry: "auto",
-        geoIpLookup: function(callback) {
-          fetch("https://ipapi.co/json")
-            .then(function(res) { return res.json(); })
-            .then(function(data) { callback(data.country_code); })
-            .catch(function() { callback("in"); });
-        },
-        separateDialCode: true,
-      });
+            function handleGoogleUser(userInfo) {
+                const formData = new FormData();
+                formData.append('email', userInfo.email);
+                formData.append('first_name', userInfo.given_name || userInfo.name || '');
+                formData.append('last_name', userInfo.family_name || '');
+                formData.append('google_id', userInfo.sub || userInfo.id || '');
 
-      // Lock maxlength to 25 so intlTelInput utilsScript doesn't truncate autofilled numbers to 10 chars
-      const enforceMaxLen = () => {
-        if (phoneInput.getAttribute('maxlength') !== '25') {
-          phoneInput.setAttribute('maxlength', '25');
-        }
-      };
-      enforceMaxLen();
-      phoneInput.addEventListener('countrychange', enforceMaxLen);
-      const observer = new MutationObserver(enforceMaxLen);
-      observer.observe(phoneInput, { attributes: true, attributeFilter: ['maxlength'] });
+                fetch('google-auth.php', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        window.location.href = 'index.php';
+                    } else {
+                        alert(data.message || 'Google Authentication failed');
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    alert('An error occurred during Google Sign-In');
+                });
+            }
 
-      // Clean input on typing / pasting / autofill
-      const cleanPhoneInput = () => {
-        let val = phoneInput.value;
-        if (val.includes('+')) {
-            iti.setNumber(val);
-            val = phoneInput.value; 
-        }
-        
-        let cleaned = val.replace(/\D/g, '');
-        cleaned = cleaned.replace(/^0+/, '');
-        
-        let countryData = iti.getSelectedCountryData();
-        if (countryData && countryData.dialCode) {
-            let dialCode = countryData.dialCode;
-            // If Chrome autofilled the number WITH the country code (e.g. 917574937910)
-            if (cleaned.startsWith(dialCode) && cleaned.length > dialCode.length) {
-                let possibleNational = cleaned.substring(dialCode.length);
-                
-                // If cleaned string is longer than 10 digits OR removing dialCode gives exactly 10 digits
-                if (cleaned.length > 10 || possibleNational.length === 10) {
-                    cleaned = possibleNational;
-                } else if (window.intlTelInputUtils && typeof window.intlTelInputUtils.isValidNumber === 'function') {
-                    if (window.intlTelInputUtils.isValidNumber(possibleNational, countryData.iso2)) {
-                        cleaned = possibleNational;
+            function handleGoogleResponse(response) {
+                if (response && response.credential) {
+                    try {
+                        const base64Url = response.credential.split('.')[1];
+                        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                        const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+                            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+                        }).join(''));
+                        
+                        const payload = JSON.parse(jsonPayload);
+                        handleGoogleUser(payload);
+                    } catch(e) {
+                        console.error('Error decoding Google credential', e);
                     }
                 }
             }
-        }
-        
-        if (phoneInput.value !== cleaned) {
-           phoneInput.value = cleaned;
-        }
-      };
 
-      phoneInput.addEventListener('input', function() {
-        cleanPhoneInput();
-        setTimeout(cleanPhoneInput, 10);
-        setTimeout(cleanPhoneInput, 100);
-      });
-      phoneInput.addEventListener('change', cleanPhoneInput);
-      phoneInput.addEventListener('blur', cleanPhoneInput);
+            function initGoogleServices() {
+                if (typeof google !== 'undefined' && google.accounts) {
+                    // Initialize Token Client for custom button popup
+                    if (google.accounts.oauth2) {
+                        try {
+                            googleTokenClient = google.accounts.oauth2.initTokenClient({
+                                client_id: "1092814794837-6472he5o0899vnacua03u3r4pl56l1ev.apps.googleusercontent.com",
+                                scope: "email profile openid",
+                                callback: function(tokenResponse) {
+                                    if (tokenResponse && tokenResponse.access_token) {
+                                        fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+                                            headers: { Authorization: 'Bearer ' + tokenResponse.access_token }
+                                        })
+                                        .then(res => res.json())
+                                        .then(userInfo => {
+                                            handleGoogleUser(userInfo);
+                                        })
+                                        .catch(err => {
+                                            console.error('Error fetching Google userinfo', err);
+                                        });
+                                    }
+                                }
+                            });
+                        } catch (e) {
+                            console.error('Failed to initialize Google Token Client', e);
+                        }
+                    }
 
-      // Password Visibility Toggle
-      document.querySelectorAll('.toggle-password').forEach(button => {
-        button.addEventListener('click', function(e) {
-          e.preventDefault();
-          const targetId = this.getAttribute('data-target');
-          const targetInput = document.getElementById(targetId);
-          const icon = this.querySelector('i');
-          
-          if (targetInput.type === 'password') {
-            targetInput.type = 'text';
-            icon.classList.remove('bi-eye-slash');
-            icon.classList.add('bi-eye');
-          } else {
-            targetInput.type = 'password';
-            icon.classList.remove('bi-eye');
-            icon.classList.add('bi-eye-slash');
-          }
-        });
-      });
-
-      // Google Sign-Up Handler
-      const googleBtn = document.getElementById('btn-google-signup');
-      if (googleBtn) {
-        googleBtn.addEventListener('click', function() {
-          // If Google Client ID is configured, trigger Google prompt
-          if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
-            try {
-              google.accounts.id.initialize({
-                client_id: "1092814794837-6472he5o0899vnacua03u3r4pl56l1ev.apps.googleusercontent.com",
-                callback: handleGoogleResponse
-              });
-              google.accounts.id.prompt();
-            } catch(e) {
-              console.log('Google Auth fallback initialized');
+                    // Also initialize One-Tap as passive option
+                    if (google.accounts.id) {
+                        try {
+                            google.accounts.id.initialize({
+                                client_id: "1092814794837-6472he5o0899vnacua03u3r4pl56l1ev.apps.googleusercontent.com",
+                                callback: handleGoogleResponse
+                            });
+                        } catch (e) {
+                            console.error('Failed to initialize Google One Tap', e);
+                        }
+                    }
+                }
             }
-          }
-          
-          // Trigger Google sign-in workflow / prompt
-          promptGoogleLogin();
-        });
-      }
 
-      function promptGoogleLogin() {
-        // Prompt user for Google account email or use quick authorization
-        const userEmail = prompt("Enter your Google Account email to continue with Google Sign-In:", "user@gmail.com");
-        if (userEmail && userEmail.trim() !== '') {
-          const formData = new FormData();
-          formData.append('email', userEmail.trim());
-          
-          fetch('google-auth.php', {
-            method: 'POST',
-            body: formData
-          })
-          .then(res => res.json())
-          .then(data => {
-            if (data.success) {
-              alert(data.message);
-              window.location.href = 'index.php';
+            // Initialize when Google script finishes loading
+            if (typeof google !== 'undefined' && google.accounts) {
+                initGoogleServices();
             } else {
-              alert(data.message || 'Google Sign-In failed');
+                window.addEventListener('load', initGoogleServices);
             }
-          })
-          .catch(err => {
-            console.error(err);
-            alert('An error occurred during Google Sign-In');
-          });
-        }
-      }
 
-      function handleGoogleResponse(response) {
-        // Helper to parse JWT payload
-        if (response && response.credential) {
-          const base64Url = response.credential.split('.')[1];
-          const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-          const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
-              return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-          }).join(''));
-          
-          const payload = JSON.parse(jsonPayload);
-          
-          const formData = new FormData();
-          formData.append('email', payload.email);
-          formData.append('first_name', payload.given_name || '');
-          formData.append('last_name', payload.family_name || '');
-          formData.append('google_id', payload.sub || '');
-
-          fetch('google-auth.php', {
-            method: 'POST',
-            body: formData
-          })
-          .then(res => res.json())
-          .then(data => {
-            if (data.success) {
-              window.location.href = 'index.php';
-            } else {
-              alert(data.message || 'Google Authentication failed');
+            const googleBtn = document.getElementById('btn-google-signup');
+            if (googleBtn) {
+                googleBtn.addEventListener('click', function() {
+                    if (googleTokenClient) {
+                        // Triggers official Google account selector popup window
+                        googleTokenClient.requestAccessToken({ prompt: 'select_account' });
+                    } else if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
+                        google.accounts.id.prompt();
+                    } else {
+                        alert("Google Sign-In is still loading. Please try again in a moment or sign up using the form.");
+                    }
+                });
             }
-          });
-        }
-      }
-
-      // Before form submit, format phone value with country code
-      const form = phoneInput.closest('form');
-      if (form) {
-        form.addEventListener('submit', function() {
-          cleanPhoneInput();
-          if (phoneInput.value.trim() !== '') {
-            // Replace the visual input with the full international number (+CountryCodePhone)
-            // right before the form submits so it gets passed to PHP
-            phoneInput.value = iti.getNumber();
-          }
         });
-      }
-    });
-  </script>
+    </script>
 </body>
-
 </html>

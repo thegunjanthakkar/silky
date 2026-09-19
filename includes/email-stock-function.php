@@ -115,10 +115,25 @@ function sendStockNotificationEmail($conn, $notification_id) {
         // Content
         $mail->isHTML(true);
         $mail->Subject = 'Back in Stock: ' . htmlspecialchars($product_name) . ' - Silky Saree';
+        
+        // Logo URL (hosted to avoid Gmail attachment chip)
+        $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http";
+        $host = $_SERVER['HTTP_HOST'] ?? '';
+        $burl = defined('BASE_URL') ? BASE_URL : '/';
+        if (empty($host) || in_array($host, ['localhost', '127.0.0.1', '::1']) || strpos($host, 'localhost:') === 0) {
+            $logo_src = 'https://silkysaree.in/assets/img/silky.png';
+        } else {
+            $logo_src = $protocol . '://' . $host . $burl . 'assets/img/silky.png';
+        }
+
         $mail->Body = '
             <html>
             <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f8f9fa;">
                 <div style="max-width: 650px; margin: 30px auto; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.1);">
+                    <!-- Brand Header -->
+                    <div style="background: #ffffff; padding: 25px 20px; text-align: center; border-bottom: 1px solid #f0f0f0;">
+                        <img src="' . $logo_src . '" alt="Silky Saree" style="max-width: 160px; height: auto; display: inline-block; border: 0;">
+                    </div>
                     <!-- Header -->
                     <div style="background: linear-gradient(135deg, #0e2187 0%, #97c51d 100%); padding: 30px; text-align: center;">
                         <h1 style="color: white; margin: 0; font-size: 28px; font-weight: bold;">Back in Stock!</h1>

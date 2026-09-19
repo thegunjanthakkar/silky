@@ -100,23 +100,37 @@ if ($action === 'update' && $id > 0) {
             $mail->isHTML(true);
             $mail->Subject = 'Your Account Login Details - Silky Admin';
 
+            // Logo URL (hosted to avoid Gmail attachment chip)
+            $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http";
+            $host = $_SERVER['HTTP_HOST'] ?? '';
+            $burl = defined('BASE_URL') ? BASE_URL : '/';
+            if (empty($host) || in_array($host, ['localhost', '127.0.0.1', '::1']) || strpos($host, 'localhost:') === 0) {
+                $logo_src = 'https://silkysaree.in/assets/img/silky.png';
+            } else {
+                $logo_src = $protocol . '://' . $host . $burl . 'assets/img/silky.png';
+            }
+
             $mail->Body = '
             <!DOCTYPE html>
             <html>
             <head>
                 <style>
-                    .email-container { font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; }
+                    .email-container { font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; }
+                    .brand-header { background-color: #ffffff; padding: 25px 20px; text-align: center; border-bottom: 1px solid #eee; }
                     .header { background-color: #0e2187; color: white; padding: 20px; text-align: center; }
-                    .content { padding: 20px; background-color: #f8f9fc; }
-                    .credentials { background-color: white; padding: 15px; border-radius: 5px; margin: 15px 0; }
-                    .password { font-size: 18px; font-weight: bold; color: #0e2187; }
-                    .footer { padding: 20px; text-align: center; color: #666; }
+                    .content { padding: 25px; background-color: #f8f9fc; }
+                    .credentials { background-color: white; padding: 20px; border-radius: 8px; margin: 15px 0; border: 1px solid #e2e8f0; }
+                    .password { font-size: 18px; font-weight: bold; color: #0e2187; font-family: monospace; }
+                    .footer { padding: 20px; text-align: center; color: #666; font-size: 13px; background-color: #f1f5f9; }
                 </style>
             </head>
             <body>
                 <div class="email-container">
+                    <div class="brand-header">
+                        <img src="' . $logo_src . '" alt="Silky Saree" style="max-width: 160px; height: auto; display: inline-block; border: 0;">
+                    </div>
                     <div class="header">
-                        <h1>Welcome to Silky Admin</h1>
+                        <h1 style="margin: 0; font-size: 22px;">Welcome to Silky Admin</h1>
                     </div>
                     <div class="content">
                         <h2>Hello ' . htmlspecialchars($first_name) . ',</h2>
@@ -127,7 +141,7 @@ if ($action === 'update' && $id > 0) {
                             <p><strong>Password:</strong> <span class="password">' . htmlspecialchars($random_password) . '</span></p>
                         </div>
                         
-                        <p>You can login at: <a href="https://silky.coida.in/admin">Admin Login</a></p>
+                        <p>You can login at: <a href="https://silkysaree.in/admin">Admin Login</a></p>
                     </div>
                     <div class="footer">
                         <p>This is an automated email. Please do not reply.</p>

@@ -1,5 +1,6 @@
 <?php
 // Database configuration for Silky Saree project
+date_default_timezone_set('Asia/Kolkata');
 
 // Disable automatic fatal mysqli exceptions so connection errors can be caught gracefully
 if (function_exists('mysqli_report')) {
