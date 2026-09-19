@@ -631,10 +631,11 @@ if (isset($_GET['action']) && $_GET['action'] === 'modal_order' && isset($_GET['
                 if (!empty($dec['measurements']) && is_array($dec['measurements'])) {
                     foreach ($dec['measurements'] as $mk => $mv) {
                         if ($mv !== '' && $mv !== null) {
-                            if (strtolower($mk) === 'notes') {
+                            $label = ucwords(preg_replace('/[_\s]+/', ' ', strtolower($mk)));
+                            if (strtolower($mk) === 'notes' || strtolower($label) === 'notes') {
                                 $notes = (string)$mv;
                             } else {
-                                $measurements[ucfirst(str_replace('_', ' ', $mk))] = (string)$mv;
+                                $measurements[$label] = (string)$mv;
                             }
                         }
                     }
@@ -643,10 +644,11 @@ if (isset($_GET['action']) && $_GET['action'] === 'modal_order' && isset($_GET['
                     $isCustom = true;
                     foreach ($dec['custom_measurements'] as $mk => $mv) {
                         if ($mv !== '' && $mv !== null) {
-                            if (strtolower($mk) === 'notes') {
+                            $label = ucwords(preg_replace('/[_\s]+/', ' ', strtolower($mk)));
+                            if (strtolower($mk) === 'notes' || strtolower($label) === 'notes') {
                                 $notes = (string)$mv;
                             } else {
-                                $measurements[ucfirst(str_replace('_', ' ', $mk))] = (string)$mv;
+                                $measurements[$label] = (string)$mv;
                             }
                         }
                     }
@@ -783,8 +785,10 @@ if (isset($_GET['action']) && $_GET['action'] === 'modal_order' && isset($_GET['
                 if (!empty($measurements)) {
                     $prodHtml .= '  <div class="d-flex flex-wrap gap-1 mb-1">';
                     foreach ($measurements as $mk => $mv) {
+                        $isNumeric = is_numeric($mv);
+                        $displayVal = htmlspecialchars($mv) . ($isNumeric ? ' <span class="text-muted fw-normal">in</span>' : '');
                         $prodHtml .= '    <span class="badge bg-white text-dark border px-2 py-1 shadow-sm" style="font-size: 11px; font-weight: normal;">';
-                        $prodHtml .= '      <span class="text-muted">' . htmlspecialchars($mk) . ':</span> <strong class="text-dark">' . htmlspecialchars($mv) . '</strong>';
+                        $prodHtml .= '      <span class="text-muted">' . htmlspecialchars($mk) . ':</span> <strong class="text-dark">' . $displayVal . '</strong>';
                         $prodHtml .= '    </span>';
                     }
                     $prodHtml .= '  </div>';

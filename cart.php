@@ -72,18 +72,44 @@ if (!empty($action)) {
             
             $color = isset($item['color']) ? trim($item['color']) : '';
             $size = isset($item['size']) ? trim($item['size']) : '';
-            $variant_info = "";
+            $variant_info_raw = "";
             if (!empty($item['variant_info'])) {
-                $variant_info = trim($item['variant_info']);
+                $variant_info_raw = trim($item['variant_info']);
             } elseif ($color && $size) {
-                $variant_info = $color . " | " . $size;
+                $variant_info_raw = $color . " | " . $size;
             } elseif ($color) {
-                $variant_info = $color;
+                $variant_info_raw = $color;
             } elseif ($size) {
-                $variant_info = $size;
+                $variant_info_raw = $size;
             }
 
-            // Verify product exists
+            // If the item has custom_measurements (custom size), encode as JSON for DB
+            $has_custom_measurements = !empty($item['custom_measurements']) && is_array($item['custom_measurements']);
+            $has_addon_measurements = !empty($item['measurements']) && is_array($item['measurements']);
+            $is_addon_item = !empty($item['is_addon']) || (isset($variant_info_raw) && preg_match('/^add-?on/i', $variant_info_raw));
+            if ($has_custom_measurements || $has_addon_measurements || $is_addon_item) {
+                // Build a JSON object to store rich variant info
+                $variant_obj = [
+                    'color' => $color,
+                    'size'  => $size,
+                    'variant_info' => $variant_info_raw,
+                ];
+                if ($has_custom_measurements) {
+                    $variant_obj['custom_measurements'] = $item['custom_measurements'];
+                }
+                if ($has_addon_measurements) {
+                    $variant_obj['measurements'] = $item['measurements'];
+                }
+                if ($is_addon_item) {
+                    $variant_obj['is_addon'] = true;
+                    $variant_obj['type'] = 'addon';
+                }
+                $variant_info = json_encode($variant_obj, JSON_UNESCAPED_UNICODE);
+            } else {
+                $variant_info = $variant_info_raw;
+            }
+
+
             $verify_result = mysqli_query($conn, "SELECT id, price FROM products WHERE id = $pid AND status = 'active'");
             if (!$verify_result || mysqli_num_rows($verify_result) == 0) {
                 continue;

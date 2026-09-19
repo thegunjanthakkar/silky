@@ -289,6 +289,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         @mysqli_query($conn, "ALTER TABLE `products` ADD COLUMN `addon_products` TEXT NULL");
     }
 
+    // Auto-ensure custom_measurement_fields column exists
+    $col_cmf = @mysqli_query($conn, "SHOW COLUMNS FROM products LIKE 'custom_measurement_fields'");
+    if ($col_cmf && mysqli_num_rows($col_cmf) == 0) {
+        @mysqli_query($conn, "ALTER TABLE `products` ADD COLUMN `custom_measurement_fields` TEXT NULL");
+    }
+
+    // Parse custom measurement fields
+    $raw_cmf = trim($_POST['custom_measurement_fields_json'] ?? '');
+    $custom_meas_arr = ($raw_cmf !== '') ? (json_decode($raw_cmf, true) ?: []) : [];
+    $custom_meas_arr = array_values(array_filter(array_map('trim', $custom_meas_arr)));
+    $custom_meas_sql = !empty($custom_meas_arr) ? "'" . mysqli_real_escape_string($conn, json_encode($custom_meas_arr)) . "'" : "NULL";
+
     // Update product in database (without size and color fields)
     $sql = "UPDATE products SET 
                 name = '$name', 
@@ -311,6 +323,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 custom_care_cards = $custom_care_cards_sql,
                 addon_title = $addon_title_sql,
                 addon_products = $addon_products_sql,
+                custom_measurement_fields = $custom_meas_sql,
                 updated_at = NOW()
             WHERE id = '" . mysqli_real_escape_string($conn, $product_id) . "'";
     

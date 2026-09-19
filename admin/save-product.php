@@ -281,9 +281,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         @mysqli_query($conn, "ALTER TABLE `products` ADD COLUMN `addon_products` TEXT NULL");
     }
 
+    // Auto-ensure custom_measurement_fields column exists
+    $col_cmf = @mysqli_query($conn, "SHOW COLUMNS FROM products LIKE 'custom_measurement_fields'");
+    if ($col_cmf && mysqli_num_rows($col_cmf) == 0) {
+        @mysqli_query($conn, "ALTER TABLE `products` ADD COLUMN `custom_measurement_fields` TEXT NULL");
+    }
+
+    // Parse custom measurement fields
+    $raw_cmf = trim($_POST['custom_measurement_fields_json'] ?? '');
+    $custom_meas_arr = ($raw_cmf !== '') ? (json_decode($raw_cmf, true) ?: []) : [];
+    $custom_meas_arr = array_values(array_filter(array_map('trim', $custom_meas_arr)));
+    $custom_meas_sql = !empty($custom_meas_arr) ? "'" . mysqli_real_escape_string($conn, json_encode($custom_meas_arr)) . "'" : "NULL";
+
     // Insert product into database (without size and color fields)
-    $sql = "INSERT INTO products (name, product_code, slug, description, category_id, price, compare_price, grams, status, is_bestseller, image, youtube_video_id, custom_highlights_enabled, custom_highlights_title, custom_highlights_cards, custom_care_enabled, custom_care_title, custom_care_cards, addon_title, addon_products, created_by, created_at) 
-            VALUES ('$name', $product_code, '$slug', '$description', '$category_id', '$price', $compare_price, $grams, '$status', $is_bestseller, '$imagesJson', '$youtube_video_id', $custom_highlights_enabled, $custom_hl_title_sql, $custom_hl_cards_sql, $custom_care_enabled, $custom_care_title_sql, $custom_care_cards_sql, $addon_title_sql, $addon_products_sql, '$user_id', NOW())";
+    $sql = "INSERT INTO products (name, product_code, slug, description, category_id, price, compare_price, grams, status, is_bestseller, image, youtube_video_id, custom_highlights_enabled, custom_highlights_title, custom_highlights_cards, custom_care_enabled, custom_care_title, custom_care_cards, addon_title, addon_products, custom_measurement_fields, created_by, created_at) 
+            VALUES ('$name', $product_code, '$slug', '$description', '$category_id', '$price', $compare_price, $grams, '$status', $is_bestseller, '$imagesJson', '$youtube_video_id', $custom_highlights_enabled, $custom_hl_title_sql, $custom_hl_cards_sql, $custom_care_enabled, $custom_care_title_sql, $custom_care_cards_sql, $addon_title_sql, $addon_products_sql, $custom_meas_sql, '$user_id', NOW())";
     
     if (mysqli_query($conn, $sql)) {
         $product_id = mysqli_insert_id($conn);

@@ -96,6 +96,18 @@ if ($col_addon_check && mysqli_num_rows($col_addon_check) == 0) {
     @mysqli_query($conn, "ALTER TABLE `products` ADD COLUMN `addon_products` TEXT NULL");
 }
 
+// Auto-ensure measurement fields columns exist
+$col_cmf = @mysqli_query($conn, "SHOW COLUMNS FROM products LIKE 'custom_measurement_fields'");
+if ($col_cmf && mysqli_num_rows($col_cmf) == 0) {
+    @mysqli_query($conn, "ALTER TABLE `products` ADD COLUMN `custom_measurement_fields` TEXT NULL");
+}
+
+// Parse existing custom measurement fields
+$existing_custom_meas_fields = [];
+if (!empty($product['custom_measurement_fields'])) {
+    $existing_custom_meas_fields = json_decode($product['custom_measurement_fields'], true) ?: [];
+}
+
 if (!function_exists('getAdminImagePath')) {
     function getAdminImagePath($path) {
         if (empty($path)) return 'assets/images/products/default.png';
@@ -541,8 +553,50 @@ if (!empty($product['addon_products'])) {
                                                         </div>
                                                     <?php endwhile; ?>
                                                 </div>
-                                                <div id="custom-size-admin-notice" class="alert alert-info py-2 px-3 mt-2 fs-12 mb-1" style="display: none;">
-                                                    <i class="fas fa-info-circle me-1"></i> <strong>Custom Size selected:</strong> Customers will be prompted with an interactive modal on the product page to enter body measurements (Bust, Waist, Hips, Length, etc.) before adding to cart.
+                                                <!-- Custom Measurement Fields Config Panel -->
+                                                <div id="custom-size-admin-notice" class="mt-2" style="<?php
+                                                    // Check if Custom size is currently selected
+                                                    $custom_selected = false;
+                                                    $tmpSizes = mysqli_query($conn, "SELECT s.size_label FROM product_sizes ps JOIN sizes s ON ps.size_id = s.id WHERE ps.product_id = $product_id");
+                                                    if ($tmpSizes) { while ($ts = mysqli_fetch_assoc($tmpSizes)) { if (strtolower(trim($ts['size_label'])) === 'custom') { $custom_selected = true; break; } } }
+                                                    echo $custom_selected ? '' : 'display:none;';
+                                                ?>">
+                                                    <div class="card border border-primary shadow-sm mb-0">
+                                                        <div class="card-header py-2 bg-primary text-white d-flex align-items-center justify-content-between flex-wrap gap-2">
+                                                            <div class="d-flex align-items-center gap-2">
+                                                                <i class="fas fa-ruler-combined"></i>
+                                                                <span class="fw-bold fs-13">Custom Size Measurements <span class="badge bg-warning text-dark ms-1">Preset Required</span></span>
+                                                            </div>
+                                                            <div class="d-flex align-items-center gap-2">
+                                                                <label class="form-label text-white mb-0 fs-12 fw-semibold" for="cust_meas_preset">Preset *:</label>
+                                                                <select id="cust_meas_preset" class="form-select form-select-sm" style="max-width:210px;" onchange="loadMeasurementPreset('cust-meas-fields-list', this.value)">
+                                                                    <option value="">-- Choose Preset * --</option>
+                                                                    <option value="indowestern">Indo-Western</option>
+                                                                    <option value="lehenga">Lehenga</option>
+                                                                    <option value="saree">Saree (Ready to Wear)</option>
+                                                                    <option value="dresses">Dresses</option>
+                                                                    <option value="blouse">Blouse / Choli</option>
+                                                                </select>
+                                                            </div>
+                                                        </div>
+                                                        <div class="card-body py-2 px-3 bg-light-subtle">
+                                                            <small class="text-muted d-block mb-2">
+                                                                <i class="fas fa-info-circle text-primary me-1"></i>Select a preset above to load body measurement fields for this custom size garment (all in <strong>Inches</strong>). Customers will fill these in the measurements modal on the website.
+                                                            </small>
+                                                            <div id="cust-meas-fields-list" class="mb-2">
+                                                                <?php foreach ($existing_custom_meas_fields as $mf): ?>
+                                                                <div class="d-flex align-items-center gap-2 mb-1 meas-field-row">
+                                                                    <input type="text" class="form-control form-control-sm meas-field-input" value="<?php echo htmlspecialchars($mf); ?>" placeholder="e.g. Chest" style="max-width:280px;">
+                                                                    <span class="badge bg-secondary-subtle text-secondary border fs-11 px-2" style="white-space:nowrap;">in</span>
+                                                                    <button type="button" class="btn btn-sm btn-outline-danger py-0 px-2" onclick="removeMeasurementField(this)" title="Remove"><i class="fas fa-trash font-11"></i></button>
+                                                                </div>
+                                                                <?php endforeach; ?>
+                                                            </div>
+                                                            <button type="button" class="btn btn-sm btn-outline-primary mt-1" onclick="addMeasurementField('cust-meas-fields-list')">
+                                                                <i class="fas fa-plus me-1"></i> Add Measurement Field
+                                                            </button>
+                                                        </div>
+                                                    </div>
                                                 </div>
                                                 <small class="text-muted">Select at least one size</small>
                                             </div>
@@ -820,6 +874,7 @@ if (!empty($product['addon_products'])) {
                                                 <small class="text-muted">Leave blank to use default heading "Frequently Added Together".</small>
                                             </div>
 
+
                                             <!-- Picker row -->
                                             <div class="row g-2 align-items-end mb-2">
                                                 <div class="col-md-7">
@@ -978,6 +1033,7 @@ if (!empty($product['addon_products'])) {
     <input type="hidden" id="images_data" name="images" form="productForm" value="<?php echo htmlspecialchars(json_encode($existingImages)); ?>">
     <input type="hidden" id="youtube_video_id" name="youtube_video_id" form="productForm" value="<?php echo htmlspecialchars($product['youtube_video_id'] ?? ''); ?>">
     <input type="hidden" id="removed_images" name="removed_images" form="productForm" value="">
+    <input type="hidden" id="custom_measurement_fields_json" name="custom_measurement_fields_json" form="productForm" value="">
 
     <!-- Cropper Modal -->
     <div class="modal fade" id="cropperModal" tabindex="-1">
@@ -1885,6 +1941,24 @@ if (!empty($product['addon_products'])) {
                 return false;
             }
 
+            // Validate Custom size measurements preset & fields
+            const sizeCheckboxes = document.querySelectorAll('.size-checkbox');
+            const isCustomChecked = Array.from(sizeCheckboxes).some(s => s.checked && (s.dataset.isCustom === '1' || s.dataset.name === 'Custom'));
+            const custFields = getMeasurementFields('cust-meas-fields-list');
+            if (isCustomChecked && custFields.length === 0) {
+                e.preventDefault();
+                alert('Custom size is selected! Please select a Measurement Preset (e.g. Indo-Western, Lehenga, etc.) or add measurement fields for Custom size.');
+                const pSelect = document.getElementById('cust_meas_preset');
+                if (pSelect) {
+                    pSelect.focus();
+                    pSelect.classList.add('is-invalid');
+                }
+                return false;
+            }
+
+            // Serialize custom measurement fields into hidden input before submit
+            document.getElementById('custom_measurement_fields_json').value = JSON.stringify(custFields);
+
             // Make sure data is updated before submit
             updateImagesInput();
         });
@@ -1900,6 +1974,73 @@ if (!empty($product['addon_products'])) {
         // Initialize display on page load
         updateImagesDisplay();
         updateColorBadge();
+    </script>
+
+    <script>
+        // =============================================
+        // MEASUREMENT FIELDS MANAGEMENT
+        // =============================================
+        const MEASUREMENT_PRESETS = {
+            'none':        [],
+            'indowestern': ['Bottom Length', 'Bottom Waist', 'Bottom Hips'],
+            'lehenga':     ['Lehenga Length', 'Lehenga Waist', 'Lehenga Hips'],
+            'saree':       ['Saree Waist', 'Saree Length'],
+            'dresses':     ['Bottom Length', 'Bottom Waist', 'Bottom Hips'],
+            'blouse':      ['Chest', 'Below Chest', 'Armhole', 'Apex Point', 'Shoulder', 'Front Deep', 'Back Deep',
+                           'Sleeves Length', 'Biceps Round', 'Above Elbow Round', 'Wrist Round', 'Additional message / Remarks']
+        };
+
+        function buildMeasurementFieldRow(value) {
+            const esc = String(value || '').replace(/"/g, '&quot;');
+            return `<div class="d-flex align-items-center gap-2 mb-1 meas-field-row">
+                <input type="text" class="form-control form-control-sm meas-field-input" value="${esc}" placeholder="e.g. Chest" style="max-width:280px;">
+                <span class="badge bg-secondary-subtle text-secondary border fs-11 px-2" style="white-space:nowrap;">in</span>
+                <button type="button" class="btn btn-sm btn-outline-danger py-0 px-2" onclick="removeMeasurementField(this)" title="Remove">
+                    <i class="fas fa-trash font-11"></i>
+                </button>
+            </div>`;
+        }
+
+        function renderMeasurementFields(containerId, fields) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            container.innerHTML = '';
+            fields.forEach(function(field) {
+                container.insertAdjacentHTML('beforeend', buildMeasurementFieldRow(field));
+            });
+        }
+
+        function loadMeasurementPreset(containerId, preset) {
+            const pSelect = document.getElementById('cust_meas_preset');
+            if (pSelect) pSelect.classList.remove('is-invalid');
+            if (!preset || preset === 'none') return;
+            const fields = MEASUREMENT_PRESETS[preset] || [];
+            renderMeasurementFields(containerId, fields);
+        }
+
+        function addMeasurementField(containerId, value = '') {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            container.insertAdjacentHTML('beforeend', buildMeasurementFieldRow(value));
+            const lastInput = container.querySelector('.meas-field-row:last-child .meas-field-input');
+            if (lastInput) lastInput.focus();
+        }
+
+        function removeMeasurementField(btn) {
+            const row = btn.closest('.meas-field-row');
+            if (row) row.remove();
+        }
+
+        function getMeasurementFields(containerId) {
+            const container = document.getElementById(containerId);
+            if (!container) return [];
+            const fields = [];
+            container.querySelectorAll('.meas-field-input').forEach(function(inp) {
+                const v = inp.value.trim();
+                if (v) fields.push(v);
+            });
+            return fields;
+        }
     </script>
 
     <script>

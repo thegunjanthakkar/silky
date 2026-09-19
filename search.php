@@ -142,12 +142,12 @@ if ($settings_res) { while ($row = mysqli_fetch_assoc($settings_res)) { $website
   <link href="<?php echo $base_url; ?>assets/css/main.css" rel="stylesheet">
   <style>
     :root { --accent:#97c51d; --accent-dark:#7aab0a; --navy:#0e2187; --soft-bg:#f5f7fb; --card-radius:18px; }
-    body { font-family:'Poppins',sans-serif; background:var(--soft-bg); }
+    html, body { font-family:'Poppins',sans-serif; background:var(--soft-bg); overflow-x:hidden; max-width:100%; }
 
     /* ── HERO ── */
     .search-hero {
       background: linear-gradient(135deg, #0a1a6e 0%, #1a3aad 30%, #97c51d 70%, #5e8508 100%);
-      padding:55px 0 90px; position:relative; overflow:visible;
+      padding:55px 0 90px; position:relative; overflow:hidden;
     }
     .search-hero::before { content:''; position:absolute; top:-80px; right:-80px; width:380px; height:380px; border-radius:50%; background:rgba(255,255,255,0.06); pointer-events:none; }
     .search-hero::after  { content:''; position:absolute; bottom:-100px; left:-60px; width:320px; height:320px; border-radius:50%; background:rgba(151,197,29,0.10); pointer-events:none; }
