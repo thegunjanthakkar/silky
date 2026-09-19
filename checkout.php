@@ -867,7 +867,7 @@ $user_info = $user_result ? mysqli_fetch_assoc($user_result) : null;
                     <div class="form-check terms-check">
                       <input class="form-check-input" type="checkbox" id="terms" name="terms" required>
                       <label class="form-check-label" for="terms">
-                        I agree to the <a href="tos.html" target="_blank">Terms and Conditions</a> and <a href="privacy.html" target="_blank">Privacy Policy</a>
+                        I agree to the <a href="tos.php" target="_blank">Terms and Conditions</a> and <a href="privacy.php" target="_blank">Privacy Policy</a>
                       </label>
                     </div>
                     <div class="place-order-container">

@@ -819,7 +819,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <div class="terms-checkbox-wrap">
                     <input type="checkbox" id="termsCheck" name="termsCheck" required>
                     <label for="termsCheck">
-                        I agree to the <a href="tos.html" target="_blank">Terms of Service</a> and <a href="privacy.html" target="_blank">Privacy Policy</a>
+                        I agree to the <a href="tos.php" target="_blank">Terms of Service</a> and <a href="privacy.php" target="_blank">Privacy Policy</a>
                     </label>
                 </div>
 

@@ -189,9 +189,9 @@ $website_tagline = $settings['website_tagline'] ?? 'A silky touch to beauty';
                 </div>
 
               <div class="legal-links">
-                <a href="tos.html">Terms</a>
-                <a href="privacy.html">Privacy</a>
-                <a href="tos.html">Cookies</a>
+                <a href="tos.php">Terms</a>
+                <a href="privacy.php">Privacy</a>
+                <a href="tos.php">Cookies</a>
               </div>
             </div>
           </div>
