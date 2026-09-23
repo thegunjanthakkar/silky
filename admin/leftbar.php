@@ -82,9 +82,7 @@
                                                 <li class="nav-item">
                                                     <a class="nav-link" href="./orders">All Orders</a>
                                                 </li><!--end nav-item-->
-                                                <li class="nav-item">
-                                                    <a class="nav-link" href="./returns-refunds">Returns / Refunds</a>
-                                                </li><!--end nav-item-->
+                                                
                                             </ul><!--end nav-->
                                         </div>
                                     </li><!--end nav-item-->
@@ -142,9 +140,7 @@
                                     <li class="nav-item">
                                         <a class="nav-link" href="./edit-website.php">Edit Website</a>
                                     </li><!--end nav-item-->
-                                    <li class="nav-item">
-                                        <a class="nav-link" href="./blogs">Blogs</a>
-                                    </li><!--end nav-item-->
+                                    
                                     
                                 </ul><!--end nav-->
                             </div>
@@ -159,9 +155,7 @@
                             </a>
                             <div class="collapse " id="sidebarUtilities">
                                 <ul class="nav flex-column">
-                                    <li class="nav-item">
-                                        <a class="nav-link" href="./cart-wishlist">Cart & Wishlist</a>
-                                    </li><!--end nav-item-->
+                                    
                                     <li class="nav-item">
                                         <a class="nav-link" href="./contact-queries">Contact Queries</a>
                                     </li><!--end nav-item-->
@@ -181,9 +175,9 @@
                                     <li class="nav-item">
                                         <a class="nav-link" href="./users">User List</a>
                                     </li><!--end nav-item-->
-                                    <li class="nav-item">
+                                    <!-- <li class="nav-item">
                                         <a class="nav-link" href="./manage-profiles">Manage Profiles</a>
-                                    </li><!--end nav-item-->
+                                    </li>end nav-item -->
                                     <li class="nav-item">
                                         <a class="nav-link" href="./user-roles">User Roles (Admin / Staff)</a>
                                     </li><!--end nav-item-->
@@ -215,9 +209,9 @@
                                     <li class="nav-item">
                                         <a class="nav-link" href="./payment-settings">Payment Settings</a>
                                     </li><!--end nav-item-->
-                                    <li class="nav-item">
+                                    <!-- <li class="nav-item">
                                         <a class="nav-link" href="./shipping-settings">Shipping Settings</a>
-                                    </li><!--end nav-item-->
+                                    </li>end nav-item -->
                                     <li class="nav-item">
                                         <a class="nav-link" href="./email-settings">Email Settings</a>
                                     </li><!--end nav-item-->
@@ -252,12 +246,12 @@
 
                         
                         <!-- Support -->
-                        <li class="nav-item">
+                        <!-- <li class="nav-item">
                             <a class="nav-link" href="./support">
                                 <i class="iconoir-headset-help menu-icon"></i> 
                                 <span>Support</span>
                             </a>
-                        </li><!--end nav-item-->
+                        </li>end nav-item -->
                         
                     </ul><!--end navbar-nav--->
                    
