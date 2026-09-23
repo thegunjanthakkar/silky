@@ -642,18 +642,39 @@ if ($cat_res) {
           <div class="col-lg-6 cr-left">
 
             <div class="cr-left-header">
-              <span class="cr-tag">Customer Stories</span>
-              <h3>What Our Customers Say</h3>
-              <p>Loved by thousands of women across India</p>
+              <span class="cr-tag"><?php echo htmlspecialchars($website_settings['reviews_section_tag'] ?? 'Customer Stories'); ?></span>
+              <h3><?php echo htmlspecialchars($website_settings['reviews_section_title'] ?? 'What Our Customers Say'); ?></h3>
+              <p><?php echo htmlspecialchars($website_settings['reviews_section_subtitle'] ?? 'Loved by thousands of women across India'); ?></p>
               <div class="cr-rating-summary">
-                <span class="cr-big-rating">4.9</span>
+                <?php
+                  $rev_rating_raw = $website_settings['reviews_summary_rating'] ?? '4.9';
+                  $rev_stars_mode = $website_settings['reviews_summary_stars'] ?? 'auto';
+                  $rev_count_text = $website_settings['reviews_summary_count'] ?? 'Based on 4,500+ reviews';
+
+                  $numeric_rating = floatval($rev_rating_raw);
+                  if ($numeric_rating <= 0) $numeric_rating = 4.9;
+
+                  $effective_stars = $numeric_rating;
+                  if ($rev_stars_mode !== 'auto' && is_numeric($rev_stars_mode)) {
+                      $effective_stars = floatval($rev_stars_mode);
+                  }
+                ?>
+                <span class="cr-big-rating"><?php echo htmlspecialchars($rev_rating_raw); ?></span>
                 <div>
                   <div class="cr-sum-stars">
-                    <i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i>
-                    <i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i>
-                    <i class="bi bi-star-half"></i>
+                    <?php
+                    for ($i = 1; $i <= 5; $i++) {
+                        if ($effective_stars >= $i) {
+                            echo '<i class="bi bi-star-fill"></i>';
+                        } elseif ($effective_stars >= ($i - 0.75)) {
+                            echo '<i class="bi bi-star-half"></i>';
+                        } else {
+                            echo '<i class="bi bi-star"></i>';
+                        }
+                    }
+                    ?>
                   </div>
-                  <small>Based on 4,500+ reviews</small>
+                  <small><?php echo htmlspecialchars($rev_count_text); ?></small>
                 </div>
               </div>
             </div>

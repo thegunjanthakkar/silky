@@ -1542,7 +1542,7 @@ $addon_meas_fields = ['Chest', 'Below Chest', 'Armhole', 'Apex Point', 'Shoulder
                     <span class="pd-stock-badge in-stock">
                       <i class="bi bi-check-circle-fill"></i> In Stock
                     </span>
-                    <span class="pd-stock-count" id="stock-count-text">Only <?php echo $product['stock']; ?> left!</span>
+                    <span class="pd-stock-count" id="stock-count-text" style="<?php echo (int)$product['stock'] <= 10 ? '' : 'display:none;'; ?>">Only <?php echo (int)$product['stock']; ?> left!</span>
                   <?php else: ?>
                     <span class="pd-stock-badge out-of-stock">
                       <i class="bi bi-x-circle-fill"></i> Out of Stock
@@ -1624,16 +1624,21 @@ $addon_meas_fields = ['Chest', 'Below Chest', 'Armhole', 'Apex Point', 'Shoulder
               <div class="pd-qty-row">
                 <span class="pd-qty-label">Qty</span>
                 <div class="pd-qty-control">
-                  <button class="pd-qty-btn" id="qty-decrease" type="button">
+                  <button class="pd-qty-btn" id="qty-decrease" type="button" <?php echo $product['stock'] <= 0 ? 'disabled' : ''; ?>>
                     <i class="bi bi-dash"></i>
                   </button>
                   <input type="number" class="pd-qty-input" id="product-quantity"
-                         value="1" min="1" max="<?php echo min(10, max(1, (int)$product['stock'])); ?>">
-                  <button class="pd-qty-btn" id="qty-increase" type="button">
+                         value="<?php echo $product['stock'] <= 0 ? '0' : '1'; ?>" 
+                         min="<?php echo $product['stock'] <= 0 ? '0' : '1'; ?>" 
+                         max="<?php echo max(1, (int)$product['stock']); ?>"
+                         <?php echo $product['stock'] <= 0 ? 'disabled' : ''; ?>>
+                  <button class="pd-qty-btn" id="qty-increase" type="button" <?php echo $product['stock'] <= 0 ? 'disabled' : ''; ?>>
                     <i class="bi bi-plus"></i>
                   </button>
                 </div>
-                <small class="text-muted" style="font-size: 0.8rem; font-weight: 500;">(Max 10 at a time)</small>
+                <small id="qty-stock-limit-text" class="text-danger" style="font-size: 0.8rem; font-weight: 500; <?php echo $product['stock'] <= 0 ? '' : 'display: none;'; ?>">
+                  (Out of stock)
+                </small>
               </div>
 
               <?php if (!empty($addon_products_data)): ?>
@@ -1773,25 +1778,52 @@ $addon_meas_fields = ['Chest', 'Below Chest', 'Armhole', 'Apex Point', 'Shoulder
                 </button>
               </div>
 
+              <?php
+              // Fetch website settings if not already fetched
+              if (!isset($website_settings)) {
+                  $website_settings = [];
+                  $s_res = @mysqli_query($conn, "SELECT setting_key, setting_value FROM website_settings");
+                  if ($s_res) {
+                      while ($row = mysqli_fetch_assoc($s_res)) {
+                          $website_settings[$row['setting_key']] = $row['setting_value'];
+                      }
+                  }
+              }
+
+              $default_benefit_cards = [
+                  ['icon' => 'bi bi-truck', 'title' => 'Free delivery over ₹999'],
+                  ['icon' => 'bi bi-arrow-repeat', 'title' => 'Easy 7-day returns'],
+                  ['icon' => 'bi bi-shield-check', 'title' => '100% authentic product'],
+                  ['icon' => 'bi bi-headset', 'title' => '24/7 customer support']
+              ];
+              $benefit_cards = $default_benefit_cards;
+              $benefits_enabled = ($website_settings['product_benefits_enabled'] ?? '1') !== '0';
+
+              if (!empty($website_settings['product_benefits_cards'])) {
+                  $decoded_benefits = json_decode($website_settings['product_benefits_cards'], true);
+                  if (json_last_error() === JSON_ERROR_NONE && is_array($decoded_benefits) && count($decoded_benefits) > 0) {
+                      $benefit_cards = $decoded_benefits;
+                  }
+              }
+              ?>
+
+              <?php if ($benefits_enabled && !empty($benefit_cards)): ?>
               <!-- Benefits -->
               <div class="pd-benefits">
+                <?php foreach ($benefit_cards as $b): 
+                    $b_icon = trim($b['icon'] ?? 'bi bi-shield-check');
+                    if (strpos($b_icon, 'bi-') === 0 && strpos($b_icon, 'bi ') !== 0) {
+                        $b_icon = 'bi ' . $b_icon;
+                    }
+                    $b_title = $b['title'] ?? '';
+                ?>
                 <div class="pd-benefit-item">
-                  <i class="bi bi-truck"></i>
-                  <span>Free delivery over ₹999</span>
+                  <i class="<?php echo htmlspecialchars($b_icon); ?>"></i>
+                  <span><?php echo htmlspecialchars($b_title); ?></span>
                 </div>
-                <div class="pd-benefit-item">
-                  <i class="bi bi-arrow-repeat"></i>
-                  <span>Easy 7-day returns</span>
-                </div>
-                <div class="pd-benefit-item">
-                  <i class="bi bi-shield-check"></i>
-                  <span>100% authentic product</span>
-                </div>
-                <div class="pd-benefit-item">
-                  <i class="bi bi-headset"></i>
-                  <span>24/7 customer support</span>
-                </div>
+                <?php endforeach; ?>
               </div>
+              <?php endif; ?>
 
             </div>
           </div>
@@ -2480,39 +2512,75 @@ $addon_meas_fields = ['Chest', 'Below Chest', 'Armhole', 'Apex Point', 'Shoulder
           }
           
           const stockContainer = document.getElementById('stock-container');
-          const stockCountText = document.getElementById('stock-count-text');
+          const stockLimitText = document.getElementById('qty-stock-limit-text');
+          const qtyInputEl = document.getElementById('product-quantity');
+          const qtyDec = document.getElementById('qty-decrease');
+          const qtyInc = document.getElementById('qty-increase');
+          const addBtn = document.getElementById('btn-add-to-cart');
+          const buyBtn = document.getElementById('btn-buy-now');
+          const notifyBtn = document.getElementById('btn-notify-me');
           
           if (currentStock > 0) {
-            stockContainer.innerHTML = `
-              <span class="pd-stock-badge in-stock">
-                <i class="bi bi-check-circle-fill"></i> In Stock
-              </span>
-              <span class="pd-stock-count" id="stock-count-text">Only ${currentStock} left!</span>
-            `;
-            document.getElementById('btn-add-to-cart').style.display = 'flex';
-            document.getElementById('btn-buy-now').style.display = 'flex';
-            document.getElementById('btn-notify-me').style.display = 'none';
-          } else {
-            stockContainer.innerHTML = `
-              <span class="pd-stock-badge out-of-stock">
-                <i class="bi bi-x-circle-fill"></i> Out of Stock
-              </span>
-              <span class="pd-stock-count" id="stock-count-text" style="display:none;"></span>
-            `;
-            document.getElementById('btn-add-to-cart').style.display = 'none';
-            document.getElementById('btn-buy-now').style.display = 'none';
-            document.getElementById('btn-notify-me').style.display = 'flex';
-          }
+            if (stockContainer) {
+              const stockCountHtml = currentStock <= 10 
+                ? `<span class="pd-stock-count" id="stock-count-text">Only ${currentStock} left!</span>` 
+                : `<span class="pd-stock-count" id="stock-count-text" style="display:none;"></span>`;
+              stockContainer.innerHTML = `
+                <span class="pd-stock-badge in-stock">
+                  <i class="bi bi-check-circle-fill"></i> In Stock
+                </span>
+                ${stockCountHtml}
+              `;
+            }
+            if (addBtn) addBtn.style.display = 'flex';
+            if (buyBtn) buyBtn.style.display = 'flex';
+            if (notifyBtn) notifyBtn.style.display = 'none';
 
-          // Update max quantity input (capped at max 10)
-          const qtyInput = document.getElementById('product-quantity');
-          if (qtyInput) {
-            const maxAllowed = Math.min(10, Math.max(1, currentStock));
-            qtyInput.max = maxAllowed;
-            if (parseInt(qtyInput.value) > maxAllowed) {
-              qtyInput.value = maxAllowed;
+            if (qtyInputEl) {
+              qtyInputEl.disabled = false;
+              qtyInputEl.min = 1;
+              qtyInputEl.max = currentStock;
+              let currentVal = parseInt(qtyInputEl.value, 10);
+              if (isNaN(currentVal) || currentVal < 1) {
+                qtyInputEl.value = 1;
+              } else if (currentVal > currentStock) {
+                qtyInputEl.value = currentStock;
+              }
+            }
+            if (qtyDec) qtyDec.disabled = false;
+            if (qtyInc) qtyInc.disabled = false;
+            if (stockLimitText) {
+              stockLimitText.textContent = '';
+              stockLimitText.style.display = 'none';
+            }
+          } else {
+            if (stockContainer) {
+              stockContainer.innerHTML = `
+                <span class="pd-stock-badge out-of-stock">
+                  <i class="bi bi-x-circle-fill"></i> Out of Stock
+                </span>
+                <span class="pd-stock-count" id="stock-count-text" style="display:none;"></span>
+              `;
+            }
+            if (addBtn) addBtn.style.display = 'none';
+            if (buyBtn) buyBtn.style.display = 'none';
+            if (notifyBtn) notifyBtn.style.display = 'flex';
+
+            if (qtyInputEl) {
+              qtyInputEl.disabled = true;
+              qtyInputEl.min = 0;
+              qtyInputEl.max = 0;
+              qtyInputEl.value = 0;
+            }
+            if (qtyDec) qtyDec.disabled = true;
+            if (qtyInc) qtyInc.disabled = true;
+            if (stockLimitText) {
+              stockLimitText.textContent = '(Out of stock)';
+              stockLimitText.className = 'text-danger';
+              stockLimitText.style.display = 'inline';
             }
           }
+
           if (typeof updateAddonsTotal === 'function') {
             updateAddonsTotal();
           }
@@ -2782,18 +2850,24 @@ $addon_meas_fields = ['Chest', 'Below Chest', 'Armhole', 'Apex Point', 'Shoulder
 
     function enforceQtyBounds() {
       if (!qtyInput) return;
+      if (currentStock <= 0) {
+        qtyInput.value = 0;
+        return;
+      }
       let val = parseInt(qtyInput.value, 10);
       const min = parseInt(qtyInput.min, 10) || 1;
-      const max = Math.min(10, parseInt(qtyInput.max, 10) || 10);
+      const max = Math.max(1, currentStock);
 
       if (isNaN(val) || val < min) {
         qtyInput.value = min;
       } else if (val > max) {
         qtyInput.value = max;
+        showToast(`Only ${currentStock} item(s) available in stock.`, 'warning');
       }
     }
 
     qtyDecrease?.addEventListener('click', () => {
+      if (currentStock <= 0) return;
       let v = parseInt(qtyInput.value, 10) || 1;
       const min = parseInt(qtyInput.min, 10) || 1;
       if (v > min) {
@@ -2803,19 +2877,30 @@ $addon_meas_fields = ['Chest', 'Below Chest', 'Armhole', 'Apex Point', 'Shoulder
     });
 
     qtyIncrease?.addEventListener('click', () => {
+      if (currentStock <= 0) {
+        showToast('This product is currently out of stock.', 'warning');
+        return;
+      }
       let v = parseInt(qtyInput.value, 10) || 1;
-      const max = Math.min(10, parseInt(qtyInput.max, 10) || 10);
+      const max = Math.max(1, currentStock);
       if (v < max) {
         qtyInput.value = v + 1;
         if (typeof updateAddonsTotal === 'function') updateAddonsTotal();
+      } else {
+        showToast(`Cannot add more than ${currentStock} available in stock.`, 'warning');
       }
     });
 
     qtyInput?.addEventListener('input', () => {
+      if (currentStock <= 0) {
+        qtyInput.value = 0;
+        return;
+      }
       let val = parseInt(qtyInput.value, 10);
-      const max = Math.min(10, parseInt(qtyInput.max, 10) || 10);
+      const max = Math.max(1, currentStock);
       if (val > max) {
         qtyInput.value = max;
+        showToast(`Only ${currentStock} item(s) available in stock.`, 'warning');
       }
       if (typeof updateAddonsTotal === 'function') updateAddonsTotal();
     });
@@ -3140,9 +3225,16 @@ $addon_meas_fields = ['Chest', 'Below Chest', 'Armhole', 'Apex Point', 'Shoulder
         }
       }
 
+      if (currentStock <= 0) {
+        showToast('This product is currently out of stock.', 'warning');
+        return;
+      }
+
       let qty  = parseInt(qtyInput?.value, 10) || 1;
-      if (qty > 10) qty = 10;
       if (qty < 1) qty = 1;
+      if (qty > currentStock) {
+        qty = currentStock;
+      }
       if (qtyInput) qtyInput.value = qty;
       const cart = JSON.parse(localStorage.getItem('cart')) || [];
 
@@ -3160,9 +3252,24 @@ $addon_meas_fields = ['Chest', 'Below Chest', 'Armhole', 'Apex Point', 'Shoulder
       const idx  = cart.findIndex(i => i.id == productId && i.color == selectedColor && i.size == selectedSize && i.variant_info == variantInfo);
 
       if (idx !== -1) {
+        const existingQty = parseInt(cart[idx].quantity, 10) || 0;
+        if (existingQty + qty > currentStock) {
+          const maxCanAdd = Math.max(0, currentStock - existingQty);
+          if (maxCanAdd === 0) {
+            showToast(`You already have all ${currentStock} available in your cart.`, 'warning');
+            if (redirect) {
+              window.location.href = 'checkout.php';
+            }
+            return;
+          } else {
+            qty = maxCanAdd;
+            showToast(`Adjusted quantity: adding ${qty} more (reached stock limit of ${currentStock}).`, 'warning');
+          }
+        }
         cart[idx].quantity += qty;
-        // Update price in case it changed
+        // Update price and stock in case it changed
         cart[idx].price = currentPrice;
+        cart[idx].stock = currentStock;
         cart[idx].variant_info = variantInfo;
         if (isCustom) {
           cart[idx].custom_measurements = customMeasurements;
@@ -3175,6 +3282,7 @@ $addon_meas_fields = ['Chest', 'Below Chest', 'Armhole', 'Apex Point', 'Shoulder
           image: productImage, 
           slug: productSlug, 
           quantity: qty, 
+          stock: currentStock,
           color: selectedColor, 
           size: selectedSize,
           variant_info: variantInfo,
@@ -3206,23 +3314,30 @@ $addon_meas_fields = ['Chest', 'Below Chest', 'Armhole', 'Apex Point', 'Shoulder
               }
 
               const aIdx = cart.findIndex(i => String(i.id) === String(addonObj.id) && i.variant_info === variantInfo);
-              if (aIdx !== -1) {
-                  cart[aIdx].quantity += 1;
-              } else {
-                  cart.push({
-                      id: addonObj.id,
-                      name: addonObj.name,
-                      price: addonObj.effective_price,
-                      image: addonObj.image,
-                      slug: addonObj.slug,
-                      quantity: 1,
-                      color: '',
-                      size: '',
-                      variant_info: variantInfo,
-                      measurements: addonMeas
-                  });
+              const aStock = parseInt(addonObj.stock) || 0;
+              if (aStock > 0) {
+                  if (aIdx !== -1) {
+                      if ((cart[aIdx].quantity || 0) < aStock) {
+                          cart[aIdx].quantity += 1;
+                      }
+                      cart[aIdx].stock = aStock;
+                  } else {
+                      cart.push({
+                          id: addonObj.id,
+                          name: addonObj.name,
+                          price: addonObj.effective_price,
+                          image: addonObj.image,
+                          slug: addonObj.slug,
+                          quantity: 1,
+                          stock: aStock,
+                          color: '',
+                          size: '',
+                          variant_info: variantInfo,
+                          measurements: addonMeas
+                      });
+                  }
+                  addedAddonsCount++;
               }
-              addedAddonsCount++;
           }
       });
 

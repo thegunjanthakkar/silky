@@ -248,6 +248,9 @@ $error_message = isset($_GET['error']) ? 'Error saving settings.' : '';
                                      <li class="nav-item">
                                          <a class="nav-link" id="care-tab" data-bs-toggle="tab" href="#care" role="tab"><i class="bi bi-droplet-half me-1"></i> Care Instructions</a>
                                      </li>
+                                     <li class="nav-item">
+                                         <a class="nav-link" id="benefits-tab" data-bs-toggle="tab" href="#benefits" role="tab"><i class="bi bi-shield-check me-1"></i> Product Benefits</a>
+                                     </li>
                                  </ul>
                             </div>
                             <div class="card-body">
@@ -451,8 +454,113 @@ $error_message = isset($_GET['error']) ? 'Error saving settings.' : '';
 
                                         <!-- Reviews Tab -->
                                         <div class="tab-pane fade" id="reviews" role="tabpanel">
-                                            <h5 class="card-title">Client Reviews</h5>
-                                            <p class="text-muted">Edit existing reviews. Leave author name empty to delete.</p>
+                                            
+                                            <!-- Overall Rating & Review Summary Settings -->
+                                            <div class="card border mb-4">
+                                                <div class="card-header bg-light-subtle d-flex justify-content-between align-items-center py-2 px-3">
+                                                    <h6 class="card-title mb-0 fw-bold">
+                                                        <i class="bi bi-star-fill text-warning me-1"></i> Customer Stories - Overall Rating &amp; Review Summary
+                                                    </h6>
+                                                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle">Customer Stories Header</span>
+                                                </div>
+                                                <div class="card-body p-3">
+                                                    <p class="text-muted small mb-3">
+                                                        Configure the overall score rating (e.g. <code>4.9</code>), star icons, and the review count badge (e.g. <code>Based on 4,500+ reviews</code>) shown next to the Customer Stories section on the website.
+                                                    </p>
+                                                    
+                                                    <div class="row align-items-center">
+                                                        <!-- Settings Form Fields -->
+                                                        <div class="col-lg-7">
+                                                            <div class="row g-3">
+                                                                <div class="col-md-6">
+                                                                    <label class="form-label fw-semibold">Overall Rating Score</label>
+                                                                    <div class="input-group">
+                                                                        <span class="input-group-text"><i class="bi bi-star-half text-warning"></i></span>
+                                                                        <input type="text" class="form-control" name="reviews_summary_rating" id="reviews_summary_rating" 
+                                                                            value="<?php echo htmlspecialchars($settings['reviews_summary_rating'] ?? '4.9'); ?>" 
+                                                                            placeholder="e.g. 4.9" oninput="updateReviewSummaryPreview()">
+                                                                    </div>
+                                                                    <small class="text-muted">Displayed as the big rating number (e.g. 4.9, 5.0)</small>
+                                                                </div>
+
+                                                                <div class="col-md-6">
+                                                                    <label class="form-label fw-semibold">Star Icons Display</label>
+                                                                    <select class="form-select" name="reviews_summary_stars" id="reviews_summary_stars" onchange="updateReviewSummaryPreview()">
+                                                                        <?php $sel_stars = $settings['reviews_summary_stars'] ?? 'auto'; ?>
+                                                                        <option value="auto" <?php echo $sel_stars === 'auto' ? 'selected' : ''; ?>>⚡ Auto (Calculated from Score)</option>
+                                                                        <option value="5.0" <?php echo $sel_stars === '5.0' ? 'selected' : ''; ?>>★★★★★ (5 Full Stars)</option>
+                                                                        <option value="4.5" <?php echo $sel_stars === '4.5' ? 'selected' : ''; ?>>★★★★½ (4 Full + 1 Half Star)</option>
+                                                                        <option value="4.0" <?php echo $sel_stars === '4.0' ? 'selected' : ''; ?>>★★★★☆ (4 Full + 1 Empty Star)</option>
+                                                                        <option value="3.5" <?php echo $sel_stars === '3.5' ? 'selected' : ''; ?>>★★★½☆ (3 Full + 1 Half Star)</option>
+                                                                        <option value="3.0" <?php echo $sel_stars === '3.0' ? 'selected' : ''; ?>>★★★☆☆ (3 Full Stars)</option>
+                                                                    </select>
+                                                                    <small class="text-muted">Choose exact stars or let it auto-calculate from score</small>
+                                                                </div>
+
+                                                                <div class="col-12">
+                                                                    <label class="form-label fw-semibold">Total Ratings / Reviews Text</label>
+                                                                    <div class="input-group">
+                                                                        <span class="input-group-text"><i class="bi bi-chat-heart text-danger"></i></span>
+                                                                        <input type="text" class="form-control" name="reviews_summary_count" id="reviews_summary_count" 
+                                                                            value="<?php echo htmlspecialchars($settings['reviews_summary_count'] ?? 'Based on 4,500+ reviews'); ?>" 
+                                                                            placeholder="e.g. Based on 4,500+ reviews" oninput="updateReviewSummaryPreview()">
+                                                                    </div>
+                                                                    <small class="text-muted">Text displayed under the stars (e.g. "Based on 4,500+ reviews", "Over 10,000+ happy buyers")</small>
+                                                                </div>
+
+                                                                <div class="col-md-6">
+                                                                    <label class="form-label fw-semibold small text-muted">Section Heading</label>
+                                                                    <input type="text" class="form-control form-control-sm" name="reviews_section_title" id="reviews_section_title" 
+                                                                        value="<?php echo htmlspecialchars($settings['reviews_section_title'] ?? 'What Our Customers Say'); ?>" 
+                                                                        placeholder="What Our Customers Say" oninput="updateReviewSummaryPreview()">
+                                                                </div>
+
+                                                                <div class="col-md-6">
+                                                                    <label class="form-label fw-semibold small text-muted">Section Subtitle</label>
+                                                                    <input type="text" class="form-control form-control-sm" name="reviews_section_subtitle" id="reviews_section_subtitle" 
+                                                                        value="<?php echo htmlspecialchars($settings['reviews_section_subtitle'] ?? 'Loved by thousands of women across India'); ?>" 
+                                                                        placeholder="Loved by thousands of women across India" oninput="updateReviewSummaryPreview()">
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        <!-- Live Preview Box -->
+                                                        <div class="col-lg-5 mt-3 mt-lg-0">
+                                                            <div class="card bg-body-tertiary border p-3">
+                                                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                                                    <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1"><i class="bi bi-eye me-1"></i> Live Website Preview</span>
+                                                                    <small class="text-muted">Real-time update</small>
+                                                                </div>
+                                                                
+                                                                <div class="p-3 rounded bg-white border" style="background: #ffffff;">
+                                                                    <span class="badge bg-light text-success border mb-1" style="font-size: 11px; letter-spacing: 0.5px; text-transform: uppercase;">CUSTOMER STORIES</span>
+                                                                    <h5 class="fw-bold mb-1" style="color: #0e2187;" id="preview_reviews_title">What Our Customers Say</h5>
+                                                                    <p class="text-muted small mb-3" id="preview_reviews_subtitle">Loved by thousands of women across India</p>
+
+                                                                    <!-- The Summary Card Component -->
+                                                                    <div class="d-inline-flex align-items-center gap-3 p-3 rounded-3 border shadow-sm" style="background: #fff; min-width: 220px;">
+                                                                        <span class="fw-bold" style="font-size: 36px; color: #0e2187; line-height: 1;" id="preview_big_rating">4.9</span>
+                                                                        <div>
+                                                                            <div class="text-warning mb-1" style="color: #f59e0b; font-size: 14px;" id="preview_stars">
+                                                                                <i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-half"></i>
+                                                                            </div>
+                                                                            <small class="text-muted fw-semibold" style="font-size: 12px;" id="preview_count">Based on 4,500+ reviews</small>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                                <div>
+                                                    <h5 class="card-title mb-0">Client Reviews</h5>
+                                                    <p class="text-muted small mb-0">Edit individual testimonials. Leave author name empty to delete.</p>
+                                                </div>
+                                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="addReviewItem()">+ Add New Review</button>
+                                            </div>
                                             <div id="reviews-list">
                                                 <?php foreach ($reviews as $rev): ?>
                                                                                                 <div class="card border mb-3 p-3">
@@ -805,6 +913,84 @@ $error_message = isset($_GET['error']) ? 'Error saving settings.' : '';
                                                 <?php endforeach; ?>
                                             </div>
                                         </div>
+
+                                        <!-- Product Benefits Tab -->
+                                        <div class="tab-pane fade" id="benefits" role="tabpanel">
+                                            <div class="d-flex justify-content-between align-items-center mb-4 pb-2 border-bottom">
+                                                <div>
+                                                    <h5 class="card-title mb-1">Product Details - Trust &amp; Benefit Badges</h5>
+                                                    <p class="text-muted small mb-0">These badge cards appear directly under the Add to Cart / Buy Now buttons on product details pages.</p>
+                                                </div>
+                                                <div class="form-check form-switch form-switch-success">
+                                                    <input class="form-check-input" type="checkbox" name="product_benefits_enabled" value="1" id="product_benefits_enabled" <?php echo ($settings['product_benefits_enabled'] ?? '1') == '1' ? 'checked' : ''; ?>>
+                                                    <label class="form-check-label fw-semibold" for="product_benefits_enabled">Show on Product Pages</label>
+                                                </div>
+                                            </div>
+
+                                            <?php
+                                            $default_benefit_cards = [
+                                                ['icon' => 'bi bi-truck', 'title' => 'Free delivery over ₹999'],
+                                                ['icon' => 'bi bi-arrow-repeat', 'title' => 'Easy 7-day returns'],
+                                                ['icon' => 'bi bi-shield-check', 'title' => '100% authentic product'],
+                                                ['icon' => 'bi bi-headset', 'title' => '24/7 customer support']
+                                            ];
+                                            $benefit_cards = $default_benefit_cards;
+                                            if (!empty($settings['product_benefits_cards'])) {
+                                                $decoded_benefits = json_decode($settings['product_benefits_cards'], true);
+                                                if (json_last_error() === JSON_ERROR_NONE && is_array($decoded_benefits) && count($decoded_benefits) > 0) {
+                                                    $benefit_cards = $decoded_benefits;
+                                                }
+                                            }
+                                            ?>
+
+                                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                                <h6 class="fw-bold mb-0">Benefit Cards (Default for all products)</h6>
+                                                <button type="button" class="btn btn-sm btn-soft-primary" onclick="addBenefitCard()">
+                                                    <i class="fas fa-plus me-1"></i> Add Card
+                                                </button>
+                                            </div>
+
+                                            <div class="row g-3" id="benefits-cards-list">
+                                                <?php foreach ($benefit_cards as $idx => $card): 
+                                                    $bIcon = !empty($card['icon']) ? $card['icon'] : 'bi bi-shield-check';
+                                                    $bTitle = $card['title'] ?? '';
+                                                ?>
+                                                <div class="col-md-6 benefit-card-item">
+                                                    <div class="card border shadow-none mb-0 h-100">
+                                                        <div class="card-header d-flex justify-content-between align-items-center py-2 px-3 border-bottom">
+                                                            <span class="fw-bold fs-12 text-primary"><i class="fas fa-grip-vertical handle me-2"></i>Card #<span class="benefit-card-num"><?php echo $idx + 1; ?></span></span>
+                                                            <button type="button" class="btn btn-sm btn-soft-danger py-0 px-2" onclick="removeBenefitCard(this)" title="Delete Card"><i class="fas fa-trash font-11"></i></button>
+                                                        </div>
+                                                        <div class="card-body p-3">
+                                                            <div class="mb-3">
+                                                                <label class="form-label small fw-semibold">Icon</label>
+                                                                <div class="input-group mb-2">
+                                                                    <span class="input-group-text benefit-icon-preview-box" style="font-size: 1.3rem; color: #97c51d; width: 48px; justify-content: center;">
+                                                                        <i class="<?php echo htmlspecialchars($bIcon); ?>"></i>
+                                                                    </span>
+                                                                    <input type="text" class="form-control benefit-card-icon-input" name="benefit_card_icon[]" value="<?php echo htmlspecialchars($bIcon); ?>" oninput="updateBenefitIconPreview(this)" placeholder="e.g. bi bi-truck">
+                                                                </div>
+                                                                <div class="d-flex flex-wrap gap-1">
+                                                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1" style="cursor: pointer;" onclick="selectBenefitIcon(this, 'bi bi-truck')"><i class="bi bi-truck me-1 text-success"></i>Delivery</span>
+                                                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1" style="cursor: pointer;" onclick="selectBenefitIcon(this, 'bi bi-arrow-repeat')"><i class="bi bi-arrow-repeat me-1 text-primary"></i>Returns</span>
+                                                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1" style="cursor: pointer;" onclick="selectBenefitIcon(this, 'bi bi-shield-check')"><i class="bi bi-shield-check me-1 text-success"></i>Authentic</span>
+                                                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1" style="cursor: pointer;" onclick="selectBenefitIcon(this, 'bi bi-headset')"><i class="bi bi-headset me-1 text-warning"></i>Support</span>
+                                                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1" style="cursor: pointer;" onclick="selectBenefitIcon(this, 'bi bi-lock')"><i class="bi bi-lock me-1 text-danger"></i>Secure</span>
+                                                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1" style="cursor: pointer;" onclick="selectBenefitIcon(this, 'bi bi-credit-card')"><i class="bi bi-credit-card me-1 text-info"></i>Payment</span>
+                                                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1" style="cursor: pointer;" onclick="selectBenefitIcon(this, 'bi bi-box-seam')"><i class="bi bi-box-seam me-1 text-primary"></i>Packaging</span>
+                                                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1" style="cursor: pointer;" onclick="selectBenefitIcon(this, 'bi bi-patch-check')"><i class="bi bi-patch-check me-1 text-success"></i>Quality</span>
+                                                                </div>
+                                                            </div>
+                                                            <div class="mb-2">
+                                                                <label class="form-label small fw-semibold">Card Text *</label>
+                                                                <input type="text" class="form-control" name="benefit_card_title[]" value="<?php echo htmlspecialchars($bTitle); ?>" placeholder="e.g. Free delivery over ₹999" required>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <?php endforeach; ?>
+                                            </div>
+                                        </div>
                                     </div>
                                     <hr>
                                     <input type="submit" class="btn btn-primary btn-lg px-5" value="Save All Changes">
@@ -853,7 +1039,96 @@ $error_message = isset($_GET['error']) ? 'Error saving settings.' : '';
                     onEnd: reindexCareCards
                 });
             }
+            const benefitsList = document.getElementById('benefits-cards-list');
+            if (benefitsList) {
+                new Sortable(benefitsList, { 
+                    handle: '.handle', 
+                    animation: 150,
+                    onEnd: reindexBenefitCards
+                });
+            }
+            if (typeof updateReviewSummaryPreview === 'function') {
+                updateReviewSummaryPreview();
+            }
         });
+
+        function updateBenefitIconPreview(input) {
+            const wrap = input.closest('.mb-3');
+            const preview = wrap.querySelector('.benefit-icon-preview-box i');
+            if (preview) {
+                let cls = input.value.trim();
+                if (cls.startsWith('bi-') && !cls.startsWith('bi bi-')) cls = 'bi ' + cls;
+                preview.className = cls || 'bi bi-shield-check';
+            }
+        }
+
+        function selectBenefitIcon(badge, iconClass) {
+            const wrap = badge.closest('.mb-3');
+            const input = wrap.querySelector('.benefit-card-icon-input');
+            const preview = wrap.querySelector('.benefit-icon-preview-box i');
+            if (input) input.value = iconClass;
+            if (preview) preview.className = iconClass;
+        }
+
+        function reindexBenefitCards() {
+            const list = document.querySelectorAll('#benefits-cards-list .benefit-card-item');
+            list.forEach((card, idx) => {
+                const num = card.querySelector('.benefit-card-num');
+                if (num) num.textContent = idx + 1;
+            });
+        }
+
+        function removeBenefitCard(btn) {
+            const item = btn.closest('.benefit-card-item');
+            if (item) {
+                if (confirm('Are you sure you want to remove this card?')) {
+                    item.remove();
+                    reindexBenefitCards();
+                }
+            }
+        }
+
+        function addBenefitCard() {
+            const list = document.getElementById('benefits-cards-list');
+            if (!list) return;
+            const count = list.querySelectorAll('.benefit-card-item').length + 1;
+            const html = `
+                <div class="col-md-6 benefit-card-item">
+                    <div class="card border shadow-none mb-0 h-100">
+                        <div class="card-header d-flex justify-content-between align-items-center py-2 px-3 border-bottom">
+                            <span class="fw-bold fs-12 text-primary"><i class="fas fa-grip-vertical handle me-2"></i>Card #<span class="benefit-card-num">${count}</span></span>
+                            <button type="button" class="btn btn-sm btn-soft-danger py-0 px-2" onclick="removeBenefitCard(this)" title="Delete Card"><i class="fas fa-trash font-11"></i></button>
+                        </div>
+                        <div class="card-body p-3">
+                            <div class="mb-3">
+                                <label class="form-label small fw-semibold">Icon</label>
+                                <div class="input-group mb-2">
+                                    <span class="input-group-text benefit-icon-preview-box" style="font-size: 1.3rem; color: #97c51d; width: 48px; justify-content: center;">
+                                        <i class="bi bi-shield-check"></i>
+                                    </span>
+                                    <input type="text" class="form-control benefit-card-icon-input" name="benefit_card_icon[]" value="bi bi-shield-check" oninput="updateBenefitIconPreview(this)" placeholder="e.g. bi bi-truck">
+                                </div>
+                                <div class="d-flex flex-wrap gap-1">
+                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1" style="cursor: pointer;" onclick="selectBenefitIcon(this, 'bi bi-truck')"><i class="bi bi-truck me-1 text-success"></i>Delivery</span>
+                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1" style="cursor: pointer;" onclick="selectBenefitIcon(this, 'bi bi-arrow-repeat')"><i class="bi bi-arrow-repeat me-1 text-primary"></i>Returns</span>
+                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1" style="cursor: pointer;" onclick="selectBenefitIcon(this, 'bi bi-shield-check')"><i class="bi bi-shield-check me-1 text-success"></i>Authentic</span>
+                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1" style="cursor: pointer;" onclick="selectBenefitIcon(this, 'bi bi-headset')"><i class="bi bi-headset me-1 text-warning"></i>Support</span>
+                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1" style="cursor: pointer;" onclick="selectBenefitIcon(this, 'bi bi-lock')"><i class="bi bi-lock me-1 text-danger"></i>Secure</span>
+                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1" style="cursor: pointer;" onclick="selectBenefitIcon(this, 'bi bi-credit-card')"><i class="bi bi-credit-card me-1 text-info"></i>Payment</span>
+                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1" style="cursor: pointer;" onclick="selectBenefitIcon(this, 'bi bi-box-seam')"><i class="bi bi-box-seam me-1 text-primary"></i>Packaging</span>
+                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1" style="cursor: pointer;" onclick="selectBenefitIcon(this, 'bi bi-patch-check')"><i class="bi bi-patch-check me-1 text-success"></i>Quality</span>
+                                </div>
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label small fw-semibold">Card Text *</label>
+                                <input type="text" class="form-control" name="benefit_card_title[]" value="" placeholder="e.g. Free delivery over ₹999" required>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            list.insertAdjacentHTML('beforeend', html);
+        }
 
         function updateCardIconPreview(input) {
             const wrap = input.closest('.mb-3');
@@ -1149,6 +1424,59 @@ $error_message = isset($_GET['error']) ? 'Error saving settings.' : '';
                 </div>
             `;
             document.getElementById('reviews-list').insertAdjacentHTML('beforeend', html);
+        }
+
+        function renderStarsHtml(score, starsMode) {
+            let rating = parseFloat(score);
+            if (isNaN(rating) || rating <= 0) rating = 4.9;
+
+            let targetRating = rating;
+            if (starsMode && starsMode !== 'auto') {
+                targetRating = parseFloat(starsMode);
+                if (isNaN(targetRating)) targetRating = rating;
+            }
+
+            let starsHtml = '';
+            for (let i = 1; i <= 5; i++) {
+                if (targetRating >= i) {
+                    starsHtml += '<i class="bi bi-star-fill"></i>';
+                } else if (targetRating >= (i - 0.75)) {
+                    starsHtml += '<i class="bi bi-star-half"></i>';
+                } else {
+                    starsHtml += '<i class="bi bi-star"></i>';
+                }
+            }
+            return starsHtml;
+        }
+
+        function updateReviewSummaryPreview() {
+            const ratingInput = document.getElementById('reviews_summary_rating');
+            const starsSelect = document.getElementById('reviews_summary_stars');
+            const countInput = document.getElementById('reviews_summary_count');
+            const titleInput = document.getElementById('reviews_section_title');
+            const subtitleInput = document.getElementById('reviews_section_subtitle');
+
+            const previewRating = document.getElementById('preview_big_rating');
+            const previewStars = document.getElementById('preview_stars');
+            const previewCount = document.getElementById('preview_count');
+            const previewTitle = document.getElementById('preview_reviews_title');
+            const previewSubtitle = document.getElementById('preview_reviews_subtitle');
+
+            if (previewRating && ratingInput) {
+                previewRating.textContent = ratingInput.value.trim() || '4.9';
+            }
+            if (previewCount && countInput) {
+                previewCount.textContent = countInput.value.trim() || 'Based on 4,500+ reviews';
+            }
+            if (previewTitle && titleInput) {
+                previewTitle.textContent = titleInput.value.trim() || 'What Our Customers Say';
+            }
+            if (previewSubtitle && subtitleInput) {
+                previewSubtitle.textContent = subtitleInput.value.trim() || 'Loved by thousands of women across India';
+            }
+            if (previewStars && ratingInput && starsSelect) {
+                previewStars.innerHTML = renderStarsHtml(ratingInput.value.trim(), starsSelect.value);
+            }
         }
 
         // ── Directory Picker ──────────────────────────────────────────

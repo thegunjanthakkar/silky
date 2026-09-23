@@ -34,11 +34,14 @@ $flat_settings = [
     'whatsapp_number', 'wa_form_title', 'wa_form_subtitle', 'wa_show_product', 'wa_product_options',
     'wa_show_budget', 'wa_budget_options', 'wa_show_color', 'wa_color_options', 'wa_show_message',
     'wa_button_text', 'wa_form_note',
+    'reviews_summary_rating', 'reviews_summary_stars', 'reviews_summary_count',
+    'reviews_section_tag', 'reviews_section_title', 'reviews_section_subtitle',
     'product_highlights_enabled', 'product_highlights_title',
-    'product_care_enabled', 'product_care_title'
+    'product_care_enabled', 'product_care_title',
+    'product_benefits_enabled'
 ];
 
-$checkboxes = ['cta_show', 'wa_show_product', 'wa_show_budget', 'wa_show_color', 'wa_show_message', 'product_highlights_enabled', 'product_care_enabled'];
+$checkboxes = ['cta_show', 'wa_show_product', 'wa_show_budget', 'wa_show_color', 'wa_show_message', 'product_highlights_enabled', 'product_care_enabled', 'product_benefits_enabled'];
 foreach ($checkboxes as $cb) {
     if (!isset($_POST[$cb])) {
         $_POST[$cb] = '0';
@@ -57,7 +60,7 @@ if (!$has_section) {
 foreach ($flat_settings as $key) {
     $val = isset($_POST[$key]) ? $_POST[$key] : '';
     $val_safe = mysqli_real_escape_string($conn, $val);
-    $sec = (strpos($key, 'product_highlights_') === 0 || strpos($key, 'product_care_') === 0) ? 'product_page' : 'general';
+    $sec = (strpos($key, 'product_highlights_') === 0 || strpos($key, 'product_care_') === 0 || strpos($key, 'product_benefits_') === 0) ? 'product_page' : 'general';
     if ($has_section) {
         $sql = "INSERT INTO website_settings (setting_key, setting_value, section) 
                 VALUES ('$key', '$val_safe', '$sec') 
@@ -133,6 +136,34 @@ if (isset($_POST['care_card_title']) && is_array($_POST['care_card_title'])) {
     }
     if (!mysqli_query($conn, $sql)) {
         $errors[] = "Setting 'product_care_cards': " . mysqli_error($conn);
+    }
+}
+
+// Process Product Benefits Cards
+if (isset($_POST['benefit_card_title']) && is_array($_POST['benefit_card_title'])) {
+    $saved_benefits = [];
+    foreach ($_POST['benefit_card_title'] as $idx => $title) {
+        $title = trim($title);
+        $icon = trim($_POST['benefit_card_icon'][$idx] ?? 'bi bi-shield-check');
+        if ($title !== '') {
+            $saved_benefits[] = [
+                'icon' => $icon,
+                'title' => $title
+            ];
+        }
+    }
+    $benefits_json = mysqli_real_escape_string($conn, json_encode($saved_benefits));
+    if ($has_section) {
+        $sql = "INSERT INTO website_settings (setting_key, setting_value, section) 
+                VALUES ('product_benefits_cards', '$benefits_json', 'product_page') 
+                ON DUPLICATE KEY UPDATE setting_value='$benefits_json'";
+    } else {
+        $sql = "INSERT INTO website_settings (setting_key, setting_value) 
+                VALUES ('product_benefits_cards', '$benefits_json') 
+                ON DUPLICATE KEY UPDATE setting_value='$benefits_json'";
+    }
+    if (!mysqli_query($conn, $sql)) {
+        $errors[] = "Setting 'product_benefits_cards': " . mysqli_error($conn);
     }
 }
 

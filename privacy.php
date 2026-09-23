@@ -311,15 +311,6 @@ $privacy_content = trim($settings['privacy_policy'] ?? '');
 
                     <h2>7. Your Data Rights</h2>
                     <p>You have the right to review, modify, or update your personal account information at any time by logging into <a href="account.php">My Account</a>. You may also request deletion of your account data by contacting our support team.</p>
-
-                    <h2>8. Contact Us</h2>
-                    <p>If you have additional questions or require more information about our Privacy Policy, do not hesitate to reach out to us:</p>
-                    <ul>
-                        <li><strong>Email:</strong> <a href="mailto:&lt;?php echo htmlspecialchars($business_email); ?&gt;"><?php echo htmlspecialchars($business_email); ?></a></li>
-                        <li><strong>Phone:</strong> <?php echo htmlspecialchars($business_phone); ?></li>
-                        <li><strong>Website:</strong> <a href="index.php">https://silkysaree.in</a></li>
-                        <li><strong>Address:</strong> <?php echo nl2br(htmlspecialchars($business_address)); ?></li>
-                    </ul>
             </div>
             <!-- LEGAL_CONTENT_END -->
 
