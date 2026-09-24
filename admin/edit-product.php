@@ -1150,10 +1150,11 @@ if (!empty($product['addon_products'])) {
                                     <h6 class="alert-heading mb-2"><i class="fas fa-info-circle me-1"></i> Image Guidelines</h6>
                                     <ul class="mb-0 small">
                                         <li><strong>Max Images:</strong> 6 total (including existing)</li>
-                                        <li><strong>Size:</strong> Max 1.5 MB per image</li>
+                                        <li><strong>Raw Upload Size:</strong> Supports up to 50 MB (DSLR photos)</li>
                                         <li><strong>Format:</strong> JPG, PNG, WEBP</li>
                                         <li><strong>Ratio:</strong> 9:16 (Portrait)</li>
-                                        <li><strong>Dimensions:</strong> 900x1600px recommended</li>
+                                        <li><strong>Auto Conversion:</strong> Automatically cropped & exported as compressed WebP</li>
+                                        <li><strong>Dimensions:</strong> 900x1600px</li>
                                     </ul>
                                 </div>
                             </div>
@@ -1603,25 +1604,36 @@ if (!empty($product['addon_products'])) {
                 if (!e.target.matches('#ca_image_file')) return;
                 const file = e.target.files[0];
                 if (!file) return;
-                if (file.size > 1.5 * 1024 * 1024) { alert('Image too large. Max 1.5 MB.'); e.target.value=''; return; }
-                const reader = new FileReader();
-                reader.onload = ev => {
-                    document.getElementById('crop-image').src = ev.target.result;
-                    document.querySelector('#cropperModal .modal-title').textContent = 'Crop Add-on Image';
-                    window._addonCropCallback = true;
-                    bootstrap.Modal.getInstance(modalEl)?.hide();
-                    bootstrap.Modal.getOrCreateInstance(cropModalEl).show();
-                    if (cropper) { cropper.destroy(); cropper = null; }
-                    cropper = new Cropper(document.getElementById('crop-image'), {
-                        aspectRatio: 9/16, viewMode: 1, autoCropArea: 1, responsive: true,
-                        guides: true, center: true, highlight: false, cropBoxMovable: true,
-                        cropBoxResizable: true, toggleDragModeOnDblclick: false
-                    });
-                };
-                reader.readAsDataURL(file);
+                if (file.size > 50 * 1024 * 1024) { alert('Image too large. Max 50 MB allowed.'); e.target.value=''; return; }
+                
+                if (activeCropObjectUrl) {
+                    URL.revokeObjectURL(activeCropObjectUrl);
+                    activeCropObjectUrl = null;
+                }
+                activeCropObjectUrl = URL.createObjectURL(file);
+                const cropImg = document.getElementById('crop-image');
+                cropImg.src = activeCropObjectUrl;
+                document.querySelector('#cropperModal .modal-title').textContent = 'Crop Add-on Image';
+                window._addonCropCallback = true;
+                bootstrap.Modal.getInstance(modalEl)?.hide();
+                bootstrap.Modal.getOrCreateInstance(cropModalEl).show();
+                if (cropper) { cropper.destroy(); cropper = null; }
+                cropper = new Cropper(cropImg, {
+                    aspectRatio: 9/16, viewMode: 1, autoCropArea: 1, responsive: true,
+                    guides: true, center: true, highlight: false, cropBoxMovable: true,
+                    cropBoxResizable: true, toggleDragModeOnDblclick: false
+                });
             });
 
             cropModalEl.addEventListener('hidden.bs.modal', function() {
+                if (activeCropObjectUrl) {
+                    URL.revokeObjectURL(activeCropObjectUrl);
+                    activeCropObjectUrl = null;
+                }
+                if (cropper) {
+                    cropper.destroy();
+                    cropper = null;
+                }
                 if (window._addonCropCallback) {
                     window._addonCropCallback = false;
                     bootstrap.Modal.getOrCreateInstance(modalEl).show();
@@ -1770,7 +1782,7 @@ if (!empty($product['addon_products'])) {
         // Initialize Uppy for Images
         const uppyImages = new Uppy.Uppy({
             restrictions: {
-                maxFileSize: 1.5 * 1024 * 1024, // 1.5MB
+                maxFileSize: 50 * 1024 * 1024, // 50MB to support raw DSLR photos
                 allowedFileTypes: ['image/*'],
                 maxNumberOfFiles: 6
             }
@@ -1782,7 +1794,7 @@ if (!empty($product['addon_products'])) {
             height: 200,
             proudlyDisplayPoweredByUppy: false,
             showProgressDetails: true,
-            note: 'Images only, up to 6 files, 1.5MB each'
+            note: 'Portrait images (9:16 ratio), max 6 images, up to 50MB each (auto-converted to WebP)'
         });
 
         // Handle image uploads
@@ -1808,6 +1820,7 @@ if (!empty($product['addon_products'])) {
             }
         });
 
+        let activeCropObjectUrl = null;
         function startCropping() {
             if (imagesToCrop.length === 0) return;
 
@@ -1820,47 +1833,76 @@ if (!empty($product['addon_products'])) {
             const current = total - remaining + 1;
             document.getElementById('cropperModalTitle').textContent = `Crop Image ${current} of ${total}`;
 
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                document.getElementById('crop-image').src = e.target.result;
-                bootstrap.Modal.getOrCreateInstance(document.getElementById('cropperModal')).show();
-                
-                // Initialize cropper with 9:16 aspect ratio
-                if (cropper) {
-                    cropper.destroy();
-                }
-                cropper = new Cropper(document.getElementById('crop-image'), {
-                    aspectRatio: 9 / 16,
-                    viewMode: 1,
-                    autoCropArea: 1,
-                    responsive: true,
-                    restore: false,
-                    guides: true,
-                    center: true,
-                    highlight: false,
-                    cropBoxMovable: true,
-                    cropBoxResizable: true,
-                    toggleDragModeOnDblclick: false
-                });
-            };
-            reader.readAsDataURL(file.data);
+            if (activeCropObjectUrl) {
+                URL.revokeObjectURL(activeCropObjectUrl);
+                activeCropObjectUrl = null;
+            }
+
+            const cropImg = document.getElementById('crop-image');
+            activeCropObjectUrl = URL.createObjectURL(file.data || file);
+            cropImg.src = activeCropObjectUrl;
+            bootstrap.Modal.getOrCreateInstance(document.getElementById('cropperModal')).show();
+            
+            // Initialize cropper with 9:16 aspect ratio
+            if (cropper) {
+                cropper.destroy();
+                cropper = null;
+            }
+            cropper = new Cropper(cropImg, {
+                aspectRatio: 9 / 16,
+                viewMode: 1,
+                autoCropArea: 1,
+                responsive: true,
+                restore: false,
+                guides: true,
+                center: true,
+                highlight: false,
+                cropBoxMovable: true,
+                cropBoxResizable: true,
+                toggleDragModeOnDblclick: false
+            });
         }
 
         function cropAndUpload() {
             if (!cropper) return;
 
             const isAddon = window._addonCropCallback === true;
+            const cropBtn = document.querySelector('#cropperModal .modal-footer .btn-primary');
+            const originalBtnHtml = cropBtn ? cropBtn.innerHTML : 'Crop & Upload';
+            if (cropBtn) {
+                cropBtn.disabled = true;
+                cropBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Converting to WebP...';
+            }
 
-            cropper.getCroppedCanvas({
+            const canvas = cropper.getCroppedCanvas({
                 width: 900,
                 height: 1600,
                 imageSmoothingEnabled: true,
                 imageSmoothingQuality: 'high'
-            }).toBlob(async (blob) => {
+            });
+
+            if (!canvas) {
+                if (cropBtn) { cropBtn.disabled = false; cropBtn.innerHTML = originalBtnHtml; }
+                alert('Could not generate cropped canvas.');
+                return;
+            }
+
+            canvas.toBlob(async (blob) => {
+                if (!blob) {
+                    if (cropBtn) { cropBtn.disabled = false; cropBtn.innerHTML = originalBtnHtml; }
+                    alert('Error creating WebP image. Please try again.');
+                    return;
+                }
+
                 const formData = new FormData();
-                const filename = isAddon
-                    ? ('addon_' + Date.now() + '.jpg')
-                    : (selectedFile && selectedFile.name ? selectedFile.name : 'product_' + Date.now() + '.jpg');
+                let baseName = 'product_' + Date.now();
+                if (isAddon) {
+                    baseName = 'addon_' + Date.now();
+                } else if (selectedFile && selectedFile.name) {
+                    baseName = selectedFile.name.replace(/\.[^/.]+$/, '').replace(/[^a-zA-Z0-9_-]/g, '_');
+                }
+                const filename = baseName + '.webp';
+
                 formData.append('image', blob, filename);
                 formData.append('type', isAddon ? 'addon' : 'product');
 
@@ -1895,8 +1937,13 @@ if (!empty($product['addon_products'])) {
                 } catch (error) {
                     console.error('Error:', error);
                     alert('Upload failed: ' + error.message);
+                } finally {
+                    if (cropBtn) {
+                        cropBtn.disabled = false;
+                        cropBtn.innerHTML = originalBtnHtml;
+                    }
                 }
-            }, 'image/jpeg', 0.9);
+            }, 'image/webp', 0.88);
         }
 
         function updateImagesDisplay() {

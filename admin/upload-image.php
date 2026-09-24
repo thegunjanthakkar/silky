@@ -29,10 +29,10 @@ if (!is_dir($uploadDir)) {
     mkdir($uploadDir, 0755, true);
 }
 
-// Validate image
-$maxSize = 1.5 * 1024 * 1024; // 1.5MB
+// Validate image (5MB limit for cropped WebP files)
+$maxSize = 5 * 1024 * 1024; // 5MB
 if ($_FILES['image']['size'] > $maxSize) {
-    echo json_encode(["success" => false, "message" => "Image too large. Maximum 1.5MB allowed."]);
+    echo json_encode(["success" => false, "message" => "Image too large. Maximum 5MB allowed."]);
     exit;
 }
 
@@ -46,7 +46,18 @@ if (strpos($mime, 'image/') !== 0) {
 }
 
 // Generate unique filename
-$ext = pathinfo($_FILES['image']['name'], PATHINFO_EXTENSION);
+$ext = strtolower(pathinfo($_FILES['image']['name'], PATHINFO_EXTENSION));
+if ($mime === 'image/webp' || $ext === 'webp') {
+    $ext = 'webp';
+} elseif (empty($ext)) {
+    $mimeMap = [
+        'image/webp' => 'webp',
+        'image/jpeg' => 'jpg',
+        'image/png' => 'png',
+        'image/gif' => 'gif'
+    ];
+    $ext = $mimeMap[$mime] ?? 'webp';
+}
 $filename = time() . '_' . bin2hex(random_bytes(6)) . '.' . $ext;
 $destPath = $uploadDir . $filename;
 
