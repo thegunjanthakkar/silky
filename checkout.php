@@ -496,8 +496,10 @@ $user_info = $user_result ? mysqli_fetch_assoc($user_result) : null;
   <meta name="keywords" content="">
 
   <!-- Favicons -->
-  <link href="assets/img/favicon.png" rel="icon">
-  <link href="assets/img/apple-touch-icon.png" rel="apple-touch-icon">
+  <link href="assets/img/favicon/favicon.ico" rel="icon" type="image/x-icon">
+  <link href="assets/img/favicon/favicon-32x32.png" rel="icon" type="image/png" sizes="32x32">
+  <link href="assets/img/favicon/favicon-16x16.png" rel="icon" type="image/png" sizes="16x16">
+  <link href="assets/img/favicon/apple-touch-icon.png" rel="apple-touch-icon" sizes="180x180">
 
   <!-- Fonts -->
   <link href="https://fonts.googleapis.com" rel="preconnect">

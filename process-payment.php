@@ -155,7 +155,10 @@ if ($payment_method === 'razorpay') {
     <title>Processing Payment - Silky Saree</title>
 
     <!-- Favicons -->
-    <link href="assets/img/favicon.png" rel="icon">
+    <link href="assets/img/favicon/favicon.ico" rel="icon" type="image/x-icon">
+    <link href="assets/img/favicon/favicon-32x32.png" rel="icon" type="image/png" sizes="32x32">
+    <link href="assets/img/favicon/favicon-16x16.png" rel="icon" type="image/png" sizes="16x16">
+    <link href="assets/img/favicon/apple-touch-icon.png" rel="apple-touch-icon" sizes="180x180">
 
     <!-- Bootstrap CSS -->
     <link href="assets/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet">

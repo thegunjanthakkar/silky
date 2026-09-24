@@ -282,8 +282,10 @@ $addon_meas_fields = ['Chest', 'Below Chest', 'Armhole', 'Apex Point', 'Shoulder
   <meta name="description" content="<?php echo htmlspecialchars(substr($product['description'], 0, 160)); ?>">
   <meta name="keywords" content="<?php echo htmlspecialchars($product['category_name']); ?>, saree, silky saree">
 
-  <link href="<?php echo $base_url; ?>assets/img/favicon.png" rel="icon">
-  <link href="<?php echo $base_url; ?>assets/img/apple-touch-icon.png" rel="apple-touch-icon">
+  <link href="<?php echo $base_url; ?>assets/img/favicon/favicon.ico" rel="icon" type="image/x-icon">
+  <link href="<?php echo $base_url; ?>assets/img/favicon/favicon-32x32.png" rel="icon" type="image/png" sizes="32x32">
+  <link href="<?php echo $base_url; ?>assets/img/favicon/favicon-16x16.png" rel="icon" type="image/png" sizes="16x16">
+  <link href="<?php echo $base_url; ?>assets/img/favicon/apple-touch-icon.png" rel="apple-touch-icon" sizes="180x180">
 
   <link href="https://fonts.googleapis.com" rel="preconnect">
   <link href="https://fonts.gstatic.com" rel="preconnect" crossorigin>

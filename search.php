@@ -262,7 +262,10 @@ if ($settings_res) { while ($row = mysqli_fetch_assoc($settings_res)) { $website
   <title>Search - Silky Saree</title>
   <meta name="description" content="Search for sarees, lehengas, salwar suits and more at Silky Saree.">
   <link href="https://fonts.googleapis.com" rel="preconnect">
-  <link rel="shortcut icon" href="./assets/img/silky-jpg.jpg" type="image/x-icon">
+  <link href="assets/img/favicon/favicon.ico" rel="icon" type="image/x-icon">
+  <link href="assets/img/favicon/favicon-32x32.png" rel="icon" type="image/png" sizes="32x32">
+  <link href="assets/img/favicon/favicon-16x16.png" rel="icon" type="image/png" sizes="16x16">
+  <link href="assets/img/favicon/apple-touch-icon.png" rel="apple-touch-icon" sizes="180x180">
   <link href="https://fonts.gstatic.com" rel="preconnect" crossorigin>
 
   <!-- Pass PHP session data to JavaScript -->

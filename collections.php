@@ -63,8 +63,10 @@ if (!empty($conn)) {
   <meta name="keywords" content="saree collections, silk sarees, designer sarees">
 
   <!-- Favicons -->
-  <link href="<?php echo $base_url; ?>assets/img/favicon.png" rel="icon">
-  <link href="<?php echo $base_url; ?>assets/img/apple-touch-icon.png" rel="apple-touch-icon">
+  <link href="<?php echo $base_url; ?>assets/img/favicon/favicon.ico" rel="icon" type="image/x-icon">
+  <link href="<?php echo $base_url; ?>assets/img/favicon/favicon-32x32.png" rel="icon" type="image/png" sizes="32x32">
+  <link href="<?php echo $base_url; ?>assets/img/favicon/favicon-16x16.png" rel="icon" type="image/png" sizes="16x16">
+  <link href="<?php echo $base_url; ?>assets/img/favicon/apple-touch-icon.png" rel="apple-touch-icon" sizes="180x180">
 
   <!-- Fonts -->
   <link href="https://fonts.googleapis.com" rel="preconnect">
