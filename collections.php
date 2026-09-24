@@ -3,6 +3,22 @@ session_start();
 require_once 'db_config.php';
 $base_url = defined('BASE_URL') ? BASE_URL : '/';
 
+// Ensure category placeholder directory & image exist
+$cat_placeholder_dir = __DIR__ . '/assets/img/category';
+$cat_placeholder_file = $cat_placeholder_dir . '/placeholder.jpg';
+if (!file_exists($cat_placeholder_file)) {
+    if (!is_dir($cat_placeholder_dir)) {
+        @mkdir($cat_placeholder_dir, 0755, true);
+    }
+    $sample_src = __DIR__ . '/assets/img/product/saree1.webp';
+    if (!file_exists($sample_src)) {
+        $sample_src = __DIR__ . '/assets/img/product/saree1.png';
+    }
+    if (file_exists($sample_src)) {
+        @copy($sample_src, $cat_placeholder_file);
+    }
+}
+
 // Fetch all active categories
 $categories_query = "SELECT id, name, description, image, created_at 
                      FROM categories 
@@ -17,7 +33,7 @@ if ($categories_result && mysqli_num_rows($categories_result) > 0) {
     }
 }
 
-// Fetch 3 random active products for Suggested Products section
+// Fetch 5 random active products for Suggested Products section
 $suggested_products = [];
 if (!empty($conn)) {
     $suggested_query = "SELECT p.*, c.name as category_name,
@@ -27,7 +43,7 @@ if (!empty($conn)) {
                         LEFT JOIN categories c ON p.category_id = c.id 
                         WHERE p.status = '1' OR p.status = 'active'
                         ORDER BY RAND() 
-                        LIMIT 3";
+                        LIMIT 5";
     $suggested_result = mysqli_query($conn, $suggested_query);
     if ($suggested_result && mysqli_num_rows($suggested_result) > 0) {
         while ($sp = mysqli_fetch_assoc($suggested_result)) {
@@ -58,6 +74,7 @@ if (!empty($conn)) {
   <!-- Vendor CSS Files -->
   <link href="<?php echo $base_url; ?>assets/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet">
   <link href="<?php echo $base_url; ?>assets/vendor/bootstrap-icons/bootstrap-icons.css" rel="stylesheet">
+  <link href="<?php echo $base_url; ?>assets/vendor/swiper/swiper-bundle.min.css" rel="stylesheet">
   <link href="<?php echo $base_url; ?>assets/vendor/aos/aos.css" rel="stylesheet">
   <link href="<?php echo $base_url; ?>assets/vendor/glightbox/css/glightbox.min.css" rel="stylesheet">
 
@@ -128,6 +145,37 @@ if (!empty($conn)) {
     .no-collections p {
       color: #999;
     }
+
+    /* 5-Column Grid for Suggested Products */
+    .suggested-grid .col-5-card {
+      flex: 0 0 auto;
+      width: 100%;
+    }
+    @media (min-width: 480px) {
+      .suggested-grid .col-5-card {
+        width: 50%;
+      }
+    }
+    @media (min-width: 768px) {
+      .suggested-grid .col-5-card {
+        width: 33.333333%;
+      }
+    }
+    @media (min-width: 1200px) {
+      .suggested-grid .col-5-card {
+        width: 20%;
+      }
+    }
+    .suggested-grid .bs3d-card {
+      box-shadow: 0 8px 24px rgba(14, 33, 135, 0.08);
+      border-radius: 16px;
+      overflow: hidden;
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+    .suggested-grid .bs3d-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 30px rgba(14, 33, 135, 0.14);
+    }
   </style>
 </head>
 
@@ -164,14 +212,16 @@ if (!empty($conn)) {
             <?php foreach ($categories as $i => $category): ?>
               <?php
               // Process category image
-              $category_image = $base_url . 'assets/img/category/placeholder.jpg';
+              $category_image = $base_url . 'assets/img/product/saree1.webp';
               if (!empty($category['image'])) {
                 // Handle both relative and absolute paths
                 $image_path = $category['image'];
-                if (strpos($image_path, './uploads/') === 0) {
+                if (strpos($image_path, './') === 0) {
                   $image_path = substr($image_path, 2); // Remove './'
                 }
-                if (file_exists($image_path)) {
+                if (file_exists(__DIR__ . '/' . $image_path)) {
+                  $category_image = $base_url . $image_path;
+                } elseif (file_exists($image_path)) {
                   $category_image = $base_url . $image_path;
                 }
               }
@@ -189,7 +239,7 @@ if (!empty($conn)) {
                          alt="<?php echo htmlspecialchars($category['name']); ?>"
                          class="w-100 h-100 object-fit-cover"
                          style="object-fit: cover; transition: transform 0.5s ease;"
-                         onerror="this.src='<?php echo $base_url; ?>assets/img/category/placeholder.jpg'">
+                         onerror="this.onerror=null; this.src='<?php echo $base_url; ?>assets/img/product/saree1.webp';">
                     
                     <!-- Gradient Overlay -->
                     <div class="position-absolute bottom-0 start-0 w-100 h-50" style="background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0) 100%); pointer-events: none;"></div>
@@ -238,7 +288,7 @@ if (!empty($conn)) {
 
       <div class="container" data-aos="fade-up" data-aos-delay="100">
         <?php if (!empty($suggested_products)): ?>
-          <div class="row gy-4">
+          <div class="row gy-4 justify-content-center suggested-grid">
             <?php foreach ($suggested_products as $index => $product): 
               // Process main image
               $mainImage = $base_url . 'assets/img/product/saree1.png';
@@ -273,13 +323,13 @@ if (!empty($conn)) {
               $product_slug = !empty($product['slug']) ? $product['slug'] : 'product-' . $product['id'];
               $product_link = $base_url . 'product-details/' . htmlspecialchars($product_slug);
             ?>
-              <div class="col-lg-4 col-md-6" data-aos="fade-up" data-aos-delay="<?php echo 100 + ($index * 100); ?>">
+              <div class="col-5-card" data-aos="fade-up" data-aos-delay="<?php echo 100 + ($index * 100); ?>">
                 <div class="bs3d-card product-item h-100"
                      data-product-name="<?php echo htmlspecialchars($product['name']); ?>" 
                      data-product-price="<?php echo htmlspecialchars($product['price']); ?>" 
                      data-product-image="<?php echo htmlspecialchars($mainImage); ?>">
                   <div class="bs3d-card-img">
-                    <img src="<?php echo htmlspecialchars($mainImage); ?>" alt="<?php echo htmlspecialchars($product['name']); ?>" onerror="this.src='<?php echo $base_url; ?>assets/img/product/saree1.png'">
+                    <img src="<?php echo htmlspecialchars($mainImage); ?>" alt="<?php echo htmlspecialchars($product['name']); ?>" onerror="this.onerror=null; this.src='<?php echo $base_url; ?>assets/img/product/saree1.webp';">
 
                     <div class="bs3d-overlay">
                       <div class="bs3d-overlay-actions">
@@ -351,6 +401,30 @@ if (!empty($conn)) {
 
   <!-- Preloader -->
   <div id="preloader"></div>
+  <script>
+    // Safeguard preloader dismissal to prevent indefinite loading on slow connections/assets
+    (function() {
+      function dismissPreloader() {
+        var p = document.getElementById('preloader');
+        if (p) {
+          p.style.transition = 'opacity 0.3s ease';
+          p.style.opacity = '0';
+          setTimeout(function() {
+            if (p && p.parentNode) p.parentNode.removeChild(p);
+          }, 300);
+        }
+      }
+      if (document.readyState === 'complete') {
+        dismissPreloader();
+      } else {
+        window.addEventListener('load', dismissPreloader);
+        document.addEventListener('DOMContentLoaded', function() {
+          setTimeout(dismissPreloader, 600);
+        });
+        setTimeout(dismissPreloader, 1500);
+      }
+    })();
+  </script>
 
   <!-- Mobile Bottom Navigation -->
   <?php include 'mobile-bottom-nav.php'?>
@@ -358,6 +432,7 @@ if (!empty($conn)) {
   <!-- Vendor JS Files -->
   <script src="<?php echo $base_url; ?>assets/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
   <script src="<?php echo $base_url; ?>assets/vendor/php-email-form/validate.js"></script>
+  <script src="<?php echo $base_url; ?>assets/vendor/swiper/swiper-bundle.min.js"></script>
   <script src="<?php echo $base_url; ?>assets/vendor/aos/aos.js"></script>
   <script src="<?php echo $base_url; ?>assets/vendor/glightbox/js/glightbox.min.js"></script>
   <script src="<?php echo $base_url; ?>assets/vendor/purecounter/purecounter_vanilla.js"></script>
