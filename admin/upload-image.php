@@ -21,8 +21,9 @@ if (!isset($_FILES['image']) || $_FILES['image']['error'] !== UPLOAD_ERR_OK) {
     exit;
 }
 
-$type = $_POST['type'] ?? 'product'; // 'product' or 'category'
-$uploadDir = __DIR__ . '/../uploads/' . $type . 's/';
+$type = $_POST['type'] ?? 'product'; // 'product', 'category', or 'addon'
+$folderName = ($type === 'category') ? 'categories' : $type . 's';
+$uploadDir = __DIR__ . '/../uploads/' . $folderName . '/';
 
 // Create directory if it doesn't exist
 if (!is_dir($uploadDir)) {
@@ -62,7 +63,7 @@ $filename = time() . '_' . bin2hex(random_bytes(6)) . '.' . $ext;
 $destPath = $uploadDir . $filename;
 
 if (move_uploaded_file($_FILES['image']['tmp_name'], $destPath)) {
-    $relativePath = './uploads/' . $type . 's/' . $filename;
+    $relativePath = './uploads/' . $folderName . '/' . $filename;
     $fullUrl = str_replace('./', '/', $relativePath);
     
     echo json_encode([

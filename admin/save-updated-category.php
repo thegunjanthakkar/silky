@@ -82,7 +82,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     $current_category = mysqli_fetch_assoc($current_result);
     $image_path = $current_category['image']; // Keep current image by default
 
-    // Handle new image upload
+    // Handle cropped image path from POST
+    if (!empty($_POST['image'])) {
+        $posted_image = trim($_POST['image']);
+        if ($posted_image !== $current_category['image']) {
+            if (!empty($current_category['image'])) {
+                $old_file_path = __DIR__ . '/../' . ltrim(str_replace(['./', '\\'], ['','/'], $current_category['image']), '/');
+                if (file_exists($old_file_path)) {
+                    @unlink($old_file_path);
+                }
+            }
+            $image_path = $posted_image;
+        }
+    }
+
+    // Handle new image upload fallback
     if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
         $uploadDir = __DIR__ . '/../uploads/categories/';
         if (!is_dir($uploadDir)) {

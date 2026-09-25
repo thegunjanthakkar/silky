@@ -381,12 +381,34 @@ $subtotal = 0;
 
 if ($cart_result) {
     while ($item = mysqli_fetch_assoc($cart_result)) {
-        // Parse image JSON
-        $image_url = 'assets/img/product/placeholder.jpg';
+        // Parse product image
+        $image_url = 'assets/images/products/default.png';
         if (!empty($item['image'])) {
             $imageData = json_decode($item['image'], true);
-            if (is_array($imageData) && !empty($imageData)) {
-                $image_url = 'uploads/' . $imageData[0];
+            $img_name = '';
+            if (is_array($imageData) && !empty($imageData[0])) {
+                $img_name = $imageData[0];
+            } else {
+                $images_arr = array_map('trim', explode(',', $item['image']));
+                $img_name = $images_arr[0] ?? '';
+            }
+
+            if (!empty($img_name)) {
+                $clean_img = ltrim(preg_replace('~^\.?/~', '', $img_name), '/');
+                $possiblePaths = [
+                    $clean_img,
+                    'uploads/products/' . $clean_img,
+                    'uploads/' . $clean_img,
+                    'admin/uploads/' . $clean_img,
+                    'assets/img/product/' . $clean_img,
+                    $img_name
+                ];
+                foreach ($possiblePaths as $path) {
+                    if (file_exists($path) || file_exists(__DIR__ . '/' . $path)) {
+                        $image_url = $path;
+                        break;
+                    }
+                }
             }
         }
 
@@ -898,7 +920,7 @@ $user_info = $user_result ? mysqli_fetch_assoc($user_result) : null;
                   <?php foreach ($cart_items as $item): ?>
                   <div class="order-item">
                     <div class="order-item-image">
-                      <img src="<?php echo htmlspecialchars($item['image_url']); ?>" alt="<?php echo htmlspecialchars($item['name']); ?>" class="img-fluid">
+                      <img src="<?php echo htmlspecialchars($item['image_url']); ?>" alt="<?php echo htmlspecialchars($item['name']); ?>" class="img-fluid" onerror="this.onerror=null;this.src='assets/images/products/default.png';">
                     </div>
                     <div class="order-item-details">
                       <h4><?php echo htmlspecialchars($item['name']); ?></h4>

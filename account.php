@@ -128,24 +128,50 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 $pass_msg = '';
 $pass_status = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'change_password') {
-    $current_password = $_POST['current_password'];
-    $new_password = $_POST['new_password'];
+    $current_password = $_POST['current_password'] ?? '';
+    $new_password = $_POST['new_password'] ?? '';
+    $confirm_password = $_POST['confirm_password'] ?? '';
     
-    if (password_verify($current_password, $user_data['password'])) {
-        $new_hash = password_hash($new_password, PASSWORD_DEFAULT);
-        $upd_pass_q = "UPDATE users SET password=? WHERE id=?";
-        $stmt_pass = mysqli_prepare($conn, $upd_pass_q);
-        mysqli_stmt_bind_param($stmt_pass, "si", $new_hash, $user_id);
-        if (mysqli_stmt_execute($stmt_pass)) {
-            $pass_msg = "Password changed successfully.";
-            $pass_status = "success";
+    if (empty($current_password) || empty($new_password) || empty($confirm_password)) {
+        $pass_msg = "All password fields are required.";
+        $pass_status = "danger";
+    } elseif (strlen($new_password) < 6) {
+        $pass_msg = "New password must be at least 6 characters long.";
+        $pass_status = "danger";
+    } elseif ($new_password !== $confirm_password) {
+        $pass_msg = "New password and Confirm password do not match.";
+        $pass_status = "danger";
+    } elseif ($current_password === $new_password) {
+        $pass_msg = "New password cannot be the same as your current password.";
+        $pass_status = "warning";
+    } else {
+        $db_hash = $user_data['password'] ?? '';
+        $is_valid = false;
+        if (!empty($db_hash)) {
+            if (password_verify($current_password, $db_hash)) {
+                $is_valid = true;
+            } elseif ($db_hash === md5($current_password) || $db_hash === $current_password) {
+                $is_valid = true;
+            }
+        }
+        
+        if ($is_valid) {
+            $new_hash = password_hash($new_password, PASSWORD_DEFAULT);
+            $upd_pass_q = "UPDATE users SET password=? WHERE id=?";
+            $stmt_pass = mysqli_prepare($conn, $upd_pass_q);
+            mysqli_stmt_bind_param($stmt_pass, "si", $new_hash, $user_id);
+            if (mysqli_stmt_execute($stmt_pass)) {
+                $pass_msg = "Password updated successfully.";
+                $pass_status = "success";
+                $user_data['password'] = $new_hash;
+            } else {
+                $pass_msg = "Database error while updating password. Please try again.";
+                $pass_status = "danger";
+            }
         } else {
-            $pass_msg = "Failed to change password.";
+            $pass_msg = "Current password is incorrect.";
             $pass_status = "danger";
         }
-    } else {
-        $pass_msg = "Incorrect current password.";
-        $pass_status = "danger";
     }
 }
 
@@ -223,14 +249,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     }
 }
 
-// Handle Wishlist Remove
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'remove_wishlist') {
-    $wishlist_id = intval($_POST['wishlist_id']);
-    $del_w = "DELETE FROM wishlists WHERE id=? AND user_id=?";
-    $stmt_w = mysqli_prepare($conn, $del_w);
-    mysqli_stmt_bind_param($stmt_w, "ii", $wishlist_id, $user_id);
-    mysqli_stmt_execute($stmt_w);
-}
+
 
 // Handle Review Remove
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'delete_review') {
@@ -249,14 +268,22 @@ mysqli_stmt_bind_param($stmt_oc, "i", $user_id);
 mysqli_stmt_execute($stmt_oc);
 $order_count = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_oc))['cnt'];
 
-$wish_count_q = "SELECT COUNT(*) as cnt FROM wishlists WHERE user_id = ?";
-$stmt_wc = mysqli_prepare($conn, $wish_count_q);
-mysqli_stmt_bind_param($stmt_wc, "i", $user_id);
-mysqli_stmt_execute($stmt_wc);
-$wish_count = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_wc))['cnt'];
+
 
 // Build avatar initials
 $avatar_initials = strtoupper(substr($user_data['first_name'], 0, 1) . substr($user_data['last_name'], 0, 1));
+
+// Determine active tab based on submitted action or default to orders
+$active_tab = 'orders';
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
+    if (in_array($_POST['action'], ['change_password', 'update_profile'])) {
+        $active_tab = 'settings';
+    } elseif (in_array($_POST['action'], ['add_address', 'edit_address', 'delete_address', 'set_default_address'])) {
+        $active_tab = 'addresses';
+    } elseif ($_POST['action'] === 'delete_review') {
+        $active_tab = 'reviews';
+    }
+}
 
 // If user is logged in, continue with account page
 ?>
@@ -266,7 +293,7 @@ $avatar_initials = strtoupper(substr($user_data['first_name'], 0, 1) . substr($u
 <head>
   <meta charset="utf-8">
   <meta content="width=device-width, initial-scale=1.0" name="viewport">
-  <title>Account - NiceShop Bootstrap Template</title>
+  <title>Account - Silky saree</title>
   <meta name="description" content="">
   <meta name="keywords" content="">
 
@@ -310,14 +337,31 @@ $avatar_initials = strtoupper(substr($user_data['first_name'], 0, 1) . substr($u
       box-shadow: 0 4px 20px rgba(124, 58, 237, 0.35);
     }
     
-    /* Modal Styling Fixes */
+    /* Modal & Backdrop Stacking & Z-Index Fixes */
+    .modal-backdrop {
+      z-index: 10500 !important;
+    }
+    .modal {
+      z-index: 10550 !important;
+    }
+    .modal-dialog {
+      z-index: 10600 !important;
+      position: relative;
+    }
     .modal-content {
-      background-color: var(--surface-color, #ffffff) !important;
-      border: none;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+      background-color: #ffffff !important;
+      border: none !important;
+      border-radius: 16px !important;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25) !important;
+      position: relative;
+      z-index: 10650 !important;
+    }
+    .modal-header, .modal-body, .modal-footer {
+      background-color: #ffffff !important;
     }
     .modal-header .modal-title {
       color: var(--heading-color);
+      font-weight: 700;
     }
     .modal .btn-primary {
       background-color: var(--accent-color);
@@ -327,6 +371,20 @@ $avatar_initials = strtoupper(substr($user_data['first_name'], 0, 1) . substr($u
     .modal .btn-primary:hover {
       background-color: color-mix(in srgb, var(--accent-color), #000 10%);
       border-color: color-mix(in srgb, var(--accent-color), #000 10%);
+    }
+
+    /* Prevent floating elements from bleeding over modal backdrop */
+    body.modal-open .scroll-top {
+      display: none !important;
+      visibility: hidden !important;
+      pointer-events: none !important;
+    }
+    body.modal-open .mobile-bottom-nav {
+      z-index: 1040 !important;
+    }
+    body.modal-open .header,
+    body.modal-open .sticky-top {
+      z-index: 1020 !important;
     }
     .btn-invoice {
       background-color: #f0f4ff;
@@ -395,6 +453,245 @@ $avatar_initials = strtoupper(substr($user_data['first_name'], 0, 1) . substr($u
     .order-footer button, .order-footer a {
       flex: 1;
     }
+    .search-box {
+      position: relative;
+    }
+    .search-box input {
+      padding-right: 34px !important;
+    }
+    .search-box .clear-search-btn {
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      color: #94a3b8;
+      cursor: pointer;
+      padding: 0;
+      line-height: 1;
+      font-size: 15px;
+      display: none;
+      transition: color 0.2s ease;
+    }
+    .search-box .clear-search-btn:hover {
+      color: #334155;
+    }
+    .dropdown-menu .dropdown-item {
+      padding: 8px 14px;
+      font-size: 14px;
+      border-radius: 6px;
+      margin: 2px 4px;
+      width: calc(100% - 8px);
+      transition: all 0.2s ease;
+    }
+    .dropdown-menu .dropdown-item:hover {
+      background-color: rgba(0, 0, 0, 0.05);
+    }
+    .dropdown-menu .dropdown-item.active {
+      background-color: var(--accent-color, #708238);
+      color: #fff !important;
+    }
+    .dropdown-menu .dropdown-item.active i {
+      color: #fff !important;
+    }
+    .filter-btn.dropdown-toggle::after {
+      margin-left: 6px;
+      vertical-align: middle;
+    }
+    .pagination-wrapper {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 25px;
+    }
+
+    /* Theme Consistent Buttons */
+    .account .content-area .section-header .header-actions .btn-add-new,
+    .btn-add-new {
+      height: 44px;
+      padding: 0 20px;
+      background-color: var(--accent-color);
+      color: #ffffff !important;
+      border: none;
+      border-radius: 12px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 12px color-mix(in srgb, var(--accent-color), transparent 75%);
+    }
+    .account .content-area .section-header .header-actions .btn-add-new:hover,
+    .btn-add-new:hover {
+      background-color: color-mix(in srgb, var(--accent-color), #000 12%);
+      color: #ffffff !important;
+      transform: translateY(-1px);
+      box-shadow: 0 6px 16px color-mix(in srgb, var(--accent-color), transparent 60%);
+    }
+    .btn-add-new i {
+      font-size: 15px;
+    }
+
+    /* Address Card Action Buttons */
+    .account .addresses-grid .address-card .card-actions {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+    }
+    .account .addresses-grid .address-card .card-actions button {
+      height: 36px;
+      padding: 0 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.25s ease;
+      cursor: pointer;
+    }
+    .account .addresses-grid .address-card .card-actions button.btn-edit {
+      background-color: color-mix(in srgb, var(--accent-color), transparent 90%);
+      color: color-mix(in srgb, var(--accent-color), #000 20%);
+      border: 1px solid color-mix(in srgb, var(--accent-color), transparent 75%);
+    }
+    .account .addresses-grid .address-card .card-actions button.btn-edit:hover {
+      background-color: var(--accent-color);
+      color: #ffffff;
+      border-color: var(--accent-color);
+      box-shadow: 0 3px 8px color-mix(in srgb, var(--accent-color), transparent 70%);
+    }
+    .account .addresses-grid .address-card .card-actions button.btn-remove {
+      background-color: #fef2f2;
+      color: #dc2626;
+      border: 1px solid #fee2e2;
+    }
+    .account .addresses-grid .address-card .card-actions button.btn-remove:hover {
+      background-color: #dc2626;
+      color: #ffffff;
+      border-color: #dc2626;
+      box-shadow: 0 3px 8px rgba(220, 38, 38, 0.25);
+    }
+    .account .addresses-grid .address-card .card-actions button.btn-make-default {
+      background-color: #f8fafc;
+      color: #475569;
+      border: 1px solid #cbd5e1;
+    }
+    .account .addresses-grid .address-card .card-actions button.btn-make-default:hover {
+      background-color: #e2e8f0;
+      color: #0f172a;
+      border-color: #94a3b8;
+    }
+
+    /* Review Card Delete Button */
+    .account .reviews-grid .review-card .review-footer button.btn-delete {
+      background-color: #fef2f2;
+      color: #dc2626;
+      border: 1px solid #fee2e2;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      height: 36px;
+      padding: 0 16px;
+      transition: all 0.25s ease;
+      cursor: pointer;
+    }
+    .account .reviews-grid .review-card .review-footer button.btn-delete:hover {
+      background-color: #dc2626;
+      color: #ffffff;
+      border-color: #dc2626;
+    }
+
+    /* Modal Theme Buttons */
+    .modal .btn-primary {
+      background-color: var(--accent-color);
+      border-color: var(--accent-color);
+      color: #ffffff;
+      border-radius: 10px;
+      font-weight: 500;
+      padding: 9px 22px;
+      transition: all 0.3s ease;
+      box-shadow: 0 3px 10px color-mix(in srgb, var(--accent-color), transparent 70%);
+    }
+    .modal .btn-primary:hover,
+    .modal .btn-primary:focus {
+      background-color: color-mix(in srgb, var(--accent-color), #000 12%);
+      border-color: color-mix(in srgb, var(--accent-color), #000 12%);
+      color: #ffffff;
+    }
+    .modal .btn-secondary {
+      background-color: #f1f5f9;
+      color: #475569;
+      border: 1px solid #cbd5e1;
+      border-radius: 10px;
+      font-weight: 500;
+      padding: 9px 20px;
+      transition: all 0.3s ease;
+    }
+    .modal .btn-secondary:hover {
+      background-color: #e2e8f0;
+      color: #1e293b;
+    }
+
+    /* Reset Filters Button */
+    #resetOrderFiltersBtn, .account .btn-outline-primary {
+      color: var(--accent-color) !important;
+      border-color: var(--accent-color) !important;
+      background-color: transparent;
+      border-radius: 20px;
+      font-weight: 500;
+      transition: all 0.25s ease;
+    }
+    #resetOrderFiltersBtn:hover, .account .btn-outline-primary:hover {
+      background-color: var(--accent-color) !important;
+      color: #ffffff !important;
+      border-color: var(--accent-color) !important;
+      box-shadow: 0 3px 10px color-mix(in srgb, var(--accent-color), transparent 70%);
+    }
+
+    /* Password Field Visibility Toggle */
+    .password-input-wrap {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+    .password-input-wrap .form-control {
+      padding-right: 44px !important;
+    }
+    .password-toggle-btn {
+      position: absolute;
+      right: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: transparent;
+      border: none;
+      color: #94a3b8;
+      cursor: pointer;
+      padding: 0;
+      width: 34px;
+      height: 34px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      font-size: 1.15rem;
+      transition: all 0.2s ease;
+      z-index: 5;
+    }
+    .password-toggle-btn:hover {
+      color: var(--heading-color, #0e2187);
+      background-color: rgba(14, 33, 135, 0.08);
+    }
+    .password-toggle-btn:focus {
+      outline: none;
+      color: var(--heading-color, #0e2187);
+      box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-color), transparent 75%);
+    }
   </style>
 
 </head>
@@ -407,6 +704,7 @@ $avatar_initials = strtoupper(substr($user_data['first_name'], 0, 1) . substr($u
 
     <!-- Main Header -->
     <?php include 'main-header.php'; ?>
+  </header>
 
   <main class="main">
 
@@ -453,17 +751,17 @@ $avatar_initials = strtoupper(substr($user_data['first_name'], 0, 1) . substr($u
               <nav class="menu-nav">
                 <ul class="nav flex-column" role="tablist">
                   <li class="nav-item">
-                    <a class="nav-link active" data-bs-toggle="tab" href="#orders">
+                    <a class="nav-link <?php echo $active_tab === 'orders' ? 'active' : ''; ?>" data-bs-toggle="tab" href="#orders">
                       <i class="bi bi-box-seam"></i>
                       <span>My Orders</span>
                       <?php if ($order_count > 0): ?><span class="badge"><?php echo $order_count; ?></span><?php endif; ?>
                     </a>
                   </li>
                   <li class="nav-item">
-                    <a class="nav-link" data-bs-toggle="tab" href="#wishlist">
+                    <a class="nav-link" href="wishlist.php">
                       <i class="bi bi-heart"></i>
                       <span>Wishlist</span>
-                      <?php if ($wish_count > 0): ?><span class="badge"><?php echo $wish_count; ?></span><?php endif; ?>
+                      <span class="badge wishlist-count" id="accountWishlistBadge" style="display:none;">0</span>
                     </a>
                   </li>
                   <!--
@@ -475,19 +773,19 @@ $avatar_initials = strtoupper(substr($user_data['first_name'], 0, 1) . substr($u
                   </li>
                   -->
                   <li class="nav-item">
-                    <a class="nav-link" data-bs-toggle="tab" href="#reviews">
+                    <a class="nav-link <?php echo $active_tab === 'reviews' ? 'active' : ''; ?>" data-bs-toggle="tab" href="#reviews">
                       <i class="bi bi-star"></i>
                       <span>My Reviews</span>
                     </a>
                   </li>
                   <li class="nav-item">
-                    <a class="nav-link" data-bs-toggle="tab" href="#addresses">
+                    <a class="nav-link <?php echo $active_tab === 'addresses' ? 'active' : ''; ?>" data-bs-toggle="tab" href="#addresses">
                       <i class="bi bi-geo-alt"></i>
                       <span>Addresses</span>
                     </a>
                   </li>
                   <li class="nav-item">
-                    <a class="nav-link" data-bs-toggle="tab" href="#settings">
+                    <a class="nav-link <?php echo $active_tab === 'settings' ? 'active' : ''; ?>" data-bs-toggle="tab" href="#settings">
                       <i class="bi bi-gear"></i>
                       <span>Account Settings</span>
                     </a>
@@ -513,7 +811,7 @@ $avatar_initials = strtoupper(substr($user_data['first_name'], 0, 1) . substr($u
             <div class="content-area">
               <div class="tab-content">
                 <!-- Orders Tab -->
-                <div class="tab-pane fade show active" id="orders">
+                <div class="tab-pane fade <?php echo $active_tab === 'orders' ? 'show active' : ''; ?>" id="orders">
                   <div class="section-header" data-aos="fade-up">
                     <h2>My Orders</h2>
                     <?php if (!empty($return_message)): ?>
@@ -525,19 +823,25 @@ $avatar_initials = strtoupper(substr($user_data['first_name'], 0, 1) . substr($u
                     <div class="header-actions">
                       <div class="search-box">
                         <i class="bi bi-search"></i>
-                        <input type="text" placeholder="Search orders...">
+                        <input type="text" id="orderSearchInput" placeholder="Search orders...">
+                        <button type="button" id="clearOrderSearchBtn" class="clear-search-btn" title="Clear search">
+                          <i class="bi bi-x-circle-fill"></i>
+                        </button>
                       </div>
                       <div class="dropdown">
-                        <button class="filter-btn" data-bs-toggle="dropdown">
+                        <button class="filter-btn dropdown-toggle" type="button" id="orderFilterBtn" data-bs-toggle="dropdown" aria-expanded="false">
                           <i class="bi bi-funnel"></i>
-                          <span>Filter</span>
+                          <span id="orderFilterLabel">Filter</span>
                         </button>
-                        <ul class="dropdown-menu">
-                          <li><a class="dropdown-item" href="#">All Orders</a></li>
-                          <li><a class="dropdown-item" href="#">Processing</a></li>
-                          <li><a class="dropdown-item" href="#">Shipped</a></li>
-                          <li><a class="dropdown-item" href="#">Delivered</a></li>
-                          <li><a class="dropdown-item" href="#">Cancelled</a></li>
+                        <ul class="dropdown-menu dropdown-menu-end shadow-sm" aria-labelledby="orderFilterBtn" style="min-width: 200px;">
+                          <li><a class="dropdown-item order-filter-item active d-flex align-items-center justify-content-between" href="#" data-status="all"><span><i class="bi bi-collection me-2 text-muted"></i> All Orders</span><i class="bi bi-check2 check-icon"></i></a></li>
+                          <li><hr class="dropdown-divider my-1"></li>
+                          <li><a class="dropdown-item order-filter-item d-flex align-items-center justify-content-between" href="#" data-status="confirmed"><span><i class="bi bi-check-circle me-2 text-success"></i> Confirmed</span><i class="bi bi-check2 check-icon d-none"></i></a></li>
+                          <li><a class="dropdown-item order-filter-item d-flex align-items-center justify-content-between" href="#" data-status="processing"><span><i class="bi bi-hourglass-split me-2 text-warning"></i> Processing</span><i class="bi bi-check2 check-icon d-none"></i></a></li>
+                          <li><a class="dropdown-item order-filter-item d-flex align-items-center justify-content-between" href="#" data-status="shipped"><span><i class="bi bi-truck me-2 text-primary"></i> Shipped</span><i class="bi bi-check2 check-icon d-none"></i></a></li>
+                          <li><a class="dropdown-item order-filter-item d-flex align-items-center justify-content-between" href="#" data-status="delivered"><span><i class="bi bi-bag-check me-2 text-success"></i> Delivered</span><i class="bi bi-check2 check-icon d-none"></i></a></li>
+                          <li><a class="dropdown-item order-filter-item d-flex align-items-center justify-content-between" href="#" data-status="cancelled"><span><i class="bi bi-x-circle me-2 text-danger"></i> Cancelled</span><i class="bi bi-check2 check-icon d-none"></i></a></li>
+                          <li><a class="dropdown-item order-filter-item d-flex align-items-center justify-content-between" href="#" data-status="returned"><span><i class="bi bi-arrow-return-left me-2 text-secondary"></i> Returned</span><i class="bi bi-check2 check-icon d-none"></i></a></li>
                         </ul>
                       </div>
                     </div>
@@ -590,8 +894,22 @@ $avatar_initials = strtoupper(substr($user_data['first_name'], 0, 1) . substr($u
                                 $ret_status = $ret_row['status'];
                                 $eligible_for_return = false;
                             }
+                            $product_names_arr = [];
+                            foreach ($items as $it) {
+                                if (!empty($it['product_name'])) {
+                                    $product_names_arr[] = $it['product_name'];
+                                }
+                            }
+                            $product_names_str = implode(' ', $product_names_arr);
+                            $clean_num = preg_replace('/[^a-zA-Z0-9]/', '', $order_number);
+                            $search_keywords = strtolower($order_number . ' #' . $order_number . ' ' . $clean_num . ' ' . $product_names_str . ' ' . $order_status . ' ' . $order_date . ' ' . $total . ' ' . ($has_return_req ? 'return' : ''));
                     ?>
-                    <div class="order-card" data-aos="fade-up" data-aos-delay="<?php echo $delay; ?>">
+                    <div class="order-card" data-aos="fade-up" data-aos-delay="<?php echo $delay; ?>"
+                         data-order-id="<?php echo $order_id; ?>"
+                         data-order-number="<?php echo htmlspecialchars($order_number); ?>"
+                         data-order-status="<?php echo htmlspecialchars($order_status); ?>"
+                         data-has-return="<?php echo $has_return_req ? '1' : '0'; ?>"
+                         data-order-search="<?php echo htmlspecialchars($search_keywords); ?>">
                       <div class="order-header">
                         <div class="order-id">
                           <span class="label">Order ID:</span>
@@ -633,9 +951,6 @@ $avatar_initials = strtoupper(substr($user_data['first_name'], 0, 1) . substr($u
                         </div>
                       </div>
                       <div class="order-footer">
-                        <?php if ($eligible_for_return): ?>
-                          <button type="button" class="btn-review btn-return-req" data-order-id="<?php echo $order_id; ?>" data-order-number="<?php echo $order_number; ?>" data-bs-toggle="modal" data-bs-target="#returnModal">Request Return</button>
-                        <?php endif; ?>
                         <a href="generate-invoice.php?order=<?php echo urlencode($order_number); ?>&download=1" class="btn-invoice"><i class="bi bi-download"></i> Invoice</a>
                         <a href="order-confirmation.php?order=<?php echo urlencode($order_number); ?>" class="btn-details" style="text-decoration: none; text-align: center;">View Details</a>
                       </div>
@@ -644,81 +959,34 @@ $avatar_initials = strtoupper(substr($user_data['first_name'], 0, 1) . substr($u
                             $delay += 100;
                         } 
                     } else {
-                        echo "<p>No orders found.</p>";
+                        echo "<p class=\"text-muted py-3\">No orders found.</p>";
                     }
                     ?>
+                    <div id="noMatchingOrders" class="text-center py-5 w-100" style="display: none; grid-column: 1 / -1;">
+                      <div style="font-size: 2.5rem; color: #adb5bd; margin-bottom: 12px;">
+                        <i class="bi bi-search"></i>
+                      </div>
+                      <h5 class="text-muted mb-2">No matching orders found</h5>
+                      <p class="text-muted small mb-3">We couldn't find any orders matching your search or filter.</p>
+                      <button type="button" id="resetOrderFiltersBtn" class="btn btn-sm btn-outline-primary px-3 py-2 rounded-pill">
+                        <i class="bi bi-arrow-counterclockwise me-1"></i> Reset Filters
+                      </button>
+                    </div>
                     </div>
                   <!-- Pagination -->
-                  <div class="pagination-wrapper" data-aos="fade-up">
-                    <button type="button" class="btn-prev" disabled="">
+                  <div class="pagination-wrapper" id="ordersPagination" data-aos="fade-up" style="display: none;">
+                    <button type="button" class="btn-prev" id="ordersPrevBtn" disabled="" aria-label="Previous page">
                       <i class="bi bi-chevron-left"></i>
                     </button>
-                    <div class="page-numbers">
-                      <button type="button" class="active">1</button>
-                      <button type="button">2</button>
-                      <button type="button">3</button>
-                      <span>...</span>
-                      <button type="button">12</button>
+                    <div class="page-numbers" id="ordersPageNumbers">
                     </div>
-                    <button type="button" class="btn-next">
+                    <button type="button" class="btn-next" id="ordersNextBtn" disabled="" aria-label="Next page">
                       <i class="bi bi-chevron-right"></i>
                     </button>
                   </div>
                 </div>
 
-                <!-- Wishlist Tab -->
-                <div class="tab-pane fade" id="wishlist">
-                  <div class="section-header" data-aos="fade-up">
-                    <h2>My Wishlist</h2>
-                    <div class="header-actions">
-                      <button type="button" class="btn-add-all">Add All to Cart</button>
-                    </div>
-                  </div>
 
-                  <div class="wishlist-grid">
-                    <?php
-                    $wish_q = "SELECT w.id as wishlist_id, p.* FROM wishlists w JOIN products p ON w.product_id = p.id WHERE w.user_id = ?";
-                    $stmt_w = mysqli_prepare($conn, $wish_q);
-                    mysqli_stmt_bind_param($stmt_w, "i", $user_id);
-                    mysqli_stmt_execute($stmt_w);
-                    $res_w = mysqli_stmt_get_result($stmt_w);
-                    if (mysqli_num_rows($res_w) > 0) {
-                        $delay = 100;
-                        while ($wish = mysqli_fetch_assoc($res_w)) {
-                    ?>
-                    <div class="wishlist-card" data-aos="fade-up" data-aos-delay="<?php echo $delay; ?>">
-                      <div class="wishlist-image">
-                        <?php 
-                        $img = get_first_image_url($wish['image']);
-                        ?>
-                        <img src="<?php echo htmlspecialchars($img); ?>" alt="Product" loading="lazy">
-                        <form method="POST" style="display:inline;">
-                          <input type="hidden" name="action" value="remove_wishlist">
-                          <input type="hidden" name="wishlist_id" value="<?php echo $wish['wishlist_id']; ?>">
-                          <button class="btn-remove" type="submit" aria-label="Remove from wishlist">
-                            <i class="bi bi-trash"></i>
-                          </button>
-                        </form>
-                      </div>
-                      <div class="wishlist-content">
-                        <h4><?php echo htmlspecialchars($wish['name']); ?></h4>
-                        <div class="product-meta">
-                          <div class="price">
-                            <span class="current">₹<?php echo number_format($wish['price'], 2); ?></span>
-                          </div>
-                        </div>
-                        <a href="product-details/<?php echo htmlspecialchars($wish['slug'] ?? 'product-'.$wish['id']); ?>" class="btn-add-cart">View Product</a>
-                      </div>
-                    </div>
-                    <?php 
-                            $delay += 100;
-                        }
-                    } else {
-                        echo "<p>Your wishlist is empty.</p>";
-                    }
-                    ?>
-                  </div>
-                </div>
 
                 <!-- Payment Methods Tab (Hidden for Security) -->
                 <!-- 
@@ -731,19 +999,19 @@ $avatar_initials = strtoupper(substr($user_data['first_name'], 0, 1) . substr($u
                 </div>
                 -->
                 <!-- Reviews Tab -->
-                <div class="tab-pane fade" id="reviews">
+                <div class="tab-pane fade <?php echo $active_tab === 'reviews' ? 'show active' : ''; ?>" id="reviews">
                   <div class="section-header" data-aos="fade-up">
                     <h2>My Reviews</h2>
                     <div class="header-actions">
                       <div class="dropdown">
-                        <button class="filter-btn" data-bs-toggle="dropdown">
+                        <button class="filter-btn dropdown-toggle" type="button" id="reviewSortBtn" data-bs-toggle="dropdown" aria-expanded="false">
                           <i class="bi bi-funnel"></i>
-                          <span>Sort by: Recent</span>
+                          <span id="reviewSortLabel">Sort by: Recent</span>
                         </button>
-                        <ul class="dropdown-menu">
-                          <li><a class="dropdown-item" href="#">Recent</a></li>
-                          <li><a class="dropdown-item" href="#">Highest Rating</a></li>
-                          <li><a class="dropdown-item" href="#">Lowest Rating</a></li>
+                        <ul class="dropdown-menu dropdown-menu-end shadow-sm" aria-labelledby="reviewSortBtn" style="min-width: 180px;">
+                          <li><a class="dropdown-item review-sort-item active d-flex align-items-center justify-content-between" href="#" data-sort="recent"><span><i class="bi bi-clock-history me-2 text-muted"></i> Recent</span><i class="bi bi-check2 check-icon"></i></a></li>
+                          <li><a class="dropdown-item review-sort-item d-flex align-items-center justify-content-between" href="#" data-sort="highest"><span><i class="bi bi-star-fill me-2 text-warning"></i> Highest Rating</span><i class="bi bi-check2 check-icon d-none"></i></a></li>
+                          <li><a class="dropdown-item review-sort-item d-flex align-items-center justify-content-between" href="#" data-sort="lowest"><span><i class="bi bi-star me-2 text-muted"></i> Lowest Rating</span><i class="bi bi-check2 check-icon d-none"></i></a></li>
                         </ul>
                       </div>
                     </div>
@@ -760,7 +1028,9 @@ $avatar_initials = strtoupper(substr($user_data['first_name'], 0, 1) . substr($u
                         $delay = 100;
                         while ($rev = mysqli_fetch_assoc($res_r)) {
                     ?>
-                    <div class="review-card" data-aos="fade-up" data-aos-delay="<?php echo $delay; ?>">
+                    <div class="review-card" data-aos="fade-up" data-aos-delay="<?php echo $delay; ?>"
+                         data-rating="<?php echo (float)$rev['rating']; ?>"
+                         data-timestamp="<?php echo strtotime($rev['created_at']); ?>">
                       <div class="review-header">
                         <?php $img = get_first_image_url($rev['image']); ?>
                         <img src="<?php echo htmlspecialchars($img); ?>" alt="Product" class="product-image" loading="lazy">
@@ -801,7 +1071,7 @@ $avatar_initials = strtoupper(substr($user_data['first_name'], 0, 1) . substr($u
                 </div>
 
                 <!-- Addresses Tab -->
-                <div class="tab-pane fade" id="addresses">
+                <div class="tab-pane fade <?php echo $active_tab === 'addresses' ? 'show active' : ''; ?>" id="addresses">
                   <div class="section-header" data-aos="fade-up">
                     <h2>My Addresses</h2>
                     <?php if (!empty($addr_msg)): ?>
@@ -894,12 +1164,18 @@ $avatar_initials = strtoupper(substr($user_data['first_name'], 0, 1) . substr($u
                 </div>
 
                 <!-- Settings Tab -->
-                <div class="tab-pane fade" id="settings">
+                <div class="tab-pane fade <?php echo $active_tab === 'settings' ? 'show active' : ''; ?>" id="settings">
                   <div class="section-header" data-aos="fade-up">
                     <h2>Account Settings</h2>
                     <?php if (!empty($profile_msg)): ?>
                       <div class="alert alert-<?php echo $profile_status; ?> alert-dismissible fade show w-100 mt-2" role="alert">
                         <?php echo htmlspecialchars($profile_msg); ?>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                      </div>
+                    <?php endif; ?>
+                    <?php if (!empty($pass_msg)): ?>
+                      <div class="alert alert-<?php echo $pass_status; ?> alert-dismissible fade show w-100 mt-2" role="alert">
+                        <?php echo htmlspecialchars($pass_msg); ?>
                         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                       </div>
                     <?php endif; ?>
@@ -909,7 +1185,7 @@ $avatar_initials = strtoupper(substr($user_data['first_name'], 0, 1) . substr($u
                     <!-- Personal Information -->
                     <div class="settings-section" data-aos="fade-up">
                       <h3>Personal Information</h3>
-                      <form method="POST" class="settings-form">
+                      <form method="POST" action="account.php#settings" class="settings-form">
                         <input type="hidden" name="action" value="update_profile">
                         <div class="row g-3">
                           <div class="col-md-6">
@@ -933,81 +1209,65 @@ $avatar_initials = strtoupper(substr($user_data['first_name'], 0, 1) . substr($u
                         <div class="form-buttons">
                           <button type="submit" class="btn-save">Save Changes</button>
                         </div>
-
-                        
-                        
-                        
                       </form>
                     </div>
 
-                    <!-- Email Preferences -->
-                    <div class="settings-section" data-aos="fade-up" data-aos-delay="100">
-                      <h3>Email Preferences</h3>
-                      <div class="preferences-list">
-                        <div class="preference-item">
-                          <div class="preference-info">
-                            <h4>Order Updates</h4>
-                            <p>Receive notifications about your order status</p>
-                          </div>
-                          <div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" id="orderUpdates" checked="">
-                          </div>
-                        </div>
-
-                        <div class="preference-item">
-                          <div class="preference-info">
-                            <h4>Promotions</h4>
-                            <p>Receive emails about new promotions and deals</p>
-                          </div>
-                          <div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" id="promotions">
-                          </div>
-                        </div>
-
-                        <div class="preference-item">
-                          <div class="preference-info">
-                            <h4>Newsletter</h4>
-                            <p>Subscribe to our weekly newsletter</p>
-                          </div>
-                          <div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" id="newsletter" checked="">
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
                     <!-- Security Settings -->
-                    <div class="settings-section" data-aos="fade-up" data-aos-delay="200">
+                    <div class="settings-section" data-aos="fade-up" data-aos-delay="100">
                       <h3>Security</h3>
-                      <form method="POST" class="settings-form">
-                        <input type="hidden" name="action" value="update_profile">
+                      <?php if (!empty($pass_msg)): ?>
+                        <div class="alert alert-<?php echo $pass_status; ?> alert-dismissible fade show w-100 mb-3" role="alert">
+                          <i class="bi <?php echo $pass_status === 'success' ? 'bi-check-circle-fill' : 'bi-exclamation-triangle-fill'; ?> me-2"></i>
+                          <?php echo htmlspecialchars($pass_msg); ?>
+                          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                      <?php endif; ?>
+                      <div id="passwordClientError" class="alert alert-danger alert-dismissible fade show w-100 mb-3" style="display:none;" role="alert">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                        <span id="passwordClientErrorText"></span>
+                        <button type="button" class="btn-close" onclick="document.getElementById('passwordClientError').style.display='none';"></button>
+                      </div>
+                      <form method="POST" action="account.php#settings" class="settings-form" id="passwordChangeForm">
+                        <input type="hidden" name="action" value="change_password">
                         <div class="row g-3">
                           <div class="col-md-12">
                             <label for="currentPassword" class="form-label">Current Password</label>
-                            <input type="password" class="form-control" name="current_password" id="currentPassword" required="">
+                            <div class="password-input-wrap">
+                              <input type="password" class="form-control" name="current_password" id="currentPassword" required autocomplete="current-password" placeholder="Enter current password">
+                              <button type="button" class="password-toggle-btn" tabindex="-1" onclick="togglePasswordVisibility('currentPassword', this)" title="Show/hide password">
+                                <i class="bi bi-eye"></i>
+                              </button>
+                            </div>
                           </div>
                           <div class="col-md-6">
                             <label for="newPassword" class="form-label">New Password</label>
-                            <input type="password" class="form-control" name="new_password" id="newPassword" required="">
+                            <div class="password-input-wrap">
+                              <input type="password" class="form-control" name="new_password" id="newPassword" required minlength="6" autocomplete="new-password" placeholder="Minimum 6 characters">
+                              <button type="button" class="password-toggle-btn" tabindex="-1" onclick="togglePasswordVisibility('newPassword', this)" title="Show/hide password">
+                                <i class="bi bi-eye"></i>
+                              </button>
+                            </div>
+                            <small class="text-muted" style="font-size: 12px;">Minimum 6 characters</small>
                           </div>
                           <div class="col-md-6">
                             <label for="confirmPassword" class="form-label">Confirm Password</label>
-                            <input type="password" class="form-control" name="confirm_password" id="confirmPassword" required="">
+                            <div class="password-input-wrap">
+                              <input type="password" class="form-control" name="confirm_password" id="confirmPassword" required minlength="6" autocomplete="new-password" placeholder="Re-type new password">
+                              <button type="button" class="password-toggle-btn" tabindex="-1" onclick="togglePasswordVisibility('confirmPassword', this)" title="Show/hide password">
+                                <i class="bi bi-eye"></i>
+                              </button>
+                            </div>
                           </div>
                         </div>
 
                         <div class="form-buttons">
                           <button type="submit" class="btn-save">Update Password</button>
                         </div>
-
-                        
-                        
-                        
                       </form>
                     </div>
 
                     <!-- Delete Account -->
-                    <div class="settings-section danger-zone" data-aos="fade-up" data-aos-delay="300">
+                    <div class="settings-section danger-zone" data-aos="fade-up" data-aos-delay="200">
                       <h3>Delete Account</h3>
                       <div class="danger-zone-content">
                         <p>Once you delete your account, there is no going back. Please be certain.</p>
@@ -1228,7 +1488,402 @@ $avatar_initials = strtoupper(substr($user_data['first_name'], 0, 1) . substr($u
                 document.getElementById('addr_def').checked = this.getAttribute('data-def') == '1';
             });
         });
+
+        // ============================================
+        // Orders Filter, Search & Dynamic Pagination
+        // ============================================
+        (function() {
+            const searchInput = document.getElementById('orderSearchInput');
+            const clearSearchBtn = document.getElementById('clearOrderSearchBtn');
+            const filterBtnLabel = document.getElementById('orderFilterLabel');
+            const filterItems = document.querySelectorAll('.order-filter-item');
+            const orderCards = Array.from(document.querySelectorAll('.orders-grid .order-card'));
+            const noOrdersMsg = document.getElementById('noMatchingOrders');
+            const resetFiltersBtn = document.getElementById('resetOrderFiltersBtn');
+            const paginationWrapper = document.getElementById('ordersPagination');
+            const pageNumbersContainer = document.getElementById('ordersPageNumbers');
+            const prevBtn = document.getElementById('ordersPrevBtn');
+            const nextBtn = document.getElementById('ordersNextBtn');
+
+            if (!orderCards.length) return;
+
+            let currentFilter = 'all';
+            let searchQuery = '';
+            let currentPage = 1;
+            const itemsPerPage = 5;
+
+            function matchesStatus(status, hasReturn, filter) {
+                if (filter === 'all' || !filter) return true;
+                status = (status || '').toLowerCase().trim();
+                if (filter === 'returned') {
+                    return status === 'returned' || hasReturn === '1';
+                }
+                if (filter === 'confirmed') {
+                    return status === 'confirmed' || status === 'placed';
+                }
+                if (filter === 'processing') {
+                    return status === 'processing' || status === 'pending';
+                }
+                if (filter === 'shipped') {
+                    return status === 'shipped' || status === 'out for delivery';
+                }
+                if (filter === 'delivered') {
+                    return status === 'delivered' || status === 'completed';
+                }
+                if (filter === 'cancelled') {
+                    return status === 'cancelled' || status === 'canceled' || status === 'failed';
+                }
+                return status === filter;
+            }
+
+            function applyFilters() {
+                const query = searchQuery.toLowerCase().trim();
+                const matchingCards = [];
+
+                orderCards.forEach(card => {
+                    const status = card.getAttribute('data-order-status') || '';
+                    const hasReturn = card.getAttribute('data-has-return') || '0';
+                    const searchData = (card.getAttribute('data-order-search') || '').toLowerCase();
+
+                    const statusMatch = matchesStatus(status, hasReturn, currentFilter);
+                    const searchMatch = !query || searchData.includes(query);
+
+                    if (statusMatch && searchMatch) {
+                        matchingCards.push(card);
+                    } else {
+                        card.style.display = 'none';
+                    }
+                });
+
+                if (matchingCards.length === 0) {
+                    if (noOrdersMsg) noOrdersMsg.style.display = 'block';
+                    if (paginationWrapper) paginationWrapper.style.display = 'none';
+                    return;
+                }
+
+                if (noOrdersMsg) noOrdersMsg.style.display = 'none';
+
+                const totalPages = Math.ceil(matchingCards.length / itemsPerPage);
+                if (currentPage > totalPages) currentPage = 1;
+
+                if (totalPages <= 1) {
+                    if (paginationWrapper) paginationWrapper.style.display = 'none';
+                    matchingCards.forEach(card => card.style.display = '');
+                } else {
+                    if (paginationWrapper) paginationWrapper.style.display = 'flex';
+                    const startIdx = (currentPage - 1) * itemsPerPage;
+                    const endIdx = startIdx + itemsPerPage;
+
+                    matchingCards.forEach((card, idx) => {
+                        if (idx >= startIdx && idx < endIdx) {
+                            card.style.display = '';
+                        } else {
+                            card.style.display = 'none';
+                        }
+                    });
+
+                    renderPagination(totalPages);
+                }
+
+                if (window.AOS) window.AOS.refresh();
+            }
+
+            function renderPagination(totalPages) {
+                if (!pageNumbersContainer) return;
+                pageNumbersContainer.innerHTML = '';
+
+                let pages = [];
+                if (totalPages <= 7) {
+                    for (let i = 1; i <= totalPages; i++) pages.push(i);
+                } else {
+                    if (currentPage <= 4) {
+                        pages = [1, 2, 3, 4, 5, '...', totalPages];
+                    } else if (currentPage >= totalPages - 3) {
+                        pages = [1, '...', totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages];
+                    } else {
+                        pages = [1, '...', currentPage - 1, currentPage, currentPage + 1, '...', totalPages];
+                    }
+                }
+
+                pages.forEach(p => {
+                    if (p === '...') {
+                        const span = document.createElement('span');
+                        span.textContent = '...';
+                        pageNumbersContainer.appendChild(span);
+                    } else {
+                        const btn = document.createElement('button');
+                        btn.type = 'button';
+                        btn.textContent = p;
+                        if (p === currentPage) {
+                            btn.classList.add('active');
+                        }
+                        btn.addEventListener('click', function() {
+                            currentPage = p;
+                            applyFilters();
+                            const ordersSec = document.getElementById('orders');
+                            if (ordersSec) ordersSec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        });
+                        pageNumbersContainer.appendChild(btn);
+                    }
+                });
+
+                if (prevBtn) {
+                    prevBtn.disabled = currentPage === 1;
+                    prevBtn.onclick = function() {
+                        if (currentPage > 1) {
+                            currentPage--;
+                            applyFilters();
+                            const ordersSec = document.getElementById('orders');
+                            if (ordersSec) ordersSec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        }
+                    };
+                }
+
+                if (nextBtn) {
+                    nextBtn.disabled = currentPage === totalPages;
+                    nextBtn.onclick = function() {
+                        if (currentPage < totalPages) {
+                            currentPage++;
+                            applyFilters();
+                            const ordersSec = document.getElementById('orders');
+                            if (ordersSec) ordersSec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        }
+                    };
+                }
+            }
+
+            if (searchInput) {
+                searchInput.addEventListener('input', function() {
+                    searchQuery = this.value;
+                    if (clearSearchBtn) {
+                        clearSearchBtn.style.display = searchQuery.trim().length > 0 ? 'block' : 'none';
+                    }
+                    currentPage = 1;
+                    applyFilters();
+                });
+            }
+
+            if (clearSearchBtn) {
+                clearSearchBtn.addEventListener('click', function() {
+                    if (searchInput) {
+                        searchInput.value = '';
+                        searchQuery = '';
+                        this.style.display = 'none';
+                        currentPage = 1;
+                        applyFilters();
+                        searchInput.focus();
+                    }
+                });
+            }
+
+            filterItems.forEach(item => {
+                item.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    filterItems.forEach(el => {
+                        el.classList.remove('active');
+                        const check = el.querySelector('.check-icon');
+                        if (check) check.classList.add('d-none');
+                    });
+
+                    this.classList.add('active');
+                    const check = this.querySelector('.check-icon');
+                    if (check) check.classList.remove('d-none');
+
+                    const status = this.getAttribute('data-status');
+                    currentFilter = status;
+
+                    if (filterBtnLabel) {
+                        const labelSpan = this.querySelector('span');
+                        const labelText = labelSpan ? labelSpan.textContent.trim() : this.textContent.trim();
+                        filterBtnLabel.textContent = status === 'all' ? 'Filter' : labelText;
+                    }
+
+                    currentPage = 1;
+                    applyFilters();
+                });
+            });
+
+            if (resetFiltersBtn) {
+                resetFiltersBtn.addEventListener('click', function() {
+                    if (searchInput) searchInput.value = '';
+                    searchQuery = '';
+                    if (clearSearchBtn) clearSearchBtn.style.display = 'none';
+
+                    currentFilter = 'all';
+                    if (filterBtnLabel) filterBtnLabel.textContent = 'Filter';
+
+                    filterItems.forEach(el => {
+                        const isAll = el.getAttribute('data-status') === 'all';
+                        el.classList.toggle('active', isAll);
+                        const check = el.querySelector('.check-icon');
+                        if (check) check.classList.toggle('d-none', !isAll);
+                    });
+
+                    currentPage = 1;
+                    applyFilters();
+                });
+            }
+
+            // Initial setup
+            applyFilters();
+
+            // Refresh AOS on tab change
+            const orderTabLink = document.querySelector('a[href="#orders"]');
+            if (orderTabLink) {
+                orderTabLink.addEventListener('shown.bs.tab', function() {
+                    if (window.AOS) window.AOS.refresh();
+                });
+            }
+        })();
+
+        // ============================================
+        // Reviews Sorting
+        // ============================================
+        (function() {
+            const sortBtnLabel = document.getElementById('reviewSortLabel');
+            const sortItems = document.querySelectorAll('.review-sort-item');
+            const reviewsGrid = document.querySelector('.reviews-grid');
+            if (!reviewsGrid) return;
+
+            sortItems.forEach(item => {
+                item.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    sortItems.forEach(el => {
+                        el.classList.remove('active');
+                        const check = el.querySelector('.check-icon');
+                        if (check) check.classList.add('d-none');
+                    });
+                    this.classList.add('active');
+                    const check = this.querySelector('.check-icon');
+                    if (check) check.classList.remove('d-none');
+
+                    const sortType = this.getAttribute('data-sort');
+                    const labelSpan = this.querySelector('span');
+                    const labelText = labelSpan ? labelSpan.textContent.trim() : this.textContent.trim();
+                    if (sortBtnLabel) sortBtnLabel.textContent = 'Sort by: ' + labelText;
+
+                    const cards = Array.from(reviewsGrid.querySelectorAll('.review-card'));
+                    cards.sort((a, b) => {
+                        const ratingA = parseFloat(a.getAttribute('data-rating') || 0);
+                        const ratingB = parseFloat(b.getAttribute('data-rating') || 0);
+                        const timeA = parseInt(a.getAttribute('data-timestamp') || 0);
+                        const timeB = parseInt(b.getAttribute('data-timestamp') || 0);
+
+                        if (sortType === 'highest') {
+                            return ratingB - ratingA || timeB - timeA;
+                        } else if (sortType === 'lowest') {
+                            return ratingA - ratingB || timeB - timeA;
+                        } else {
+                            return timeB - timeA;
+                        }
+                    });
+
+                    cards.forEach(card => reviewsGrid.appendChild(card));
+                    if (window.AOS) window.AOS.refresh();
+                });
+            });
+        })();
+        // Support tab activation from URL hash (e.g. #settings) & remember on click
+        const currentHash = window.location.hash;
+        if (currentHash) {
+            const targetLink = document.querySelector(`.menu-nav a[href="${currentHash}"]`);
+            if (targetLink && window.bootstrap && window.bootstrap.Tab) {
+                const tab = new bootstrap.Tab(targetLink);
+                tab.show();
+            }
+        }
+        document.querySelectorAll('.menu-nav a[data-bs-toggle="tab"]').forEach(link => {
+            link.addEventListener('shown.bs.tab', function(e) {
+                if (history.replaceState) {
+                    history.replaceState(null, null, e.target.getAttribute('href'));
+                }
+            });
+        });
+
+        // Client-side Password Form Validation
+        const pwdForm = document.getElementById('passwordChangeForm');
+        if (pwdForm) {
+            pwdForm.addEventListener('submit', function(e) {
+                const curPwd = document.getElementById('currentPassword').value.trim();
+                const newPwd = document.getElementById('newPassword').value;
+                const confPwd = document.getElementById('confirmPassword').value;
+                const errBox = document.getElementById('passwordClientError');
+                const errText = document.getElementById('passwordClientErrorText');
+
+                if (!curPwd) {
+                    e.preventDefault();
+                    if (errBox && errText) {
+                        errText.textContent = 'Please enter your current password.';
+                        errBox.style.display = 'block';
+                        errBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    }
+                    return false;
+                }
+
+                if (newPwd.length < 6) {
+                    e.preventDefault();
+                    if (errBox && errText) {
+                        errText.textContent = 'New password must be at least 6 characters long.';
+                        errBox.style.display = 'block';
+                        errBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    }
+                    return false;
+                }
+
+                if (newPwd !== confPwd) {
+                    e.preventDefault();
+                    if (errBox && errText) {
+                        errText.textContent = 'New password and confirm password do not match.';
+                        errBox.style.display = 'block';
+                        errBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    }
+                    return false;
+                }
+
+                if (curPwd === newPwd) {
+                    e.preventDefault();
+                    if (errBox && errText) {
+                        errText.textContent = 'New password cannot be identical to current password.';
+                        errBox.style.display = 'block';
+                        errBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    }
+                    return false;
+                }
+                
+                if (errBox) errBox.style.display = 'none';
+            });
+        }
+
+        // Update wishlist count badge from localStorage
+        try {
+            const wl = JSON.parse(localStorage.getItem('wishlist')) || [];
+            const wlBadge = document.getElementById('accountWishlistBadge');
+            if (wlBadge && wl.length > 0) {
+                wlBadge.textContent = wl.length;
+                wlBadge.style.display = 'inline-block';
+            }
+        } catch (e) {}
     });
+
+    // Password Visibility Toggle
+    function togglePasswordVisibility(inputId, btn) {
+        const input = document.getElementById(inputId);
+        if (!input) return;
+        const icon = btn.querySelector('i');
+        if (input.type === 'password') {
+            input.type = 'text';
+            if (icon) {
+                icon.classList.remove('bi-eye');
+                icon.classList.add('bi-eye-slash');
+            }
+        } else {
+            input.type = 'password';
+            if (icon) {
+                icon.classList.remove('bi-eye-slash');
+                icon.classList.add('bi-eye');
+            }
+        }
+    }
   </script>
 
   <!-- Main JS File -->

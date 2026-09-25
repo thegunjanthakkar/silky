@@ -122,7 +122,13 @@ if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true) {
                                                     echo '<tr data-id="' . $row['id'] . '">';
                                                     echo '<td class="drag-handle" style="cursor: grab;"><i class="fas fa-grip-vertical text-muted"></i></td>';
                                                     echo '<td>' . $rowIndex . '</td>';
-                                                    echo '<td>' . htmlspecialchars($row['name']) . '</td>';
+                                                    $catImg = !empty($row['image']) ? '../' . ltrim(str_replace(['./', '\\'], ['','/'], $row['image']), '/') : 'assets/images/products/default.png';
+                                                    echo '<td>';
+                                                    echo '<div class="d-flex align-items-center">';
+                                                    echo '<img src="' . htmlspecialchars($catImg) . '" class="rounded me-2 border flex-shrink-0" style="width: 36px; height: 48px; object-fit: cover;" onerror="this.src=\'assets/images/products/default.png\';">';
+                                                    echo '<div><span class="fw-semibold">' . htmlspecialchars($row['name']) . '</span></div>';
+                                                    echo '</div>';
+                                                    echo '</td>';
                                                     echo '<td>' . htmlspecialchars($row['description']) . '</td>';
                                                     echo '<td>';
                                                     if (strtolower($row['status']) === 'active') {

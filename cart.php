@@ -184,9 +184,12 @@ if (!empty($action)) {
                 // Get main image path
                 $mainImage = 'assets/img/product/placeholder.png';
                 if (!empty($productImages)) {
+                    $clean_img = ltrim(preg_replace('~^\.?/~', '', $productImages[0]), '/');
                     $possiblePaths = [
-                        'uploads/products/' . $productImages[0],
-                        'admin/uploads/' . $productImages[0],
+                        $clean_img,
+                        'uploads/products/' . $clean_img,
+                        'uploads/' . $clean_img,
+                        'admin/uploads/' . $clean_img,
                         $productImages[0]
                     ];
                     foreach ($possiblePaths as $path) {
@@ -197,6 +200,23 @@ if (!empty($action)) {
                     }
                 }
                 
+                // Check variant stock if variant_info is present
+                $item_stock = intval($row['stock']);
+                if (!empty($row['variant_info'])) {
+                    $parts = explode('|', $row['variant_info']);
+                    if (count($parts) >= 2) {
+                        $c_name = mysqli_real_escape_string($conn, trim($parts[0]));
+                        $s_name = mysqli_real_escape_string($conn, trim($parts[1]));
+                        $v_res = mysqli_query($conn, "SELECT pv.stock_quantity FROM product_variants pv 
+                            JOIN colors c ON pv.color_id = c.id 
+                            JOIN sizes s ON pv.size_id = s.id 
+                            WHERE pv.product_id = " . intval($row['product_id']) . " AND c.color_name = '$c_name' AND s.size_label = '$s_name' LIMIT 1");
+                        if ($v_res && ($v_row = mysqli_fetch_assoc($v_res))) {
+                            $item_stock = intval($v_row['stock_quantity']);
+                        }
+                    }
+                }
+
                 $cart[] = [
                     "id" => $row['product_id'],
                     "name" => $row['name'],
@@ -205,7 +225,7 @@ if (!empty($action)) {
                     "image" => $mainImage,
                     "slug" => isset($row['slug']) ? $row['slug'] : '',
                     "product_code" => isset($row['product_code']) ? $row['product_code'] : '',
-                    "stock" => intval($row['stock']),
+                    "stock" => $item_stock,
                     "variant_info" => isset($row['variant_info']) ? $row['variant_info'] : ''
                 ];
             }
@@ -263,15 +283,35 @@ if (!empty($action)) {
                         
                         $mainImage = 'assets/img/product/placeholder.png';
                         if (!empty($productImages)) {
+                            $clean_img = ltrim(preg_replace('~^\.?/~', '', $productImages[0]), '/');
                             $possiblePaths = [
-                                'uploads/products/' . $productImages[0],
-                                'admin/uploads/' . $productImages[0],
+                                $clean_img,
+                                'uploads/products/' . $clean_img,
+                                'uploads/' . $clean_img,
+                                'admin/uploads/' . $clean_img,
                                 $productImages[0]
                             ];
                             foreach ($possiblePaths as $path) {
                                 if (file_exists($path)) {
                                     $mainImage = $path;
                                     break;
+                                }
+                            }
+                        }
+
+                        $v_info = $item['variant_info'] ?? ((isset($item['color']) && isset($item['size'])) ? ($item['color'] . " | " . $item['size']) : '');
+                        $item_stock = intval($db_p['stock']);
+                        if (!empty($v_info)) {
+                            $parts = explode('|', $v_info);
+                            if (count($parts) >= 2) {
+                                $c_name = mysqli_real_escape_string($conn, trim($parts[0]));
+                                $s_name = mysqli_real_escape_string($conn, trim($parts[1]));
+                                $v_res = mysqli_query($conn, "SELECT pv.stock_quantity FROM product_variants pv 
+                                    JOIN colors c ON pv.color_id = c.id 
+                                    JOIN sizes s ON pv.size_id = s.id 
+                                    WHERE pv.product_id = " . intval($db_p['product_id']) . " AND c.color_name = '$c_name' AND s.size_label = '$s_name' LIMIT 1");
+                                if ($v_res && ($v_row = mysqli_fetch_assoc($v_res))) {
+                                    $item_stock = intval($v_row['stock_quantity']);
                                 }
                             }
                         }
@@ -284,8 +324,8 @@ if (!empty($action)) {
                             "image" => $mainImage,
                             "slug" => isset($db_p['slug']) ? $db_p['slug'] : '',
                             "product_code" => isset($db_p['product_code']) ? $db_p['product_code'] : '',
-                            "stock" => intval($db_p['stock']),
-                            "variant_info" => (isset($item['color']) && isset($item['size'])) ? ($item['color'] . " | " . $item['size']) : ''
+                            "stock" => $item_stock,
+                            "variant_info" => $v_info
                         ];
                     }
                 }
@@ -480,6 +520,40 @@ if (!empty($action)) {
                 echo json_encode(["status" => "error", "message" => "Failed to remove item"]);
             }
         } else {
+            // Stock check: quantity cannot exceed available stock
+            $check_stock = 999999;
+            $variant_info = $input['variant_info'] ?? '';
+            if (empty($variant_info)) {
+                $ci_v = mysqli_query($conn, "SELECT variant_info FROM cart_items WHERE " . ($use_cart_id && $cart_id > 0 ? "cart_id = $cart_id" : "user_id = $user_id") . " AND product_id = $product_id LIMIT 1");
+                if ($ci_v && ($ci_vr = mysqli_fetch_assoc($ci_v))) {
+                    $variant_info = $ci_vr['variant_info'];
+                }
+            }
+            if (!empty($variant_info)) {
+                $parts = explode('|', $variant_info);
+                if (count($parts) >= 2) {
+                    $c_name = mysqli_real_escape_string($conn, trim($parts[0]));
+                    $s_name = mysqli_real_escape_string($conn, trim($parts[1]));
+                    $v_res = mysqli_query($conn, "SELECT pv.stock_quantity FROM product_variants pv 
+                        JOIN colors c ON pv.color_id = c.id 
+                        JOIN sizes s ON pv.size_id = s.id 
+                        WHERE pv.product_id = $product_id AND c.color_name = '$c_name' AND s.size_label = '$s_name' LIMIT 1");
+                    if ($v_res && ($v_row = mysqli_fetch_assoc($v_res))) {
+                        $check_stock = intval($v_row['stock_quantity']);
+                    }
+                }
+            }
+            if ($check_stock === 999999) {
+                $stk_res = mysqli_query($conn, "SELECT quantity FROM stock WHERE product_id = $product_id LIMIT 1");
+                if ($stk_res && ($stk_row = mysqli_fetch_assoc($stk_res))) {
+                    $check_stock = intval($stk_row['quantity']);
+                }
+            }
+
+            if ($quantity > $check_stock) {
+                $quantity = $check_stock;
+            }
+
             // Update quantity
             if ($use_cart_id && $cart_id > 0) {
                 $update_result = mysqli_query($conn, "UPDATE cart_items SET quantity = $quantity WHERE cart_id = $cart_id AND product_id = $product_id");
@@ -1347,6 +1421,21 @@ if ($tax_query && mysqli_num_rows($tax_query) > 0) {
             cart = [];
           }
         }
+        // Ensure cart quantities never exceed available stock
+        let stockAdjusted = false;
+        cart.forEach(item => {
+          const stock = (item.stock !== undefined) ? parseInt(item.stock) : 999999;
+          if (stock > 0 && parseInt(item.quantity) > stock) {
+            item.quantity = stock;
+            stockAdjusted = true;
+          }
+        });
+        if (stockAdjusted) {
+          if (!isLoggedIn) {
+            localStorage.setItem('cart', JSON.stringify(cart));
+          }
+        }
+
         render();
         calcSummary();
       }
@@ -1393,9 +1482,9 @@ if ($tax_query && mysqli_num_rows($tax_query) > 0) {
           const img = (item.image || 'assets/img/product/placeholder.png').replace(/"/g, '&quot;');
           const nm  = (item.name  || '').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
           const pr  = parseFloat(item.price);
-          const qt  = parseInt(item.quantity);
+          const qt  = parseInt(item.quantity) || 1;
           const slg = item.slug || '';
-          const stock = item.stock !== undefined ? parseInt(item.stock) : 1;
+          const stock = item.stock !== undefined ? parseInt(item.stock) : 999999;
           const productUrl = slg ? `product-details/${slg}` : `product-details.php?id=${id}`;
 
           let qtyHtml = '';
@@ -1406,12 +1495,15 @@ if ($tax_query && mysqli_num_rows($tax_query) > 0) {
             qtyHtml = `<span class="badge bg-danger p-2" style="font-size:0.85rem;">Out of Stock</span>`;
             totalHtml = `<span class="text-danger">₹0.00</span>`;
           } else {
+            const isAtMax = qt >= stock;
             qtyHtml = `
                 <div class="qty-control">
                   <button class="qty-btn decrease" data-product-id="${id}"><i class="bi bi-dash"></i></button>
                   <input type="number" class="qty-input quantity-input" value="${qt}" min="1" max="${stock}" data-product-id="${id}">
-                  <button class="qty-btn increase" data-product-id="${id}"><i class="bi bi-plus"></i></button>
-                </div>`;
+                  <button class="qty-btn increase" data-product-id="${id}" ${isAtMax ? 'style="opacity:0.6; cursor:not-allowed;"' : ''}><i class="bi bi-plus"></i></button>
+                </div>
+                ${stock <= 10 ? `<div class="text-danger mt-1" style="font-size: 0.75rem; font-weight: 500;">Only ${stock} left!</div>` : ''}
+            `;
             totalHtml = `₹${(pr * qt).toFixed(2)}`;
           }
 
@@ -1462,8 +1554,19 @@ if ($tax_query && mysqli_num_rows($tax_query) > 0) {
           b.addEventListener('click', () => changeQty(b.dataset.productId, 1)));
         document.querySelectorAll('.qty-btn.decrease').forEach(b =>
           b.addEventListener('click', () => changeQty(b.dataset.productId, -1)));
-        document.querySelectorAll('.quantity-input').forEach(inp =>
-          inp.addEventListener('change', () => setQty(inp.dataset.productId, parseInt(inp.value))));
+        document.querySelectorAll('.quantity-input').forEach(inp => {
+          inp.addEventListener('input', () => {
+            const pid = inp.dataset.productId;
+            const item = cart.find(i => (i.id || i.product_id) == pid);
+            if (!item) return;
+            const stock = (item.stock !== undefined) ? parseInt(item.stock) : 999999;
+            if (parseInt(inp.value) > stock) {
+              inp.value = stock;
+              toast(`Only ${stock} item(s) available in stock.`, 'warning');
+            }
+          });
+          inp.addEventListener('change', () => setQty(inp.dataset.productId, parseInt(inp.value)));
+        });
       }
 
       // ===== ACTIONS =====
@@ -1490,13 +1593,26 @@ if ($tax_query && mysqli_num_rows($tax_query) > 0) {
       function changeQty(pid, delta) {
         const item = cart.find(i => (i.id || i.product_id) == pid);
         if (!item) return;
-        const nq = parseInt(item.quantity) + delta;
+        const stock = (item.stock !== undefined) ? parseInt(item.stock) : 999999;
+        const currentQty = parseInt(item.quantity) || 1;
+
+        if (delta > 0 && currentQty >= stock) {
+          toast(`Cannot add more than ${stock} available in stock.`, 'warning');
+          return;
+        }
+
+        const nq = currentQty + delta;
         if (nq <= 0) { removeItem(pid); return; }
+        if (nq > stock) {
+          toast(`Cannot add more than ${stock} available in stock.`, 'warning');
+          return;
+        }
+
         if (isLoggedIn) {
           fetch('cart.php?action=update_quantity', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ product_id: pid, quantity: nq })
+            body: JSON.stringify({ product_id: pid, quantity: nq, variant_info: item.variant_info || '' })
           }).then(r => r.json()).then(d => {
             if (d.status === 'success') loadFromDb().then(() => { render(); calcSummary(); badge(); });
             else toast('Error: ' + d.message, 'danger');
@@ -1510,17 +1626,25 @@ if ($tax_query && mysqli_num_rows($tax_query) > 0) {
 
       function setQty(pid, qty) {
         if (qty <= 0) { removeItem(pid); return; }
+        const item = cart.find(i => (i.id || i.product_id) == pid);
+        if (!item) return;
+        const stock = (item.stock !== undefined) ? parseInt(item.stock) : 999999;
+        if (qty > stock) {
+          qty = stock;
+          toast(`Only ${stock} item(s) available in stock.`, 'warning');
+        }
         if (isLoggedIn) {
           fetch('cart.php?action=update_quantity', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ product_id: pid, quantity: qty })
+            body: JSON.stringify({ product_id: pid, quantity: qty, variant_info: item.variant_info || '' })
           }).then(r => r.json()).then(d => {
             if (d.status === 'success') loadFromDb().then(() => { render(); calcSummary(); badge(); });
           });
         } else {
-          const item = cart.find(i => (i.id || i.product_id) == pid);
-          if (item) { item.quantity = qty; localStorage.setItem('cart', JSON.stringify(cart)); render(); calcSummary(); badge(); }
+          item.quantity = qty;
+          localStorage.setItem('cart', JSON.stringify(cart));
+          render(); calcSummary(); badge();
         }
       }
 

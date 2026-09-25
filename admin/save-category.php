@@ -97,8 +97,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $image_path = '';
         }
     } else {
-        $image_path = '';
-        error_log("No image uploaded or error: " . json_encode($_FILES));
+        if (empty($image_path)) {
+            $image_path = '';
+        }
+        error_log("No direct file upload, using POST image path: " . $image_path);
     }
 
     // Escape strings for SQL

@@ -355,7 +355,7 @@ $total_count    = $critical_count + $warning_count;
                         </div>
 
                         <!-- ── WARNING: Cancellations ─────────────── -->
-                        <div class="notif-card card mb-4">
+                        <!-- <div class="notif-card card mb-4">
                             <div class="card-header d-flex align-items-center justify-content-between py-3 border-bottom" style="background:rgba(111,66,193,.06);">
                                 <div class="d-flex align-items-center gap-2">
                                     <div class="notif-icon-wrap" style="background:rgba(111,66,193,.15);">
@@ -392,7 +392,7 @@ $total_count    = $critical_count + $warning_count;
                                 <?php endforeach; ?>
                             </ul>
                             <?php endif; ?>
-                        </div>
+                        </div> -->
 
                     </div><!-- /LEFT COLUMN -->
 

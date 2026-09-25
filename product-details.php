@@ -62,6 +62,10 @@ if (!empty($product['image'])) {
         $product_images = array_map('trim', explode(',', $product['image']));
     }
 }
+// Normalize paths: strip leading "./" so they resolve correctly with <base href>
+$product_images = array_values(array_unique(array_map(function($p) {
+    return ltrim(trim($p), './');
+}, $product_images)));
 
 $colors = [];
 if (!empty($product['product_colors'])) {
