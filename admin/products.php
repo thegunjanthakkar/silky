@@ -368,6 +368,10 @@ $result = mysqli_query($conn, $sql);
                                                         <td class="ps-0">
                                                             <?php
                                                             $images = json_decode($row['image'], true);
+                                                            // Deduplicate paths (handle old bug where same path was stored multiple times)
+                                                            if (is_array($images)) {
+                                                                $images = array_values(array_unique($images));
+                                                            }
                                                             $firstImage = '';
                                                             if (is_array($images) && count($images) > 0) {
                                                                 $firstImage = $images[0];
@@ -377,8 +381,11 @@ $result = mysqli_query($conn, $sql);
                                                             }
                                                             ?>
                                                             <?php if (!empty($firstImage)): ?>
-                                                                <img src="<?php echo htmlspecialchars(str_replace('./', '/', $firstImage)); ?>"
-                                                                    alt="" height="40" class="rounded me-1">
+                                                                <?php 
+                                                                $dispFirstImg = (strpos($firstImage, 'http') === 0) ? $firstImage : '../' . ltrim($firstImage, './');
+                                                                ?>
+                                                                <img src="<?php echo htmlspecialchars($dispFirstImg); ?>"
+                                                                    alt="" height="40" class="rounded me-1" onerror="this.onerror=null; this.src='assets/images/products/default.png';">
                                                             <?php else: ?>
                                                                 <img src="assets/images/products/default.png" alt="" height="40"
                                                                     class="rounded me-1">

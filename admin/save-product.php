@@ -36,6 +36,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 
+    // Validate unique product code
+    if (!empty($product_code)) {
+        $escaped_code = mysqli_real_escape_string($conn, $product_code);
+        $check_code = mysqli_query($conn, "SELECT id FROM products WHERE product_code = '$escaped_code' LIMIT 1");
+        if ($check_code && mysqli_num_rows($check_code) > 0) {
+            $_SESSION['error'] = "Product code '$product_code' is already in use. Please enter a unique product code.";
+            header('Location: add-product.php');
+            exit;
+        }
+    }
+
     if (empty($description)) {
         $_SESSION['error'] = 'Description is required.';
         header('Location: add-product.php');
@@ -107,6 +118,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         header('Location: add-product.php');
         exit;
     }
+
+    // Deduplicate image paths (safety net)
+    $imagesArray = array_values(array_unique($imagesArray));
 
     if (count($imagesArray) > 6) {
         $_SESSION['error'] = 'Maximum 6 images allowed per product.';

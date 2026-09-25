@@ -5,8 +5,21 @@ if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true) {
     exit;
 }
 require_once 'includes/permission-manager.php';
-checkPageAccess();
 require_once '../db_config.php';
+
+// Check duplicate product code AJAX endpoint
+if (isset($_GET['check_product_code'])) {
+    header('Content-Type: application/json');
+    $check_code = trim($_GET['check_product_code'] ?? '');
+    if ($check_code === '') {
+        echo json_encode(['exists' => false]);
+        exit;
+    }
+    $escaped = mysqli_real_escape_string($conn, $check_code);
+    $q = mysqli_query($conn, "SELECT id FROM products WHERE product_code = '$escaped' LIMIT 1");
+    echo json_encode(['exists' => ($q && mysqli_num_rows($q) > 0)]);
+    exit;
+}
 
 // Auto-ensure custom_care columns exist in products table
 $col_care_check = @mysqli_query($conn, "SHOW COLUMNS FROM products LIKE 'custom_care_enabled'");
@@ -201,6 +214,50 @@ if ($ca_res) {
             letter-spacing: 0.4px;
             font-family: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
         }
+
+        /* Fixed Crop Modal Styles */
+        #cropperModal .modal-dialog {
+            max-width: 560px;
+            width: 95%;
+            margin: 1.5rem auto;
+        }
+        #cropperModal .modal-content {
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid var(--bs-border-color, rgba(255, 255, 255, 0.12));
+            box-shadow: 0 16px 48px rgba(0, 0, 0, 0.45);
+        }
+        #cropperModal .modal-header {
+            padding: 10px 16px;
+        }
+        #cropperModal .modal-body {
+            padding: 10px 14px;
+            background-color: #0b0f19;
+        }
+        #cropperModal .img-container {
+            height: 480px;
+            max-height: 58vh;
+            min-height: 320px;
+            width: 100%;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #000000;
+            border-radius: 6px;
+            position: relative;
+        }
+        #cropperModal .img-container img {
+            display: block;
+            max-width: 100%;
+        }
+        #cropperModal .cropper-container {
+            max-height: 100% !important;
+            width: 100% !important;
+        }
+        #cropperModal .modal-footer {
+            padding: 10px 16px;
+        }
     </style>
 </head>
 
@@ -266,7 +323,8 @@ if ($ca_res) {
                                         <div class="col-md-4">
                                             <div class="mb-3">
                                                 <label for="product_code" class="form-label">Product Code</label>
-                                                <input type="text" class="form-control" id="product_code" name="product_code">
+                                                <input type="text" class="form-control" id="product_code" name="product_code" placeholder="e.g. SLK001">
+                                                <div class="invalid-feedback" id="product_code_feedback">This product code is already in use. Please enter a unique code.</div>
                                             </div>
                                         </div>
                                     </div>
@@ -887,12 +945,11 @@ if ($ca_res) {
     </div>
 
     <!-- Cropper Modal -->
-
-    <div class="modal fade" id="cropperModal" tabindex="-1">
-        <div class="modal-dialog modal-lg">
+    <div class="modal fade" id="cropperModal" tabindex="-1" data-bs-backdrop="static">
+        <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">Crop Image</h5>
+                    <h5 class="modal-title" id="cropperModalTitle">Crop Image</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
@@ -1307,16 +1364,16 @@ if ($ca_res) {
 
             // When cropper modal is hidden, re-open custom addon modal if it was for an addon
             document.getElementById('cropperModal').addEventListener('hidden.bs.modal', function() {
-                if (activeCropObjectUrl) {
-                    URL.revokeObjectURL(activeCropObjectUrl);
-                    activeCropObjectUrl = null;
-                }
-                if (cropper) {
-                    cropper.destroy();
-                    cropper = null;
-                }
                 if (window._addonCropCallback) {
                     window._addonCropCallback = false;
+                    if (activeCropObjectUrl) {
+                        URL.revokeObjectURL(activeCropObjectUrl);
+                        activeCropObjectUrl = null;
+                    }
+                    if (cropper) {
+                        cropper.destroy();
+                        cropper = null;
+                    }
                     bootstrap.Modal.getOrCreateInstance(modalEl).show();
                 }
             });
@@ -1458,6 +1515,7 @@ if ($ca_res) {
         });
 
         // Handle multiple image uploads
+        // imagesToCrop stores pre-created ObjectURLs so Uppy removeFile() cannot revoke the blob data
         uppyImages.on('file-added', (file) => {
             if (uploadedImages.length + imagesToCrop.length >= 6) {
                 alert('Maximum 6 images allowed!');
@@ -1465,56 +1523,94 @@ if ($ca_res) {
                 return;
             }
 
-            // Add to queue for cropping
-            imagesToCrop.push(file);
+            // Capture ObjectURL BEFORE removeFile() so the blob remains accessible
+            const objectUrl = URL.createObjectURL(file.data);
+            const fileName  = file.name || ('image_' + Date.now());
+            imagesToCrop.push({ objectUrl, name: fileName });
             uppyImages.removeFile(file.id);
 
-            // Start cropping if not already in progress
-            if (imagesToCrop.length === 1) {
+            // Start cropping process if not currently active
+            if (imagesToCrop.length > 0 && !isCurrentlyCropping) {
                 startCropping();
             }
         });
 
         let activeCropObjectUrl = null;
-        function startCropping() {
-            if (imagesToCrop.length === 0) return;
+        let isCurrentlyCropping = false;
 
-            selectedFile = imagesToCrop[0];
-            currentCroppingIndex = 0;
-
-            if (activeCropObjectUrl) {
-                URL.revokeObjectURL(activeCropObjectUrl);
-                activeCropObjectUrl = null;
+        function updateCropModalTitle() {
+            const current = uploadedImages.length + 1;
+            const total   = uploadedImages.length + imagesToCrop.length;
+            const modalTitle = document.querySelector('#cropperModal .modal-title');
+            if (modalTitle) {
+                modalTitle.textContent = `Crop Image ${current} of ${total}`;
             }
+        }
+
+        function loadCropImage(item) {
+            if (!item) return;
+            selectedFile = { name: item.name };
+            activeCropObjectUrl = item.objectUrl;
+            updateCropModalTitle();
 
             const cropImg = document.getElementById('crop-image');
-            activeCropObjectUrl = URL.createObjectURL(selectedFile.data || selectedFile);
-            cropImg.src = activeCropObjectUrl;
 
-            // Update modal title to show progress
-            const modalTitle = document.querySelector('#cropperModal .modal-title');
-            modalTitle.textContent = `Crop Image ${uploadedImages.length + 1} of ${uploadedImages.length + imagesToCrop.length}`;
-
-            bootstrap.Modal.getOrCreateInstance(document.getElementById('cropperModal')).show();
-
-            // Initialize cropper with 9:16 aspect ratio
             if (cropper) {
                 cropper.destroy();
                 cropper = null;
             }
-            cropper = new Cropper(cropImg, {
-                aspectRatio: 9 / 16,
-                viewMode: 1,
-                autoCropArea: 1,
-                responsive: true,
-                restore: false,
-                guides: true,
-                center: true,
-                highlight: false,
-                cropBoxMovable: true,
-                cropBoxResizable: true,
-                toggleDragModeOnDblclick: false
-            });
+
+            function initCropperInstance() {
+                cropImg.removeEventListener('load', initCropperInstance);
+                if (cropper) {
+                    cropper.destroy();
+                    cropper = null;
+                }
+                cropper = new Cropper(cropImg, {
+                    aspectRatio: 9 / 16,
+                    viewMode: 1,
+                    autoCropArea: 1,
+                    responsive: true,
+                    restore: false,
+                    guides: true,
+                    center: true,
+                    highlight: false,
+                    cropBoxMovable: true,
+                    cropBoxResizable: true,
+                    toggleDragModeOnDblclick: false
+                });
+            }
+
+            if (cropImg.src === activeCropObjectUrl && cropImg.complete && cropImg.naturalWidth > 0) {
+                initCropperInstance();
+            } else {
+                cropImg.addEventListener('load', initCropperInstance);
+                cropImg.src = activeCropObjectUrl;
+            }
+        }
+
+        function startCropping() {
+            if (imagesToCrop.length === 0) {
+                isCurrentlyCropping = false;
+                return;
+            }
+
+            isCurrentlyCropping = true;
+            const cropModalEl = document.getElementById('cropperModal');
+            const cropModal = bootstrap.Modal.getOrCreateInstance(cropModalEl);
+
+            if (cropModalEl.classList.contains('show')) {
+                loadCropImage(imagesToCrop[0]);
+            } else {
+                function onShown() {
+                    cropModalEl.removeEventListener('shown.bs.modal', onShown);
+                    if (imagesToCrop.length > 0) {
+                        loadCropImage(imagesToCrop[0]);
+                    }
+                }
+                cropModalEl.addEventListener('shown.bs.modal', onShown);
+                cropModal.show();
+            }
         }
 
         function cropAndUpload() {
@@ -1574,25 +1670,35 @@ if ($ca_res) {
                             const img  = document.getElementById('ca_image_tag');
                             if (prev) prev.style.display = '';
                             if (img)  img.src = resolveAdminImgJs(data.path);
+
+                            const cropModal = bootstrap.Modal.getInstance(document.getElementById('cropperModal'));
+                            if (cropModal) cropModal.hide();
                         } else {
                             uploadedImages.push(data.path);
                             updateImagesDisplay();
                             updateImagesInput();
 
-                            // Remove current image from queue
-                            imagesToCrop.shift();
+                            // Remove finished item from queue and revoke its object URL
+                            const finishedItem = imagesToCrop.shift();
+                            if (finishedItem && finishedItem.objectUrl) {
+                                URL.revokeObjectURL(finishedItem.objectUrl);
+                            }
 
-                            // Process next image if available
-                            setTimeout(() => {
-                                if (imagesToCrop.length > 0) {
-                                    startCropping();
+                            if (imagesToCrop.length > 0) {
+                                // More images left in batch - load next image directly without closing modal!
+                                if (cropBtn) {
+                                    cropBtn.disabled = false;
+                                    cropBtn.innerHTML = originalBtnHtml;
                                 }
-                            }, 500);
+                                loadCropImage(imagesToCrop[0]);
+                                return;
+                            }
+
+                            // All images completed!
+                            isCurrentlyCropping = false;
+                            const cropModal = bootstrap.Modal.getInstance(document.getElementById('cropperModal'));
+                            if (cropModal) cropModal.hide();
                         }
-
-                        const cropModal = bootstrap.Modal.getInstance(document.getElementById('cropperModal')) || bootstrap.Modal.getOrCreateInstance(document.getElementById('cropperModal'));
-                        if (cropModal) cropModal.hide();
-
                     } else {
                         alert('Upload failed: ' + data.message);
                     }
@@ -1600,7 +1706,7 @@ if ($ca_res) {
                     console.error('Error:', error);
                     alert('Upload failed: ' + error.message);
                 } finally {
-                    if (cropBtn) {
+                    if (cropBtn && (isAddon || imagesToCrop.length === 0)) {
                         cropBtn.disabled = false;
                         cropBtn.innerHTML = originalBtnHtml;
                     }
@@ -1615,9 +1721,10 @@ if ($ca_res) {
             uploadedImages.forEach((imagePath, index) => {
                 const col = document.createElement('div');
                 col.className = 'col-6 col-md-4';
+                const imgSrc = resolveAdminImgJs(imagePath);
                 col.innerHTML = `
                     <div class="position-relative">
-                        <img src="${imagePath.replace('./', '/')}" alt="Preview ${index + 1}" class="img-fluid rounded" style="height: 120px; width: 100%; object-fit: cover;">
+                        <img src="${imgSrc}" alt="Preview ${index + 1}" class="img-fluid rounded" style="height: 120px; width: 100%; object-fit: cover;" onerror="this.onerror=null; this.src='assets/images/products/default.png';">
                         <button type="button" class="btn btn-sm btn-danger position-absolute top-0 end-0 m-1" onclick="removeImage(${index})">
                             <i class="fas fa-times"></i>
                         </button>
@@ -1717,8 +1824,62 @@ if ($ca_res) {
             return fields;
         }
 
+        // Real-time unique product code validation
+        let codeCheckTimer = null;
+        let isProductCodeUnique = true;
+
+        async function checkProductCodeUnique(codeVal) {
+            const input = document.getElementById('product_code');
+            const trimmed = (codeVal || '').trim();
+            if (!trimmed) {
+                input.classList.remove('is-invalid', 'is-valid');
+                isProductCodeUnique = true;
+                return true;
+            }
+
+            try {
+                const res = await fetch(`add-product.php?check_product_code=${encodeURIComponent(trimmed)}`);
+                const data = await res.json();
+                if (data.exists) {
+                    input.classList.add('is-invalid');
+                    input.classList.remove('is-valid');
+                    isProductCodeUnique = false;
+                    return false;
+                } else {
+                    input.classList.remove('is-invalid');
+                    input.classList.add('is-valid');
+                    isProductCodeUnique = true;
+                    return true;
+                }
+            } catch (err) {
+                console.error('Error checking product code:', err);
+                return true;
+            }
+        }
+
+        const pCodeEl = document.getElementById('product_code');
+        if (pCodeEl) {
+            pCodeEl.addEventListener('input', function() {
+                clearTimeout(codeCheckTimer);
+                codeCheckTimer = setTimeout(() => {
+                    checkProductCodeUnique(this.value);
+                }, 350);
+            });
+            pCodeEl.addEventListener('blur', function() {
+                clearTimeout(codeCheckTimer);
+                checkProductCodeUnique(this.value);
+            });
+        }
+
         // Form validation - allow less than 6 images
         document.getElementById('productForm').addEventListener('submit', function(e) {
+            if (!isProductCodeUnique) {
+                e.preventDefault();
+                alert('The entered product code is already in use. Please enter a unique product code!');
+                document.getElementById('product_code').focus();
+                return false;
+            }
+
             console.log('Form submitting...');
             console.log('uploadedImages:', uploadedImages);
             console.log('images_data value:', document.getElementById('images_data').value);
@@ -1774,11 +1935,27 @@ if ($ca_res) {
             console.log('Final images_data value:', document.getElementById('images_data').value);
         });
 
-        // Handle modal close - clear crop queue if user cancels
+        // On modal close: destroy cropper, clean up queue if canceled early
         document.getElementById('cropperModal').addEventListener('hidden.bs.modal', function() {
             if (cropper) {
                 cropper.destroy();
                 cropper = null;
+            }
+            if (activeCropObjectUrl) {
+                URL.revokeObjectURL(activeCropObjectUrl);
+                activeCropObjectUrl = null;
+            }
+            if (imagesToCrop.length > 0) {
+                imagesToCrop.forEach(item => {
+                    if (item && item.objectUrl) URL.revokeObjectURL(item.objectUrl);
+                });
+                imagesToCrop = [];
+            }
+            isCurrentlyCropping = false;
+            const cropBtn = document.querySelector('#cropperModal .modal-footer .btn-primary');
+            if (cropBtn) {
+                cropBtn.disabled = false;
+                cropBtn.innerHTML = 'Crop & Upload';
             }
         });
         
