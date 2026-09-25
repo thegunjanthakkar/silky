@@ -146,7 +146,7 @@ if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true) {
                                         <input type="file" id="category-image-file" class="form-control" accept="image/*">
                                         <!-- Hidden input holds the WebP cropped path for submission to save-category.php -->
                                         <input type="hidden" name="image" id="category-image-path">
-                                        <div class="form-text text-muted">Select an image to crop in 3:4 portrait ratio. It will be automatically converted to high-performance compressed WebP.</div>
+                                        <div class="form-text text-muted">Select an image to crop in 3:4 portrait ratio (up to 50MB). It will be automatically converted to high-performance compressed WebP.</div>
 
                                         <!-- Image preview container -->
                                         <div id="category-image-preview-container" class="mt-3" style="display: none;">

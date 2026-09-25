@@ -67,7 +67,7 @@ $error_message = isset($_GET['error']) ? 'Error saving settings.' : '';
     <link rel="stylesheet" href="../assets/vendor/bootstrap-icons/bootstrap-icons.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <!-- Cropper.js -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
 
     <!-- Dark Mode State Check Script -->
     <script>
@@ -357,11 +357,9 @@ $error_message = isset($_GET['error']) ? 'Error saving settings.' : '';
                                                             $img_preview = $img_path ? '../' . $img_path : '';
                                                             ?>
                                                             <!-- Current image preview -->
-                                                            <?php if ($img_path): ?>
-                                                            <div class="mb-2">
-                                                                <img src="../<?php echo $img_path; ?>" class="img-thumbnail" style="max-height:80px;object-fit:cover" onerror="this.style.display='none'">
+                                                            <div class="mb-2 img-preview-wrap"<?php if (!$img_path) echo ' style="display:none;"'; ?>>
+                                                                <img src="<?php echo $img_path ? '../' . $img_path : ''; ?>" class="img-thumbnail" style="max-height:80px;object-fit:cover" onerror="this.style.display='none'">
                                                             </div>
-                                                            <?php endif; ?>
                                                             <input type="hidden" name="slide_image_path[]" class="slide-img-path" value="<?php echo $img_path; ?>">
                                                             <input type="hidden" name="slide_image_base64_<?php echo $slide['id']; ?>" class="slide-base64" value="">
                                                             <div class="btn-group w-100 mb-2" role="group">
@@ -369,10 +367,11 @@ $error_message = isset($_GET['error']) ? 'Error saving settings.' : '';
                                                                     <i class="bi bi-folder2-open me-1"></i>Select
                                                                 </button>
                                                                 <button type="button" class="btn btn-outline-primary btn-sm" onclick="this.closest('.col-md-4').querySelector('.upload-trigger').click()">
-                                                                    <i class="bi bi-upload me-1"></i>Upload
+                                                                    <i class="bi bi-upload me-1"></i>Upload & Crop
                                                                 </button>
                                                             </div>
                                                             <input type="file" class="upload-trigger d-none" accept="image/*" onchange="previewUpload(this)">
+                                                            <div class="form-text text-muted font-11">Recommended resolution 1920 x 1080px, Crop (16:9) & convert to WebP (up to 50MB).</div>
                                                         </div>
                                                         <div class="col-md-4">
                                                             <label class="form-label fw-semibold">Title</label>
@@ -1015,7 +1014,7 @@ $error_message = isset($_GET['error']) ? 'Error saving settings.' : '';
     <script src="assets/js/theme-manager.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
     <!-- Cropper.js -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
@@ -1361,36 +1360,51 @@ $error_message = isset($_GET['error']) ? 'Error saving settings.' : '';
         function addHeroSlideItem() {
             const id = 'new_' + Date.now();
             const html = `
-                <li class="list-group-item">
-                    <div class="d-flex align-items-center justify-content-between mb-2">
-                        <div>
-                            <i class="fas fa-grip-vertical handle"></i>
+                <li class="list-group-item py-3">
+                    <div class="d-flex align-items-center justify-content-between mb-3">
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="fas fa-grip-vertical handle text-muted"></i>
                             <strong>New Slide</strong>
                             <input type="hidden" name="slide_id[]" value="${id}">
                         </div>
-                        <button type="button" class="btn btn-danger btn-sm" onclick="this.closest('.list-group-item').remove()">Delete Slide</button>
+                        <button type="button" class="btn btn-danger btn-sm" onclick="this.closest('.list-group-item').remove()">
+                            <i class="bi bi-trash me-1"></i>Delete Slide
+                        </button>
                     </div>
-                    <div class="row">
+                    <div class="row g-3">
                         <div class="col-md-4">
-                            <label>Image Path (or upload new)</label>
-                            <input type="text" class="form-control mb-1" name="slide_image_path[]" placeholder="assets/img/hero/banner.jpg">
-                            <input type="file" class="form-control" name="slide_image_file_${id}">
+                            <label class="form-label fw-semibold">Banner Image</label>
+                            <div class="mb-2 img-preview-wrap" style="display:none;">
+                                <img src="" class="img-thumbnail" style="max-height:80px;object-fit:cover" onerror="this.style.display='none'">
+                            </div>
+                            <input type="hidden" name="slide_image_path[]" class="slide-img-path" value="">
+                            <input type="hidden" name="slide_image_base64_${id}" class="slide-base64" value="">
+                            <div class="btn-group w-100 mb-2" role="group">
+                                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="openDirectoryPicker(this)">
+                                    <i class="bi bi-folder2-open me-1"></i>Select
+                                </button>
+                                <button type="button" class="btn btn-outline-primary btn-sm" onclick="this.closest('.col-md-4').querySelector('.upload-trigger').click()">
+                                    <i class="bi bi-upload me-1"></i>Upload & Crop
+                                </button>
+                            </div>
+                            <input type="file" class="upload-trigger d-none" accept="image/*" onchange="previewUpload(this)">
+                            <div class="form-text text-muted font-11">Crop (16:9) & convert to WebP (up to 50MB).</div>
                         </div>
                         <div class="col-md-4">
-                            <label>Title</label>
-                            <input type="text" class="form-control mb-1" name="slide_title[]" placeholder="Slide Title">
-                            <label>Subtitle</label>
-                            <input type="text" class="form-control" name="slide_subtitle[]" placeholder="Slide Subtitle">
+                            <label class="form-label fw-semibold">Title</label>
+                            <input type="text" class="form-control mb-2" name="slide_title[]" placeholder="e.g. Designer Collection">
+                            <label class="form-label fw-semibold">Subtitle</label>
+                            <input type="text" class="form-control" name="slide_subtitle[]" placeholder="Short description...">
                         </div>
                         <div class="col-md-4">
-                            <label>Btn 1 Text & Link</label>
-                            <div class="d-flex mb-1">
-                                <input type="text" class="form-control me-1" name="slide_btn1_text[]" placeholder="Shop Now">
+                            <label class="form-label fw-semibold">Button 1</label>
+                            <div class="input-group mb-2">
+                                <input type="text" class="form-control" name="slide_btn1_text[]" placeholder="Shop Now">
                                 <input type="text" class="form-control" name="slide_btn1_link[]" placeholder="#products">
                             </div>
-                            <label>Btn 2 Text & Link</label>
-                            <div class="d-flex">
-                                <input type="text" class="form-control me-1" name="slide_btn2_text[]" placeholder="Explore">
+                            <label class="form-label fw-semibold">Button 2</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" name="slide_btn2_text[]" placeholder="Explore">
                                 <input type="text" class="form-control" name="slide_btn2_link[]" placeholder="#categories">
                             </div>
                         </div>
@@ -1514,9 +1528,14 @@ $error_message = isset($_GET['error']) ? 'Error saving settings.' : '';
         function selectBannerImage(path, previewSrc) {
             if (!_pickerTarget) return;
             // Set hidden input (and clear any previous base64 crop)
-            _pickerTarget.querySelector('.slide-img-path').value = path;
+            const input = _pickerTarget.querySelector('.slide-img-path');
+            if (input) input.value = path;
             const b64 = _pickerTarget.querySelector('.slide-base64');
-            if(b64) b64.value = '';
+            if (b64) b64.value = '';
+
+            // Remove any temporary WebP badge
+            const oldBadge = _pickerTarget.querySelector('.crop-webp-badge');
+            if (oldBadge) oldBadge.remove();
 
             // Show/update preview
             let wrap = _pickerTarget.querySelector('.img-preview-wrap');
@@ -1524,10 +1543,18 @@ $error_message = isset($_GET['error']) ? 'Error saving settings.' : '';
                 wrap = document.createElement('div');
                 wrap.className = 'img-preview-wrap mb-2';
                 wrap.innerHTML = '<img class="img-thumbnail" style="max-height:80px;object-fit:cover">';
-                _pickerTarget.querySelector('.slide-img-path').before(wrap);
+                if (input) {
+                    input.before(wrap);
+                } else {
+                    _pickerTarget.prepend(wrap);
+                }
             }
             wrap.style.display = '';
-            wrap.querySelector('img').src = previewSrc;
+            const previewImg = wrap.querySelector('img');
+            if (previewImg) {
+                previewImg.src = previewSrc;
+                previewImg.style.display = '';
+            }
             // Highlight selected
             document.querySelectorAll('.picker-card').forEach(c => c.classList.remove('border-primary', 'border-2'));
             event.currentTarget.querySelector('.picker-card')?.classList.add('border-primary','border-2');
@@ -1535,67 +1562,231 @@ $error_message = isset($_GET['error']) ? 'Error saving settings.' : '';
             bootstrap.Modal.getInstance(document.getElementById('heroBannerModal')).hide();
         }
 
-        // ── Cropper ──────────────────────────────────────────
+        // ── Cropper & WebP Conversion ─────────────────────────
         let _cropTarget = null;
         let _cropper = null;
+        let _activeCropObjectUrl = null;
+        let _selectedCropFileName = '';
 
         function previewUpload(input) {
             if (!input.files || !input.files[0]) return;
+            const file = input.files[0];
+
+            // 50MB safety limit
+            const maxBytes = 50 * 1024 * 1024;
+            if (file.size > maxBytes) {
+                alert('Image is too large. Maximum 50 MB allowed.');
+                input.value = '';
+                return;
+            }
+
             _cropTarget = input.closest('.col-md-4');
-            
-            const reader = new FileReader();
-            reader.onload = e => {
-                const img = document.getElementById('cropImageToCrop');
-                img.onload = () => {
-                    const modal = new bootstrap.Modal(document.getElementById('cropModal'));
-                    modal.show();
-                };
-                img.src = e.target.result;
-                input.value = ''; // clear input so same file can trigger change again
-            };
-            reader.readAsDataURL(input.files[0]);
+            _selectedCropFileName = file.name || ('hero_' + Date.now());
+
+            if (_activeCropObjectUrl) {
+                URL.revokeObjectURL(_activeCropObjectUrl);
+                _activeCropObjectUrl = null;
+            }
+            _activeCropObjectUrl = URL.createObjectURL(file);
+
+            const cropModalEl = document.getElementById('cropModal');
+            const cropModal = bootstrap.Modal.getOrCreateInstance(cropModalEl);
+            const cropImg = document.getElementById('cropImageToCrop');
+
+            function onShown() {
+                cropModalEl.removeEventListener('shown.bs.modal', onShown);
+                if (_cropper) {
+                    _cropper.destroy();
+                    _cropper = null;
+                }
+                _cropper = new Cropper(cropImg, {
+                    aspectRatio: 16 / 9,
+                    viewMode: 1,
+                    autoCropArea: 1,
+                    responsive: true,
+                    restore: false,
+                    guides: true,
+                    center: true,
+                    highlight: false,
+                    cropBoxMovable: true,
+                    cropBoxResizable: true,
+                    toggleDragModeOnDblclick: false
+                });
+            }
+
+            cropModalEl.addEventListener('shown.bs.modal', onShown);
+            cropImg.src = _activeCropObjectUrl;
+            cropModal.show();
+
+            // Clear input so same file selection triggers change event if chosen again
+            input.value = '';
         }
 
         document.addEventListener('DOMContentLoaded', function() {
             const cropModalEl = document.getElementById('cropModal');
             if (cropModalEl) {
-                cropModalEl.addEventListener('shown.bs.modal', function () {
-                    if (_cropper) _cropper.destroy();
-                    _cropper = new Cropper(document.getElementById('cropImageToCrop'), {
-                        aspectRatio: 16 / 9,
-                        viewMode: 1,
-                        autoCropArea: 0.7, // Start with a smaller crop box (70%) so handles are obvious
-                        dragMode: 'move', // Allows dragging the image around easily
-                        cropBoxMovable: true,
-                        cropBoxResizable: true,
-                        background: true
-                    });
+                cropModalEl.addEventListener('hidden.bs.modal', function () {
+                    if (_cropper) {
+                        _cropper.destroy();
+                        _cropper = null;
+                    }
+                    if (_activeCropObjectUrl) {
+                        URL.revokeObjectURL(_activeCropObjectUrl);
+                        _activeCropObjectUrl = null;
+                    }
                 });
             }
         });
 
-        function performCrop() {
+        async function performCrop() {
             if (!_cropper || !_cropTarget) return;
-            const canvas = _cropper.getCroppedCanvas({ width: 1920, height: 1080 });
-            const b64 = canvas.toDataURL('image/jpeg', 0.85);
 
-            // Update hidden inputs (clear path, set base64)
-            _cropTarget.querySelector('.slide-img-path').value = '';
-            const b64Input = _cropTarget.querySelector('.slide-base64');
-            if(b64Input) b64Input.value = b64;
-
-            // Show/update preview
-            let wrap = _cropTarget.querySelector('.img-preview-wrap');
-            if (!wrap) {
-                wrap = document.createElement('div');
-                wrap.className = 'img-preview-wrap mb-2';
-                wrap.innerHTML = '<img class="img-thumbnail" style="max-height:80px;object-fit:cover">';
-                _cropTarget.querySelector('.slide-img-path').before(wrap);
+            const cropBtn = document.getElementById('btn-crop-upload');
+            const originalBtnHtml = cropBtn ? cropBtn.innerHTML : '<i class="bi bi-check-lg me-1"></i>Crop & Convert to WebP';
+            if (cropBtn) {
+                cropBtn.disabled = true;
+                cropBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Converting to WebP...';
             }
-            wrap.style.display = '';
-            wrap.querySelector('img').src = b64;
 
-            bootstrap.Modal.getInstance(document.getElementById('cropModal')).hide();
+            // Export high-resolution 16:9 canvas (1920x1080)
+            const canvas = _cropper.getCroppedCanvas({
+                width: 1920,
+                height: 1080,
+                imageSmoothingEnabled: true,
+                imageSmoothingQuality: 'high'
+            });
+
+            if (!canvas) {
+                if (cropBtn) {
+                    cropBtn.disabled = false;
+                    cropBtn.innerHTML = originalBtnHtml;
+                }
+                alert('Could not generate cropped canvas.');
+                return;
+            }
+
+            canvas.toBlob(async (blob) => {
+                if (!blob) {
+                    if (cropBtn) {
+                        cropBtn.disabled = false;
+                        cropBtn.innerHTML = originalBtnHtml;
+                    }
+                    alert('Error creating WebP image. Please try again.');
+                    return;
+                }
+
+                const formData = new FormData();
+                let baseName = 'hero_' + Date.now();
+                if (_selectedCropFileName) {
+                    baseName = _selectedCropFileName.replace(/\.[^/.]+$/, '').replace(/[^a-zA-Z0-9_-]/g, '_');
+                }
+                const filename = baseName + '.webp';
+
+                formData.append('image', blob, filename);
+                formData.append('type', 'hero');
+
+                try {
+                    const response = await fetch('upload-image.php', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    const data = await response.json();
+
+                    if (data.success) {
+                        const pathInput = _cropTarget.querySelector('.slide-img-path');
+                        if (pathInput) pathInput.value = data.path;
+
+                        // Clear base64 since file is successfully uploaded and saved as WebP directly
+                        const b64Input = _cropTarget.querySelector('.slide-base64');
+                        if (b64Input) b64Input.value = '';
+
+                        // Show/update preview
+                        let wrap = _cropTarget.querySelector('.img-preview-wrap');
+                        if (!wrap) {
+                            wrap = document.createElement('div');
+                            wrap.className = 'img-preview-wrap mb-2';
+                            wrap.innerHTML = '<img class="img-thumbnail" style="max-height:80px;object-fit:cover">';
+                            if (pathInput) {
+                                pathInput.before(wrap);
+                            } else {
+                                _cropTarget.prepend(wrap);
+                            }
+                        }
+                        wrap.style.display = '';
+                        const previewImg = wrap.querySelector('img');
+                        if (previewImg) {
+                            previewImg.src = '../' + data.path + '?t=' + Date.now();
+                            previewImg.style.display = '';
+                        }
+
+                        // Badge indicator
+                        let badge = _cropTarget.querySelector('.crop-webp-badge');
+                        if (!badge) {
+                            badge = document.createElement('div');
+                            badge.className = 'crop-webp-badge mb-2';
+                            wrap.after(badge);
+                        }
+                        badge.innerHTML = '<span class="badge bg-success-subtle text-success"><i class="bi bi-check-circle me-1"></i>WebP Image Ready (' + (data.filename || filename) + ')</span>';
+
+                        const cropModal = bootstrap.Modal.getInstance(document.getElementById('cropModal'));
+                        if (cropModal) cropModal.hide();
+                    } else {
+                        // Fallback: convert to WebP base64 so save-website.php can save it on form submit
+                        const webpB64 = canvas.toDataURL('image/webp', 0.88);
+                        const b64Input = _cropTarget.querySelector('.slide-base64');
+                        if (b64Input) b64Input.value = webpB64;
+                        const pathInput = _cropTarget.querySelector('.slide-img-path');
+                        if (pathInput) pathInput.value = '';
+
+                        let wrap = _cropTarget.querySelector('.img-preview-wrap');
+                        if (!wrap) {
+                            wrap = document.createElement('div');
+                            wrap.className = 'img-preview-wrap mb-2';
+                            wrap.innerHTML = '<img class="img-thumbnail" style="max-height:80px;object-fit:cover">';
+                            if (pathInput) pathInput.before(wrap);
+                        }
+                        wrap.style.display = '';
+                        const previewImg = wrap.querySelector('img');
+                        if (previewImg) {
+                            previewImg.src = webpB64;
+                            previewImg.style.display = '';
+                        }
+
+                        const cropModal = bootstrap.Modal.getInstance(document.getElementById('cropModal'));
+                        if (cropModal) cropModal.hide();
+                    }
+                } catch (error) {
+                    console.error('Upload error:', error);
+                    // Fallback to WebP base64 so save-website.php can process it
+                    const webpB64 = canvas.toDataURL('image/webp', 0.88);
+                    const b64Input = _cropTarget.querySelector('.slide-base64');
+                    if (b64Input) b64Input.value = webpB64;
+                    const pathInput = _cropTarget.querySelector('.slide-img-path');
+                    if (pathInput) pathInput.value = '';
+
+                    let wrap = _cropTarget.querySelector('.img-preview-wrap');
+                    if (!wrap) {
+                        wrap = document.createElement('div');
+                        wrap.className = 'img-preview-wrap mb-2';
+                        wrap.innerHTML = '<img class="img-thumbnail" style="max-height:80px;object-fit:cover">';
+                        if (pathInput) pathInput.before(wrap);
+                    }
+                    wrap.style.display = '';
+                    const previewImg = wrap.querySelector('img');
+                    if (previewImg) {
+                        previewImg.src = webpB64;
+                        previewImg.style.display = '';
+                    }
+
+                    const cropModal = bootstrap.Modal.getInstance(document.getElementById('cropModal'));
+                    if (cropModal) cropModal.hide();
+                } finally {
+                    if (cropBtn) {
+                        cropBtn.disabled = false;
+                        cropBtn.innerHTML = originalBtnHtml;
+                    }
+                }
+            }, 'image/webp', 0.88);
         }
     </script>
 
@@ -1623,20 +1814,25 @@ $error_message = isset($_GET['error']) ? 'Error saving settings.' : '';
 
     <!-- Crop Modal -->
     <div class="modal fade" id="cropModal" tabindex="-1" data-bs-backdrop="static">
-        <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-dialog modal-xl modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">Crop Image (16:9)</h5>
+                    <h5 class="modal-title" id="cropModalTitle"><i class="bi bi-crop me-2"></i>Crop Hero Banner (16:9)</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <div class="modal-body text-center bg-light">
-                    <div style="height: 50vh; width: 100%;">
-                        <img id="cropImageToCrop" style="max-width: 100%; max-height: 100%; display:block; margin: 0 auto;">
+                <div class="modal-body p-0 bg-dark text-center">
+                    <div style="height: 60vh; width: 100%; display: flex; align-items: center; justify-content: center; overflow: hidden;">
+                        <img id="cropImageToCrop" style="max-width: 100%; max-height: 100%; display:block; margin: 0 auto;" alt="Crop Image">
                     </div>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="button" class="btn btn-primary" onclick="performCrop()">Apply Crop & Use Image</button>
+                <div class="modal-footer d-flex justify-content-between">
+                    <span class="text-muted small"><i class="bi bi-info-circle me-1"></i>Ratio fixed at 16:9. Image is automatically converted to WebP format.</span>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-primary" id="btn-crop-upload" onclick="performCrop()">
+                            <i class="bi bi-check-lg me-1"></i>Crop & Convert to WebP
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>

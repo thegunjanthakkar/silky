@@ -3,7 +3,7 @@ session_start();
 require_once '../db_config.php';
 
 // Check if user is logged in
-if (!isset($_SESSION['admin_user_id']) && !isset($_SESSION['user_id'])) {
+if (!isset($_SESSION['admin_user_id']) && !isset($_SESSION['user_id']) && (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true)) {
     http_response_code(403);
     echo json_encode(["success" => false, "message" => "Please login first"]);
     exit;
@@ -21,9 +21,17 @@ if (!isset($_FILES['image']) || $_FILES['image']['error'] !== UPLOAD_ERR_OK) {
     exit;
 }
 
-$type = $_POST['type'] ?? 'product'; // 'product', 'category', or 'addon'
-$folderName = ($type === 'category') ? 'categories' : $type . 's';
-$uploadDir = __DIR__ . '/../uploads/' . $folderName . '/';
+$type = $_POST['type'] ?? 'product'; // 'product', 'category', 'addon', or 'hero'
+if ($type === 'hero') {
+    $uploadDir = dirname(__DIR__) . '/assets/img/hero/';
+    $folderName = 'hero';
+} elseif ($type === 'category') {
+    $folderName = 'categories';
+    $uploadDir = __DIR__ . '/../uploads/' . $folderName . '/';
+} else {
+    $folderName = ($type === 'addon') ? 'addons' : $type . 's';
+    $uploadDir = __DIR__ . '/../uploads/' . $folderName . '/';
+}
 
 // Create directory if it doesn't exist
 if (!is_dir($uploadDir)) {
@@ -59,12 +67,18 @@ if ($mime === 'image/webp' || $ext === 'webp') {
     ];
     $ext = $mimeMap[$mime] ?? 'webp';
 }
-$filename = time() . '_' . bin2hex(random_bytes(6)) . '.' . $ext;
+$prefix = ($type === 'hero') ? 'hero_' : '';
+$filename = time() . '_' . $prefix . bin2hex(random_bytes(6)) . '.' . $ext;
 $destPath = $uploadDir . $filename;
 
 if (move_uploaded_file($_FILES['image']['tmp_name'], $destPath)) {
-    $relativePath = './uploads/' . $folderName . '/' . $filename;
-    $fullUrl = str_replace('./', '/', $relativePath);
+    if ($type === 'hero') {
+        $relativePath = 'assets/img/hero/' . $filename;
+        $fullUrl = '/' . $relativePath;
+    } else {
+        $relativePath = './uploads/' . $folderName . '/' . $filename;
+        $fullUrl = str_replace('./', '/', $relativePath);
+    }
     
     echo json_encode([
         "success" => true, 

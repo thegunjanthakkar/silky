@@ -332,6 +332,16 @@ if (!empty($product['addon_products'])) {
         #cropperModal .modal-footer {
             padding: 10px 16px;
         }
+
+        /* Product Gallery Picker Styles */
+        .picker-card {
+            cursor: pointer;
+            transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+        }
+        .picker-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
     </style>
     <script>
         // Variant generation logic
@@ -1166,6 +1176,34 @@ if (!empty($product['addon_products'])) {
         </div>
     </div>
 
+    <!-- Product Media Gallery Picker Modal -->
+    <div class="modal fade" id="productMediaModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-folder2-open me-2"></i>Select Product Image from Gallery</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                        <p class="text-muted small mb-0">Images from <code>uploads/products/</code> — click any image to add it to this product (Max 6 images).</p>
+                        <div class="input-group input-group-sm" style="max-width: 260px;">
+                            <span class="input-group-text"><i class="bi bi-search"></i></span>
+                            <input type="text" class="form-control" id="productMediaSearch" placeholder="Search images..." oninput="filterProductMediaGrid(this.value)">
+                        </div>
+                    </div>
+                    <div class="row g-2" id="productMediaGrid">
+                        <!-- Loaded via AJAX -->
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <small class="text-muted me-auto" id="productMediaCountInfo"></small>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
                     <div class="col-lg-4">
                         <!-- Product Images Card -->
                         <div class="card">
@@ -1199,6 +1237,12 @@ if (!empty($product['addon_products'])) {
                                 <?php endif; ?>
 
                                 <!-- Image Upload Section -->
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <span class="text-muted small">Upload new or select existing from server:</span>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="openProductMediaModal()">
+                                        <i class="bi bi-images me-1"></i>Reuse Existing Image
+                                    </button>
+                                </div>
                                 <div id="uppy-product-images"></div>
                                 
                                 <!-- New Images Preview -->
@@ -1862,6 +1906,22 @@ if (!empty($product['addon_products'])) {
         // Handle image uploads
         // imagesToCrop stores pre-created ObjectURLs so Uppy removeFile() cannot revoke the blob data
         uppyImages.on('files-added', (files) => {
+            const catSelect = document.getElementById('category_id');
+            const nameInput = document.getElementById('name');
+            const catVal = catSelect ? catSelect.value : '';
+            const nameVal = nameInput ? nameInput.value.trim() : '';
+
+            if (!nameVal || !catVal) {
+                alert('Please enter the Product Name and select a Category before uploading images.');
+                if (!nameVal && nameInput) {
+                    nameInput.focus();
+                } else if (!catVal && catSelect) {
+                    catSelect.focus();
+                }
+                files.forEach(file => uppyImages.removeFile(file.id));
+                return;
+            }
+
             // Count only ACTIVE images (not removed) to allow re-upload after removal
             const activeCount = uploadedImages.filter(img => !removedImages.includes(img)).length;
             const totalImages = activeCount + files.length;
@@ -1997,16 +2057,30 @@ if (!empty($product['addon_products'])) {
                 }
 
                 const formData = new FormData();
-                let baseName = 'product_' + Date.now();
                 if (isAddon) {
-                    baseName = 'addon_' + Date.now();
-                } else if (selectedFile && selectedFile.name) {
-                    baseName = selectedFile.name.replace(/\.[^/.]+$/, '').replace(/[^a-zA-Z0-9_-]/g, '_');
-                }
-                const filename = baseName + '.webp';
+                    formData.append('type', 'addon');
+                    const baseName = 'addon_' + Date.now();
+                    formData.append('image', blob, baseName + '.webp');
+                } else {
+                    formData.append('type', 'product');
 
-                formData.append('image', blob, filename);
-                formData.append('type', isAddon ? 'addon' : 'product');
+                    const catSelect = document.getElementById('category_id');
+                    const catName = (catSelect && catSelect.selectedIndex > 0) ? catSelect.options[catSelect.selectedIndex].text.trim() : '';
+                    const catId = catSelect ? catSelect.value : '';
+
+                    const nameInput = document.getElementById('name');
+                    const prodName = nameInput ? nameInput.value.trim() : '';
+
+                    if (catName) formData.append('category_name', catName);
+                    if (catId) formData.append('category_id', catId);
+                    if (prodName) formData.append('product_name', prodName);
+
+                    const cleanCat = catName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'product';
+                    const cleanProd = prodName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || (selectedFile && selectedFile.name ? selectedFile.name.replace(/\.[^/.]+$/, '').replace(/[^a-zA-Z0-9_-]/g, '_') : 'item');
+                    const filename = `${cleanCat}_${cleanProd}.webp`;
+
+                    formData.append('image', blob, filename);
+                }
 
                 try {
                     const response = await fetch('upload-image.php', { method: 'POST', body: formData });
@@ -2127,6 +2201,108 @@ if (!empty($product['addon_products'])) {
                 }
                 updateImagesInput();
                 document.getElementById('removed_images').value = JSON.stringify(removedImages);
+            }
+        }
+
+        // ── Product Media Gallery Picker ─────────────────────────────
+        let _allProductGalleryImages = [];
+
+        function openProductMediaModal() {
+            const modalEl = document.getElementById('productMediaModal');
+            const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+            const grid = document.getElementById('productMediaGrid');
+            const searchInput = document.getElementById('productMediaSearch');
+            if (searchInput) searchInput.value = '';
+            
+            grid.innerHTML = '<div class="col-12 text-center py-5"><div class="spinner-border text-primary"></div><p class="mt-2 text-muted">Loading product images...</p></div>';
+            modal.show();
+
+            fetch('get-hero-banners.php?type=products')
+                .then(r => r.json())
+                .then(images => {
+                    _allProductGalleryImages = Array.isArray(images) ? images : [];
+                    renderProductMediaGrid(_allProductGalleryImages);
+                })
+                .catch(err => {
+                    console.error('Gallery load error:', err);
+                    grid.innerHTML = '<div class="col-12 text-center text-danger py-4"><i class="bi bi-exclamation-triangle me-1"></i>Error loading images from gallery.</div>';
+                });
+        }
+
+        function filterProductMediaGrid(query) {
+            query = (query || '').toLowerCase().trim();
+            if (!query) {
+                renderProductMediaGrid(_allProductGalleryImages);
+                return;
+            }
+            const filtered = _allProductGalleryImages.filter(img => img.name.toLowerCase().includes(query));
+            renderProductMediaGrid(filtered);
+        }
+
+        function renderProductMediaGrid(images) {
+            const grid = document.getElementById('productMediaGrid');
+            const countInfo = document.getElementById('productMediaCountInfo');
+            if (countInfo) countInfo.textContent = `Showing ${images.length} image(s)`;
+
+            if (!images.length) {
+                grid.innerHTML = '<div class="col-12 text-center py-5 text-muted"><i class="bi bi-images" style="font-size:2.5rem"></i><p class="mt-2">No product images found in <code>uploads/products/</code>.</p></div>';
+                return;
+            }
+
+            grid.innerHTML = images.map(img => {
+                const isSelected = uploadedImages.includes(img.path) && !removedImages.includes(img.path);
+                const displaySrc = resolveAdminImgJs(img.path);
+                return `
+                    <div class="col-4 col-sm-3 col-md-2 col-lg-2">
+                        <div class="card h-100 border picker-card position-relative ${isSelected ? 'border-success border-2 shadow-sm' : ''}" 
+                             style="cursor:pointer;" 
+                             onclick="selectProductGalleryImage('${img.path}')" 
+                             title="${img.name}">
+                            ${isSelected ? '<span class="badge bg-success position-absolute top-0 end-0 m-1"><i class="bi bi-check-lg"></i> Added</span>' : ''}
+                            <img src="${displaySrc}" class="card-img-top" style="height:110px;object-fit:cover" onerror="this.onerror=null; this.src='assets/images/products/default.png';">
+                            <div class="card-body p-1 text-center bg-light">
+                                <small class="text-muted d-block text-truncate" style="font-size:10px" title="${img.name}">${img.name}</small>
+                                <small class="text-muted" style="font-size:10px">${img.size}</small>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function selectProductGalleryImage(path) {
+            // Check active status
+            if (uploadedImages.includes(path) && !removedImages.includes(path)) {
+                alert('This image is already added to this product.');
+                return;
+            }
+
+            const activeCount = uploadedImages.filter(img => !removedImages.includes(img)).length;
+            if (activeCount >= 6) {
+                alert('Maximum 6 images allowed per product. Please remove an existing image first.');
+                return;
+            }
+
+            if (removedImages.includes(path)) {
+                const rIdx = removedImages.indexOf(path);
+                if (rIdx > -1) removedImages.splice(rIdx, 1);
+                document.getElementById('removed_images').value = JSON.stringify(removedImages);
+            } else {
+                uploadedImages.push(path);
+            }
+
+            updateImagesDisplay();
+            updateImagesInput();
+
+            // Refresh grid so card reflects added state
+            const searchInput = document.getElementById('productMediaSearch');
+            filterProductMediaGrid(searchInput ? searchInput.value : '');
+
+            const newActiveCount = uploadedImages.filter(img => !removedImages.includes(img)).length;
+            if (newActiveCount >= 6) {
+                alert('Maximum 6 images reached.');
+                const modal = bootstrap.Modal.getInstance(document.getElementById('productMediaModal'));
+                if (modal) modal.hide();
             }
         }
 

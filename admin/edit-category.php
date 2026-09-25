@@ -202,7 +202,7 @@ $category = mysqli_fetch_assoc($result);
                                         <input type="file" class="form-control" id="category-image-file" accept="image/*">
                                         <!-- Hidden input holds the current or newly cropped WebP image path -->
                                         <input type="hidden" name="image" id="category-image-path" value="<?php echo htmlspecialchars($category['image'] ?? ''); ?>">
-                                        <div class="form-text text-muted">Select an image to crop in 3:4 portrait ratio. It will be automatically converted to high-performance compressed WebP.</div>
+                                        <div class="form-text text-muted">Select an image to crop in 3:4 portrait ratio (up to 50MB). It will be automatically converted to high-performance compressed WebP.</div>
 
                                         <!-- New cropped preview container -->
                                         <div id="new-image-preview-container" class="mt-3" style="display: none;">

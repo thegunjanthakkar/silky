@@ -104,9 +104,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         }
         
         // Validate image
-        $maxSize = 1.5 * 1024 * 1024; // 1.5MB
+        $maxSize = 50 * 1024 * 1024; // 50MB
         if ($_FILES['image']['size'] > $maxSize) {
-            $_SESSION['error'] = 'Image too large. Maximum 1.5MB allowed.';
+            $_SESSION['error'] = 'Image too large. Maximum 50MB allowed.';
             header('Location: edit-category.php?id=' . $category_id);
             exit;
         }
