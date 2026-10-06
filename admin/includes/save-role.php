@@ -1,6 +1,8 @@
 <?php
 // Simple version with exception handling
 session_start();
+require_once 'permission-manager.php';
+checkPageAccess();
 require_once '../../db_config.php';
 
 // Enable MySQLi exceptions for cleaner error handling

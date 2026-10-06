@@ -5,9 +5,10 @@ require_once 'includes/permission-manager.php';
 if (!isset($conn)) {
     require_once '../db_config.php';
 }
-// Permission check
+// Permission check - redirect to dashboard (not access-denied) if not allowed
 if (!hasPermission('user_roles')) {
-    header('Location: access-denied.php');
+    $_SESSION['perm_notice'] = 'You do not have access to User Roles.';
+    header('Location: index.php');
     exit();
 }
 // Fetch roles
@@ -31,8 +32,11 @@ try {
 } catch (Throwable $e) {
     // Optional logging: error_log($e->getMessage());
 }
-// Helper to format permission name
+// Helper to format permission name (matches leftbar menu names via permission-manager)
 function formatPermissionLabel($p) {
+    if (function_exists('permissionLabel')) {
+        return permissionLabel($p);
+    }
     return ucwords(str_replace(['_', '-'], ' ', $p));
 }
 // Map permission to badge color classes
@@ -44,20 +48,18 @@ function permissionBadgeClass($perm) {
     $productKeys = ['products_view','product_add','product_edit','product_delete','stock_management','categories_view','category_add','category_edit'];
     if (in_array($perm, $productKeys, true)) return ['bg-success-subtle','text-success'];
     // Customer related
-    $customerKeys = ['customers_view','manage_profiles'];
+    $customerKeys = ['customers_view'];
     if (in_array($perm, $customerKeys, true)) return ['bg-warning-subtle','text-warning'];
-    // Order / returns
-    $orderKeys = ['orders_view','returns_refunds'];
+    // Order related
+    $orderKeys = ['orders_view'];
     if (in_array($perm, $orderKeys, true)) return ['bg-danger-subtle','text-danger'];
     // Settings
-    $settingsKeys = ['general_settings','payment_settings','shipping_settings','email_settings'];
+    $settingsKeys = ['general_settings','payment_settings','email_settings'];
     if (in_array($perm, $settingsKeys, true)) return ['bg-primary-subtle','text-primary'];
     // Marketing / content
-    $marketingKeys = ['edit_homepage','coupons_discounts','blogs_manage','reviews_manage'];
+    $marketingKeys = ['edit_homepage','coupons_discounts','reviews_manage'];
     if (in_array($perm, $marketingKeys, true)) return ['bg-secondary-subtle','text-secondary'];
-    // Support
-    if ($perm === 'support_access') return ['bg-info-subtle','text-info'];
-    // Fallback
+    // Fallback (includes legacy stored permissions no longer offered)
     return ['bg-primary-subtle','text-primary'];
 }
 ?>
@@ -415,9 +417,9 @@ function permissionBadgeClass($perm) {
         }
 
         function deleteRole(roleId) {
-            if (confirm('Are you sure you want to delete this role? This action cannot be undone.')) {
+            themeConfirm('Are you sure you want to delete this role? This action cannot be undone.', function() {
                 window.location.href = 'delete-role.php?id=' + roleId;
-            }
+            });
         }
     </script>
 
