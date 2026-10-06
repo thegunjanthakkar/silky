@@ -574,4 +574,116 @@ function refreshSessionPermissions() {
 // Auto-refresh once per request so role edits take effect immediately
 // without forcing users to log out and back in.
 refreshSessionPermissions();
+
+/**
+ * Creator-based user management helpers.
+ * admin_users.created_by stores the id of the admin who created the user.
+ * Rule: normal users manageable by their creator OR the Admin role;
+ * Admin-role users manageable only by the Admin role; self never.
+ */
+if (!function_exists('ensureCreatedByColumn')) {
+    function ensureCreatedByColumn() {
+        try {
+            global $conn;
+            if (!isset($conn) || !$conn) {
+                $cfg = __DIR__ . '/../../db_config.php';
+                if (file_exists($cfg)) {
+                    require_once $cfg;
+                }
+            }
+            if (!isset($conn) || !$conn) {
+                return;
+            }
+            $col = @mysqli_query($conn, "SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'admin_users' AND COLUMN_NAME = 'created_by' LIMIT 1");
+            if ($col && mysqli_num_rows($col) === 0) {
+                @mysqli_query($conn, "ALTER TABLE `admin_users` ADD COLUMN `created_by` INT NULL AFTER `role_id`");
+            }
+        } catch (Throwable $e) {
+            return;
+        }
+    }
+}
+
+if (!function_exists('isStrictAdminById')) {
+    // Strict check: does this admin user hold the role literally named "Admin"?
+    // Super Admin (and any other role) returns false here.
+    function isStrictAdminById($admin_id) {
+        try {
+            global $conn;
+            $admin_id = (int)$admin_id;
+            if ($admin_id <= 0 || !isset($conn) || !$conn) {
+                return false;
+            }
+            $res = @mysqli_query($conn, "SELECT r.role_name FROM admin_users u LEFT JOIN admin_roles r ON u.role_id = r.id WHERE u.id = $admin_id LIMIT 1");
+            if ($res && mysqli_num_rows($res) > 0) {
+                $row = mysqli_fetch_assoc($res);
+                return (strtolower(trim($row['role_name'] ?? '')) === 'admin');
+            }
+        } catch (Throwable $e) {
+            return false;
+        }
+        return false;
+    }
+}
+
+if (!function_exists('isTargetAdminRole')) {
+    // Is the target user holding a protected Admin-type role?
+    function isTargetAdminRole($role_id, $role_name) {
+        if ((int)$role_id === 1) {
+            return true;
+        }
+        return in_array(strtolower(trim((string)($role_name ?? ''))), ['admin', 'super admin', 'superadmin', 'super-admin', 'administrator'], true);
+    }
+}
+
+if (!function_exists('canManageUser')) {
+    // Central decision: can $actor_id edit/toggle/delete target user $target_id?
+    // Returns [bool $allowed, string $reason].
+    function canManageUser($actor_id, $target_id) {
+        try {
+            global $conn;
+            if (function_exists('ensureCreatedByColumn')) {
+                ensureCreatedByColumn();
+            }
+            $actor_id = (int)$actor_id;
+            $target_id = (int)$target_id;
+            if ($target_id <= 0) {
+                return [false, 'Invalid user ID.'];
+            }
+            if ($actor_id > 0 && $actor_id === $target_id) {
+                return [false, 'You cannot manage your own account.'];
+            }
+            if (!isset($conn) || !$conn) {
+                return [false, 'Database connection not available.'];
+            }
+            $res = @mysqli_query($conn, "SELECT u.role_id, u.created_by, r.role_name FROM admin_users u LEFT JOIN admin_roles r ON u.role_id = r.id WHERE u.id = $target_id LIMIT 1");
+            if (!$res) {
+                // created_by column may not exist (migration blocked) - fall back without it
+                $res = @mysqli_query($conn, "SELECT u.role_id, r.role_name FROM admin_users u LEFT JOIN admin_roles r ON u.role_id = r.id WHERE u.id = $target_id LIMIT 1");
+            }
+            if (!$res || mysqli_num_rows($res) === 0) {
+                return [false, 'User not found.'];
+            }
+            $t = mysqli_fetch_assoc($res);
+            if (isTargetAdminRole($t['role_id'] ?? 0, $t['role_name'] ?? '')) {
+                // Admin lock (unchanged): only the Admin role, never self
+                if (isStrictAdminById($actor_id)) {
+                    return [true, ''];
+                }
+                return [false, 'Only an Admin can manage another Admin user.'];
+            }
+            // Normal user: creator OR Admin role
+            $created_by = isset($t['created_by']) && $t['created_by'] !== null ? (int)$t['created_by'] : 0;
+            if ($actor_id > 0 && $created_by > 0 && $created_by === $actor_id) {
+                return [true, ''];
+            }
+            if (isStrictAdminById($actor_id)) {
+                return [true, ''];
+            }
+            return [false, 'Only the creator or an Admin can manage this user.'];
+        } catch (Throwable $e) {
+            return [false, 'Operation failed. Please try again.'];
+        }
+    }
+}
 ?>

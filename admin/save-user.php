@@ -7,6 +7,9 @@ if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true) {
 require_once 'includes/permission-manager.php';
 checkPageAccess();
 require_once '../db_config.php';
+if (function_exists('ensureCreatedByColumn')) {
+    ensureCreatedByColumn();
+}
 require_once './PHPmailer/src/PHPMailer.php';
 require_once './PHPmailer/src/SMTP.php';
 require_once './PHPmailer/src/Exception.php';
@@ -68,15 +71,33 @@ if ($action === 'update' && $id > 0) {
     $random_password = generateRandomPassword(8);
     $hashed_password = password_hash($random_password, PASSWORD_DEFAULT);
 
+    // Record who created this user (creator-based management: creator OR Admin)
+    $__creator_id = (int)($_SESSION['admin_user_id'] ?? $_SESSION['user_id'] ?? $_SESSION['admin_id'] ?? $_SESSION['id'] ?? 0);
+    $__cb_col = @mysqli_query($conn, "SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'admin_users' AND COLUMN_NAME = 'created_by' LIMIT 1");
+    $__has_cb_col = ($__cb_col && mysqli_num_rows($__cb_col) > 0);
+    $__cb_value = ($__creator_id > 0) ? $__creator_id : 'NULL';
+
     // Insert user
-    $sql = "INSERT INTO admin_users (email, first_name, last_name, phone, status, role_id, password, created_at) VALUES ('" .
-        mysqli_real_escape_string($conn, $email) . "', '" .
-        mysqli_real_escape_string($conn, $first_name) . "', '" .
-        mysqli_real_escape_string($conn, $last_name) . "', '" .
-        mysqli_real_escape_string($conn, $phone) . "', '" .
-        mysqli_real_escape_string($conn, $status) . "', '" .
-        mysqli_real_escape_string($conn, $role_id) . "', '" .
-        mysqli_real_escape_string($conn, $hashed_password) . "', NOW())";
+    if ($__has_cb_col) {
+        $sql = "INSERT INTO admin_users (email, first_name, last_name, phone, status, role_id, password, created_by, created_at) VALUES ('" .
+            mysqli_real_escape_string($conn, $email) . "', '" .
+            mysqli_real_escape_string($conn, $first_name) . "', '" .
+            mysqli_real_escape_string($conn, $last_name) . "', '" .
+            mysqli_real_escape_string($conn, $phone) . "', '" .
+            mysqli_real_escape_string($conn, $status) . "', '" .
+            mysqli_real_escape_string($conn, $role_id) . "', '" .
+            mysqli_real_escape_string($conn, $hashed_password) . "', " .
+            ($__cb_value === 'NULL' ? "NULL" : (int)$__cb_value) . ", NOW())";
+    } else {
+        $sql = "INSERT INTO admin_users (email, first_name, last_name, phone, status, role_id, password, created_at) VALUES ('" .
+            mysqli_real_escape_string($conn, $email) . "', '" .
+            mysqli_real_escape_string($conn, $first_name) . "', '" .
+            mysqli_real_escape_string($conn, $last_name) . "', '" .
+            mysqli_real_escape_string($conn, $phone) . "', '" .
+            mysqli_real_escape_string($conn, $status) . "', '" .
+            mysqli_real_escape_string($conn, $role_id) . "', '" .
+            mysqli_real_escape_string($conn, $hashed_password) . "', NOW())";
+    }
         
     if (mysqli_query($conn, $sql)) {
         // Send password via email
