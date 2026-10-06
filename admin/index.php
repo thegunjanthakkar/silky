@@ -24,6 +24,18 @@ if ($activity_result) {
     }
 }
 
+// Recent activity logs (shown alongside login activities in the Activity card)
+$recent_logs = [];
+$can_view_logs = function_exists('hasPermission') ? hasPermission('activity_logs') : true;
+if ($can_view_logs) {
+    $logs_result = @mysqli_query($conn, "SELECT user_name, role_name, action, module, description, created_at FROM activity_logs ORDER BY id DESC LIMIT 8");
+    if ($logs_result) {
+        while ($lr = mysqli_fetch_assoc($logs_result)) {
+            $recent_logs[] = $lr;
+        }
+    }
+}
+
 // Get Total Orders
 $orders_query = "SELECT COUNT(*) as total_orders FROM orders";
 $orders_result = mysqli_query($conn, $orders_query);
@@ -267,24 +279,52 @@ if ($recent_orders_result) {
                                         <h4 class="card-title">Activity</h4>
                                     </div><!--end col-->
                                     <div class="col-auto">
-                                        <div class="dropdown">
-                                            <a href="#" class="btn btn-sm btn-outline-light dropdown-toggle"
-                                                data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                                                All<i class="las la-angle-down ms-1"></i>
-                                            </a>
-                                            <div class="dropdown-menu dropdown-menu-end">
-                                                <a class="dropdown-item" href="#">Purchases</a>
-                                                <a class="dropdown-item" href="#">Emails</a>
-                                            </div>
-                                        </div>
+                                        <?php if (function_exists('hasPermission') ? hasPermission('activity_logs') : true): ?>
+                                        <a href="activity-logs.php" class="btn btn-sm btn-outline-primary">View All<i class="las la-arrow-right ms-1"></i></a>
+                                        <?php endif; ?>
                                     </div><!--end col-->
                                 </div> <!--end row-->
                             </div><!--end card-header-->
                             <div class="card-body">
                                 <div class="analytic-dash-activity" data-simplebar style="height:320px">
                                     <div class="activity">
-                                        <?php if (!empty($recent_activities)): ?>
-                                            <?php foreach ($recent_activities as $activity): ?>
+                                        <?php
+                                        // Merge login activities + activity logs into one timeline (newest first)
+                                        $__feed = [];
+                                        foreach ($recent_activities as $a) {
+                                            $__feed[] = ['kind' => 'login', 'time' => $a['last_login'] ?? '', 'data' => $a];
+                                        }
+                                        foreach ($recent_logs as $l) {
+                                            $__feed[] = ['kind' => 'log', 'time' => $l['created_at'] ?? '', 'data' => $l];
+                                        }
+                                        usort($__feed, function ($x, $y) {
+                                            return strtotime($y['time'] ?? '') - strtotime($x['time'] ?? '');
+                                        });
+                                        $__feed = array_slice($__feed, 0, 10);
+                                        $__time_ago = function ($t) {
+                                            $ts = strtotime((string)$t);
+                                            if (!$ts) return 'Just now';
+                                            $diff = time() - $ts;
+                                            if ($diff < 0) $diff = 0;
+                                            if ($diff < 60) return 'Just now';
+                                            if ($diff < 3600) return floor($diff / 60) . ' min ago';
+                                            if ($diff < 86400) return floor($diff / 3600) . ' hours ago';
+                                            return floor($diff / 86400) . ' days ago';
+                                        };
+                                        $__log_icon = function ($action) {
+                                            switch (strtolower((string)$action)) {
+                                                case 'login':  return 'las la-sign-in-alt bg-success-subtle text-success';
+                                                case 'logout': return 'las la-sign-out-alt bg-secondary-subtle text-secondary';
+                                                case 'create': return 'las la-plus bg-primary-subtle text-primary';
+                                                case 'update': return 'las la-edit bg-info-subtle text-info';
+                                                case 'delete': return 'las la-trash bg-danger-subtle text-danger';
+                                                default:       return 'las la-clock bg-warning-subtle text-warning';
+                                            }
+                                        };
+                                        ?>
+                                        <?php if (!empty($__feed)): ?>
+                                            <?php foreach ($__feed as $item): ?>
+                                                <?php if ($item['kind'] === 'login'): $activity = $item['data']; ?>
                                                 <div class="activity-info">
                                                     <div class="icon-info-activity">
                                                         <i class="las la-sign-in-alt bg-success-subtle text-success"></i>
@@ -293,27 +333,31 @@ if ($recent_orders_result) {
                                                         <div class="d-flex justify-content-between align-items-center">
                                                             <p class="text-muted mb-0 fs-13 w-75">
                                                                 <span><?php echo htmlspecialchars($activity['first_name'] . ' ' . $activity['last_name']); ?></span>
-                                                                logged into the system as 
+                                                                logged into the system as
                                                                 <strong><?php echo htmlspecialchars($activity['role_name'] ?: 'Administrator'); ?></strong>
                                                             </p>
-                                                            <small class="text-muted">
-                                                                <?php 
-                                                                $login_time = strtotime($activity['last_login']);
-                                                                $now = time();
-                                                                $diff = $now - $login_time;
-                                                                
-                                                                if ($diff < 3600) {
-                                                                    echo floor($diff / 60) . ' min ago';
-                                                                } elseif ($diff < 86400) {
-                                                                    echo floor($diff / 3600) . ' hours ago';
-                                                                } else {
-                                                                    echo floor($diff / 86400) . ' days ago';
-                                                                }
-                                                                ?>
-                                                            </small>
+                                                            <small class="text-muted"><?php echo $__time_ago($activity['last_login']); ?></small>
                                                         </div>
                                                     </div>
                                                 </div>
+                                                <?php else: $log = $item['data']; ?>
+                                                <div class="activity-info">
+                                                    <div class="icon-info-activity">
+                                                        <i class="<?php echo $__log_icon($log['action']); ?>"></i>
+                                                    </div>
+                                                    <div class="activity-info-text">
+                                                        <div class="d-flex justify-content-between align-items-center">
+                                                            <p class="text-muted mb-0 fs-13 w-75">
+                                                                <span><?php echo htmlspecialchars($log['user_name'] ?: 'System'); ?></span>
+                                                                <span class="badge bg-secondary-subtle text-secondary ms-1"><?php echo htmlspecialchars(ucfirst($log['action'] ?? '')); ?></span>
+                                                                <?php if (!empty($log['module'])): ?><small class="text-muted">[<?php echo htmlspecialchars($log['module']); ?>]</small><?php endif; ?>
+                                                                <?php echo htmlspecialchars($log['description'] ?: ''); ?>
+                                                            </p>
+                                                            <small class="text-muted"><?php echo $__time_ago($log['created_at']); ?></small>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <?php endif; ?>
                                             <?php endforeach; ?>
                                         <?php else: ?>
                                             <div class="activity-info">
@@ -323,7 +367,7 @@ if ($recent_orders_result) {
                                                 <div class="activity-info-text">
                                                     <div class="d-flex justify-content-between align-items-center">
                                                         <p class="text-muted mb-0 fs-13 w-75">
-                                                            No recent login activities found
+                                                            No recent activities found
                                                         </p>
                                                         <small class="text-muted">Just now</small>
                                                     </div>
