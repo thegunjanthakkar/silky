@@ -8,6 +8,12 @@ if (!isset($_SESSION['admin_user_id']) && !isset($_SESSION['user_id']) && (!isse
     echo json_encode(["success" => false, "message" => "Please login first"]);
     exit;
 }
+require_once 'includes/permission-manager.php';
+if (!hasFileAccess('upload-image.php')) {
+    http_response_code(403);
+    echo json_encode(["success" => false, "message" => "You do not have permission to upload images"]);
+    exit;
+}
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
@@ -38,10 +44,10 @@ if (!is_dir($uploadDir)) {
     mkdir($uploadDir, 0755, true);
 }
 
-// Validate image (5MB limit for cropped WebP files)
-$maxSize = 5 * 1024 * 1024; // 5MB
+// Validate image (50MB limit for hero images, products, and categories)
+$maxSize = 50 * 1024 * 1024; // 50MB
 if ($_FILES['image']['size'] > $maxSize) {
-    echo json_encode(["success" => false, "message" => "Image too large. Maximum 5MB allowed."]);
+    echo json_encode(["success" => false, "message" => "Image too large. Maximum 50MB allowed."]);
     exit;
 }
 
@@ -67,8 +73,88 @@ if ($mime === 'image/webp' || $ext === 'webp') {
     ];
     $ext = $mimeMap[$mime] ?? 'webp';
 }
-$prefix = ($type === 'hero') ? 'hero_' : '';
-$filename = time() . '_' . $prefix . bin2hex(random_bytes(6)) . '.' . $ext;
+// Helper function to sanitize name parts into clean URL-safe slugs
+if (!function_exists('sanitizeImageNamePart')) {
+    function sanitizeImageNamePart($str) {
+        if (empty($str)) return '';
+        $str = strip_tags($str);
+        $str = preg_replace('/[^\p{L}\p{N}\s_-]/u', '', $str);
+        $str = preg_replace('/[\s_]+/', '-', $str);
+        $str = preg_replace('/-+/', '-', $str);
+        $str = trim($str, '-');
+        return strtolower($str);
+    }
+}
+
+// Generate filename based on type
+if ($type === 'product') {
+    $categoryName = trim($_POST['category_name'] ?? '');
+    $categoryId = intval($_POST['category_id'] ?? 0);
+    $productName = trim($_POST['product_name'] ?? $_POST['name'] ?? '');
+
+    // If category name is empty but category_id is provided, look it up in DB
+    if (empty($categoryName) && $categoryId > 0 && isset($conn)) {
+        $catStmt = mysqli_query($conn, "SELECT name FROM categories WHERE id = " . $categoryId . " LIMIT 1");
+        if ($catStmt && $row = mysqli_fetch_assoc($catStmt)) {
+            $categoryName = $row['name'] ?? '';
+        }
+    }
+
+    $catSlug = sanitizeImageNamePart($categoryName);
+    $prodSlug = sanitizeImageNamePart($productName);
+
+    if (empty($catSlug)) {
+        $catSlug = 'product';
+    }
+    if (empty($prodSlug)) {
+        $clientBase = pathinfo($_FILES['image']['name'] ?? '', PATHINFO_FILENAME);
+        $prodSlug = sanitizeImageNamePart($clientBase);
+        if (empty($prodSlug) || $prodSlug === 'blob' || $prodSlug === 'image') {
+            $prodSlug = 'item-' . time();
+        }
+    }
+
+    $baseName = $catSlug . '_' . $prodSlug;
+    $filename = $baseName . '.' . $ext;
+
+    // Avoid overwriting existing files (append _2, _3, etc.)
+    $counter = 1;
+    while (file_exists($uploadDir . $filename)) {
+        $counter++;
+        $filename = $baseName . '_' . $counter . '.' . $ext;
+    }
+} elseif ($type === 'category') {
+    $categoryName = trim($_POST['category_name'] ?? $_POST['name'] ?? '');
+    $catSlug = sanitizeImageNamePart($categoryName);
+    if (!empty($catSlug)) {
+        $baseName = 'category_' . $catSlug;
+        $filename = $baseName . '.' . $ext;
+        $counter = 1;
+        while (file_exists($uploadDir . $filename)) {
+            $counter++;
+            $filename = $baseName . '_' . $counter . '.' . $ext;
+        }
+    } else {
+        $filename = time() . '_category_' . bin2hex(random_bytes(6)) . '.' . $ext;
+    }
+} elseif ($type === 'addon') {
+    $addonName = trim($_POST['addon_name'] ?? $_POST['name'] ?? '');
+    $addonSlug = sanitizeImageNamePart($addonName);
+    if (!empty($addonSlug)) {
+        $baseName = 'addon_' . $addonSlug;
+        $filename = $baseName . '.' . $ext;
+        $counter = 1;
+        while (file_exists($uploadDir . $filename)) {
+            $counter++;
+            $filename = $baseName . '_' . $counter . '.' . $ext;
+        }
+    } else {
+        $filename = time() . '_addon_' . bin2hex(random_bytes(6)) . '.' . $ext;
+    }
+} else {
+    $prefix = ($type === 'hero') ? 'hero_' : '';
+    $filename = time() . '_' . $prefix . bin2hex(random_bytes(6)) . '.' . $ext;
+}
 $destPath = $uploadDir . $filename;
 
 if (move_uploaded_file($_FILES['image']['tmp_name'], $destPath)) {

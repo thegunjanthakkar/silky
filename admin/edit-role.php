@@ -236,7 +236,7 @@ if (!empty($role['functionality'])) {
                                                 <div class="form-check">
                                                     <input class="form-check-input dashboard-check" type="checkbox" name="permissions[]"
                                                         value="dashboard_view" id="dashboard_view" <?php echo in_array('dashboard_view', $permissions) ? 'checked' : ''; ?>>
-                                                    <label class="form-check-label" for="dashboard_view">View Dashboard</label>
+                                                    <label class="form-check-label" for="dashboard_view">Dashboard</label>
                                                 </div>
                                             </div>
 
@@ -252,7 +252,7 @@ if (!empty($role['functionality'])) {
                                                 <div class="form-check">
                                                     <input class="form-check-input products-check" type="checkbox" name="permissions[]" value="products_view"
                                                         id="products_view" <?php echo in_array('products_view', $permissions) ? 'checked' : ''; ?>>
-                                                    <label class="form-check-label" for="products_view">View All Products</label>
+                                                    <label class="form-check-label" for="products_view">All Products</label>
                                                 </div>
                                                 <div class="form-check">
                                                     <input class="form-check-input products-check" type="checkbox" name="permissions[]"
@@ -273,7 +273,7 @@ if (!empty($role['functionality'])) {
                                                 <div class="form-check">
                                                     <input class="form-check-input categories-check" type="checkbox" name="permissions[]" value="categories_view"
                                                         id="categories_view" <?php echo in_array('categories_view', $permissions) ? 'checked' : ''; ?>>
-                                                    <label class="form-check-label" for="categories_view">View All Categories</label>
+                                                    <label class="form-check-label" for="categories_view">All Categories</label>
                                                 </div>
                                                 <div class="form-check">
                                                     <input class="form-check-input categories-check" type="checkbox" name="permissions[]"
@@ -294,17 +294,12 @@ if (!empty($role['functionality'])) {
                                                 <div class="form-check">
                                                     <input class="form-check-input orders-check" type="checkbox" name="permissions[]" value="customers_view"
                                                         id="customers_view" <?php echo in_array('customers_view', $permissions) ? 'checked' : ''; ?>>
-                                                    <label class="form-check-label" for="customers_view">View Customers</label>
+                                                    <label class="form-check-label" for="customers_view">Customers</label>
                                                 </div>
                                                 <div class="form-check">
                                                     <input class="form-check-input orders-check" type="checkbox" name="permissions[]" value="orders_view"
                                                         id="orders_view" <?php echo in_array('orders_view', $permissions) ? 'checked' : ''; ?>>
-                                                    <label class="form-check-label" for="orders_view">View Orders</label>
-                                                </div>
-                                                <div class="form-check">
-                                                    <input class="form-check-input orders-check" type="checkbox" name="permissions[]"
-                                                        value="returns_refunds" id="returns_refunds" <?php echo in_array('returns_refunds', $permissions) ? 'checked' : ''; ?>>
-                                                    <label class="form-check-label" for="returns_refunds">Returns & Refunds</label>
+                                                    <label class="form-check-label" for="orders_view">All Orders</label>
                                                 </div>
                                                 <div class="form-check">
                                                     <input class="form-check-input orders-check" type="checkbox" name="permissions[]" value="stock_management"
@@ -325,7 +320,7 @@ if (!empty($role['functionality'])) {
                                                 <div class="form-check">
                                                     <input class="form-check-input marketing-check" type="checkbox" name="permissions[]" value="edit_homepage"
                                                         id="edit_homepage" <?php echo in_array('edit_homepage', $permissions) ? 'checked' : ''; ?>>
-                                                    <label class="form-check-label" for="edit_homepage">Edit Homepage</label>
+                                                    <label class="form-check-label" for="edit_homepage">Edit Website</label>
                                                 </div>
                                                 <div class="form-check">
                                                     <input class="form-check-input marketing-check" type="checkbox" name="permissions[]"
@@ -333,14 +328,9 @@ if (!empty($role['functionality'])) {
                                                     <label class="form-check-label" for="coupons_discounts">Coupons & Discounts</label>
                                                 </div>
                                                 <div class="form-check">
-                                                    <input class="form-check-input marketing-check" type="checkbox" name="permissions[]" value="blogs_manage"
-                                                        id="blogs_manage" <?php echo in_array('blogs_manage', $permissions) ? 'checked' : ''; ?>>
-                                                    <label class="form-check-label" for="blogs_manage">Blogs Management</label>
-                                                </div>
-                                                <div class="form-check">
                                                     <input class="form-check-input marketing-check" type="checkbox" name="permissions[]"
                                                         value="reviews_manage" id="reviews_manage" <?php echo in_array('reviews_manage', $permissions) ? 'checked' : ''; ?>>
-                                                    <label class="form-check-label" for="reviews_manage">Reviews Management</label>
+                                                    <label class="form-check-label" for="reviews_manage">Customer Reviews</label>
                                                 </div>
                                             </div>
 
@@ -352,11 +342,6 @@ if (!empty($role['functionality'])) {
                                                         onclick="toggleCategorySelection('utilities')">
                                                         Select All
                                                     </button>
-                                                </div>
-                                                <div class="form-check">
-                                                    <input class="form-check-input utilities-check" type="checkbox" name="permissions[]" value="cart_wishlist"
-                                                        id="cart_wishlist" <?php echo in_array('cart_wishlist', $permissions) ? 'checked' : ''; ?>>
-                                                    <label class="form-check-label" for="cart_wishlist">Cart & Wishlist</label>
                                                 </div>
                                                 <div class="form-check">
                                                     <input class="form-check-input utilities-check" type="checkbox" name="permissions[]"
@@ -377,17 +362,12 @@ if (!empty($role['functionality'])) {
                                                 <div class="form-check">
                                                     <input class="form-check-input users-check" type="checkbox" name="permissions[]" value="users_list"
                                                         id="users_list" <?php echo in_array('users_list', $permissions) ? 'checked' : ''; ?>>
-                                                    <label class="form-check-label" for="users_list">View Users List</label>
-                                                </div>
-                                                <div class="form-check">
-                                                    <input class="form-check-input users-check" type="checkbox" name="permissions[]" value="manage_profiles"
-                                                        id="manage_profiles" <?php echo in_array('manage_profiles', $permissions) ? 'checked' : ''; ?>>
-                                                    <label class="form-check-label" for="manage_profiles">Manage Profiles</label>
+                                                    <label class="form-check-label" for="users_list">User List</label>
                                                 </div>
                                                 <div class="form-check">
                                                     <input class="form-check-input users-check" type="checkbox" name="permissions[]" value="user_roles"
                                                         id="user_roles" <?php echo in_array('user_roles', $permissions) ? 'checked' : ''; ?>>
-                                                    <label class="form-check-label" for="user_roles">User Roles & Permissions</label>
+                                                    <label class="form-check-label" for="user_roles">User Roles (Admin / Staff)</label>
                                                 </div>
                                             </div>
 
@@ -411,11 +391,6 @@ if (!empty($role['functionality'])) {
                                                     <label class="form-check-label" for="payment_settings">Payment Settings</label>
                                                 </div>
                                                 <div class="form-check">
-                                                    <input class="form-check-input settings-check" type="checkbox" name="permissions[]"
-                                                        value="shipping_settings" id="shipping_settings" <?php echo in_array('shipping_settings', $permissions) ? 'checked' : ''; ?>>
-                                                    <label class="form-check-label" for="shipping_settings">Shipping Settings</label>
-                                                </div>
-                                                <div class="form-check">
                                                     <input class="form-check-input settings-check" type="checkbox" name="permissions[]" value="email_settings"
                                                         id="email_settings" <?php echo in_array('email_settings', $permissions) ? 'checked' : ''; ?>>
                                                     <label class="form-check-label" for="email_settings">Email Settings</label>
@@ -434,7 +409,7 @@ if (!empty($role['functionality'])) {
                                                 <div class="form-check">
                                                     <input class="form-check-input reports-check" type="checkbox" name="permissions[]" value="sales_report"
                                                         id="sales_report" <?php echo in_array('sales_report', $permissions) ? 'checked' : ''; ?>>
-                                                    <label class="form-check-label" for="sales_report">Sales Reports</label>
+                                                    <label class="form-check-label" for="sales_report">Sales Report</label>
                                                 </div>
                                                 <div class="form-check">
                                                     <input class="form-check-input reports-check" type="checkbox" name="permissions[]"
@@ -444,35 +419,18 @@ if (!empty($role['functionality'])) {
                                                 <div class="form-check">
                                                     <input class="form-check-input reports-check" type="checkbox" name="permissions[]" value="inventory_report"
                                                         id="inventory_report" <?php echo in_array('inventory_report', $permissions) ? 'checked' : ''; ?>>
-                                                    <label class="form-check-label" for="inventory_report">Inventory Reports</label>
+                                                    <label class="form-check-label" for="inventory_report">Inventory Report</label>
                                                 </div>
                                                 <div class="form-check">
                                                     <input class="form-check-input reports-check" type="checkbox" name="permissions[]"
                                                         value="performance_metrics" id="performance_metrics" <?php echo in_array('performance_metrics', $permissions) ? 'checked' : ''; ?>>
                                                     <label class="form-check-label" for="performance_metrics">Performance Metrics</label>
                                                 </div>
-                                            </div>
+                                             </div>
+                                         </div>
+                                     </div>
 
-                                            <!-- Support -->
-                                            <div class="functionality-item">
-                                                <div class="d-flex justify-content-between align-items-center">
-                                                    <h6><i class="iconoir-lifebelt me-2"></i>Support</h6>
-                                                    <button type="button" class="btn btn-xs btn-outline-info select-all-btn" 
-                                                        onclick="toggleCategorySelection('support')">
-                                                        Select All
-                                                    </button>
-                                                </div>
-                                                <div class="form-check">
-                                                    <input class="form-check-input support-check" type="checkbox" name="permissions[]" value="support_access"
-                                                        id="support_access" <?php echo in_array('support_access', $permissions) ? 'checked' : ''; ?>>
-                                                    <label class="form-check-label" for="support_access">Support Access</label>
-                                                </div>
-                                            </div>
-
-                                        </div>
-                                    </div>
-
-                                    <div class="row">
+                                     <div class="row">
                                         <div class="col-12">
                                             <div class="d-flex gap-2 justify-content-end">
                                                 <a href="user-roles.php" class="btn btn-secondary">

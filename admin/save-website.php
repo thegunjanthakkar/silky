@@ -13,7 +13,9 @@ if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true) {
     exit;
 }
 
-// Skip permission check entirely - login is sufficient protection
+// Enforce homepage/content permission (page-level + sidebar hiding rely on this)
+require_once 'includes/permission-manager.php';
+checkPageAccess();
 require_once '../db_config.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {

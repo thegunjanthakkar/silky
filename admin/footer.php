@@ -20,8 +20,131 @@
                 </div>
             </footer>
 
-            <!-- Global Unsaved Changes Warning -->
+            <style>
+                /* SweetAlert Theme & Dark Mode Integration */
+                .swal2-popup {
+                    border-radius: 10px !important;
+                    font-family: inherit !important;
+                }
+                [data-bs-theme="dark"] .swal2-popup {
+                    background: #1e2430 !important;
+                    color: #e2e8f0 !important;
+                    border: 1px solid #334155 !important;
+                }
+                [data-bs-theme="dark"] .swal2-title,
+                [data-bs-theme="dark"] .swal2-html-container {
+                    color: #f1f5f9 !important;
+                }
+            </style>
+
             <script>
+                // Global Theme Confirm Dialog Helper using SweetAlert2
+                window.themeConfirm = function(options, onConfirm, onCancel) {
+                    let title = 'Are you sure?';
+                    let text = '';
+                    let confirmBtnText = 'Yes, proceed!';
+                    let confirmBtnColor = '#e03e2d';
+                    let cancelBtnText = 'Cancel';
+                    let cancelBtnColor = '#6c757d';
+                    let icon = 'warning';
+
+                    if (typeof options === 'string') {
+                        text = options;
+                        if (/delete|remove|trash|clear/i.test(options)) {
+                            confirmBtnText = 'Yes, delete it!';
+                        }
+                    } else if (typeof options === 'object' && options !== null) {
+                        title = options.title || title;
+                        text = options.text || options.message || '';
+                        confirmBtnText = options.confirmButtonText || (options.isDelete ? 'Yes, delete it!' : confirmBtnText);
+                        confirmBtnColor = options.confirmButtonColor || confirmBtnColor;
+                        cancelBtnText = options.cancelButtonText || cancelBtnText;
+                        cancelBtnColor = options.cancelButtonColor || cancelBtnColor;
+                        icon = options.icon || icon;
+                    }
+
+                    if (typeof Swal !== 'undefined') {
+                        return Swal.fire({
+                            title: title,
+                            text: text,
+                            icon: icon,
+                            showCancelButton: true,
+                            confirmButtonColor: confirmBtnColor,
+                            cancelButtonColor: cancelBtnColor,
+                            confirmButtonText: confirmBtnText,
+                            cancelButtonText: cancelBtnText,
+                            reverseButtons: true,
+                            focusCancel: true
+                        }).then(function(result) {
+                            if (result.isConfirmed) {
+                                if (typeof onConfirm === 'function') onConfirm();
+                                return true;
+                            } else {
+                                if (typeof onCancel === 'function') onCancel();
+                                return false;
+                            }
+                        });
+                    } else {
+                        if (confirm(text || title)) {
+                            if (typeof onConfirm === 'function') onConfirm();
+                            return Promise.resolve(true);
+                        } else {
+                            if (typeof onCancel === 'function') onCancel();
+                            return Promise.resolve(false);
+                        }
+                    }
+                };
+
+                // Global capturing click listener to intercept any confirm triggers across the project
+                document.addEventListener('click', function(e) {
+                    const clickable = e.target.closest('a, button, [onclick], [data-confirm]');
+                    if (!clickable) return;
+
+                    // 1. Explicit data-confirm attribute
+                    const dataConfirm = clickable.getAttribute('data-confirm') || clickable.getAttribute('data-confirm-text');
+                    if (dataConfirm) {
+                        e.preventDefault();
+                        e.stopImmediatePropagation();
+                        window.themeConfirm(dataConfirm, function() {
+                            if (clickable.tagName.toLowerCase() === 'a' && clickable.href && !clickable.href.startsWith('javascript:')) {
+                                window.location.href = clickable.href;
+                            } else if (clickable.type === 'submit' && clickable.form) {
+                                clickable.form.submit();
+                            }
+                        });
+                        return;
+                    }
+
+                    // 2. Inline onclick attribute containing confirm(...)
+                    const onclickAttr = clickable.getAttribute('onclick');
+                    if (onclickAttr && /confirm\s*\(/i.test(onclickAttr)) {
+                        e.preventDefault();
+                        e.stopImmediatePropagation();
+
+                        let message = 'Are you sure you want to proceed?';
+                        const match = onclickAttr.match(/confirm\s*\(\s*(['"`])(.*?)\1\s*\)/s);
+                        if (match && match[2]) {
+                            message = match[2].replace(/\\'/g, "'").replace(/\\"/g, '"');
+                        }
+
+                        window.themeConfirm(message, function() {
+                            if (clickable.tagName.toLowerCase() === 'a' && clickable.href && !clickable.href.startsWith('javascript:')) {
+                                window.location.href = clickable.href;
+                            } else if (clickable.type === 'submit' && clickable.form) {
+                                clickable.form.submit();
+                            } else {
+                                const origOnclick = onclickAttr;
+                                clickable.removeAttribute('onclick');
+                                clickable.click();
+                                setTimeout(function() {
+                                    clickable.setAttribute('onclick', origOnclick);
+                                }, 500);
+                            }
+                        });
+                        return;
+                    }
+                }, true);
+
                 // Make flag global so custom save scripts can bypass it
                 window.hasUnsavedChanges = false;
                 
@@ -47,40 +170,23 @@
 
                     // 2. Intercept internal link clicks to use theme's SweetAlert instead of native
                     document.addEventListener('click', function(e) {
-                        // Find the closest anchor tag that was clicked
                         let link = e.target.closest('a');
                         
-                        // If it's a link, it has an href, it's not a hash link, and we have unsaved changes
                         if (link && link.href && !link.href.includes('#') && !link.href.startsWith('javascript:')) {
-                            // Check if it's an internal link (same origin) and not target="_blank"
                             if (link.origin === window.location.origin && link.target !== '_blank' && window.hasUnsavedChanges) {
-                                e.preventDefault(); // Stop immediate navigation
+                                e.preventDefault();
                                 
-                                // Check if SweetAlert is available
-                                if (typeof Swal !== 'undefined') {
-                                    Swal.fire({
-                                        title: 'Unsaved Changes!',
-                                        text: "You have unsaved changes. Are you sure you want to leave this page?",
-                                        icon: 'warning',
-                                        showCancelButton: true,
-                                        confirmButtonColor: '#3085d6',
-                                        cancelButtonColor: '#d33',
-                                        confirmButtonText: 'Yes, leave page',
-                                        cancelButtonText: 'No, stay'
-                                    }).then((result) => {
-                                        if (result.isConfirmed) {
-                                            // Allow navigation
-                                            window.hasUnsavedChanges = false;
-                                            window.location.href = link.href;
-                                        }
-                                    });
-                                } else {
-                                    // Fallback if Swal is not loaded for some reason
-                                    if (confirm('You have unsaved changes. Are you sure you want to leave this page?')) {
-                                        window.hasUnsavedChanges = false;
-                                        window.location.href = link.href;
-                                    }
-                                }
+                                window.themeConfirm({
+                                    title: 'Unsaved Changes!',
+                                    text: 'You have unsaved changes. Are you sure you want to leave this page?',
+                                    confirmButtonText: 'Yes, leave page',
+                                    cancelButtonText: 'No, stay',
+                                    confirmButtonColor: '#3085d6',
+                                    cancelButtonColor: '#d33'
+                                }, function() {
+                                    window.hasUnsavedChanges = false;
+                                    window.location.href = link.href;
+                                });
                             }
                         }
                     });
@@ -95,10 +201,6 @@
                                 confirmButtonColor: '#3085d6'
                             });
                         };
-                        
-                        // Note: We cannot override window.confirm directly because native confirm is synchronous 
-                        // and halts execution, whereas SweetAlert is asynchronous. We provided the SweetAlert 
-                        // implementation directly in the link interceptor above!
                     }
                 });
             </script>

@@ -13,6 +13,12 @@ try {
         exit;
     }
 
+    require_once 'includes/permission-manager.php';
+    if (!hasFileAccess('get-customer-details.php')) {
+        echo json_encode(['success' => false, 'message' => 'You do not have permission to view customers']);
+        exit;
+    }
+
     require_once '../db_config.php';
 
     if (!isset($_GET['id']) || empty($_GET['id'])) {

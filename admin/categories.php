@@ -4,6 +4,8 @@ if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true) {
     header('Location: login.php');
     exit;
 }
+require_once 'includes/permission-manager.php';
+checkPageAccess();
 ?>
 <!DOCTYPE html>
 <html lang="en" dir="ltr" data-startbar="light" data-bs-theme="light">
@@ -257,8 +259,10 @@ if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true) {
             document.querySelectorAll('.btn-delete-user').forEach(function (btn) {
                 btn.addEventListener('click', function () {
                     var categoryId = this.getAttribute('data-id');
-                    if (categoryId && confirm('Are you sure you want to delete this category?')) {
-                        window.location.href = 'delete-category.php?id=' + categoryId;
+                    if (categoryId) {
+                        themeConfirm('Are you sure you want to delete this category?', function() {
+                            window.location.href = 'delete-category.php?id=' + categoryId;
+                        });
                     }
                 });
             });

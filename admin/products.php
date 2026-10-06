@@ -584,9 +584,9 @@ $result = mysqli_query($conn, $sql);
     <!-- Delete Product Function -->
     <script>
         function deleteProduct(id) {
-            if (confirm('Are you sure you want to delete this product?')) {
+            themeConfirm('Are you sure you want to delete this product?', function() {
                 window.location.href = 'delete-product.php?id=' + id;
-            }
+            });
         }
 
         // Select all checkbox functionality
@@ -656,38 +656,34 @@ $result = mysqli_query($conn, $sql);
                 'unmark_bestseller': 'remove from Best Seller'
             };
 
-            if (action === 'delete') {
-                if (!confirm(`Are you sure you want to ${actionText[action]} ${ids.length} product(s)? This action cannot be undone.`)) {
-                    return;
-                }
-            } else {
-                if (!confirm(`Are you sure you want to ${actionText[action]} ${ids.length} product(s)?`)) {
-                    return;
-                }
+            function submitBulkActionForm() {
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = 'products.php';
+
+                const actionInput = document.createElement('input');
+                actionInput.type = 'hidden';
+                actionInput.name = 'action';
+                actionInput.value = action;
+                form.appendChild(actionInput);
+
+                ids.forEach(id => {
+                    const idInput = document.createElement('input');
+                    idInput.type = 'hidden';
+                    idInput.name = 'product_ids[]';
+                    idInput.value = id;
+                    form.appendChild(idInput);
+                });
+
+                document.body.appendChild(form);
+                form.submit();
             }
 
-            // Create form and submit
-            const form = document.createElement('form');
-            form.method = 'POST';
-            form.action = 'products.php';
-
-            const actionInput = document.createElement('input');
-            actionInput.type = 'hidden';
-            actionInput.name = 'action';
-            actionInput.value = action;
-            form.appendChild(actionInput);
-
-            ids.forEach(id => {
-                const idInput = document.createElement('input');
-                idInput.type = 'hidden';
-                idInput.name = 'product_ids[]';
-                idInput.value = id;
-                form.appendChild(idInput);
-            });
-
-            console.log('Form data:', new FormData(form));
-            document.body.appendChild(form);
-            form.submit();
+            if (action === 'delete') {
+                themeConfirm(`Are you sure you want to ${actionText[action]} ${ids.length} product(s)? This action cannot be undone.`, submitBulkActionForm);
+            } else {
+                themeConfirm(`Are you sure you want to ${actionText[action]} ${ids.length} product(s)?`, submitBulkActionForm);
+            }
         }
 
         // Bulk action button handlers
@@ -1056,8 +1052,10 @@ $result = mysqli_query($conn, $sql);
             document.querySelectorAll('.btn-delete-product').forEach(function(btn) {
                 btn.addEventListener('click', function() {
                     var productId = this.getAttribute('data-id');
-                    if (productId && confirm('Are you sure you want to delete this product?')) {
-                        window.location.href = 'delete-product.php?id=' + productId;
+                    if (productId) {
+                        themeConfirm('Are you sure you want to delete this product?', function() {
+                            window.location.href = 'delete-product.php?id=' + productId;
+                        });
                     }
                 });
             });

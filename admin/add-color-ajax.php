@@ -7,6 +7,12 @@ if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== tru
     exit;
 }
 
+require_once 'includes/permission-manager.php';
+if (!hasFileAccess('add-color-ajax.php')) {
+    echo json_encode(['success' => false, 'message' => 'You do not have permission to manage products']);
+    exit;
+}
+
 require_once '../db_config.php';
 
 $color_name = isset($_POST['color_name']) ? trim($_POST['color_name']) : '';

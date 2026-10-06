@@ -9,6 +9,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         echo json_encode(["status" => "error", "message" => "Please login first"]);
         exit;
     }
+    require_once 'includes/permission-manager.php';
+    checkPageAccess();
 
     // Handle delete image action
     if (isset($_POST['action']) && $_POST['action'] === 'delete_image') {

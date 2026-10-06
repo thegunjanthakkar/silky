@@ -205,7 +205,7 @@ checkPageAccess();
                                                 <div class="form-check">
                                                     <input class="form-check-input dashboard-check" type="checkbox" name="permissions[]"
                                                         value="dashboard_view" id="dashboard_view">
-                                                    <label class="form-check-label" for="dashboard_view">View Dashboard</label>
+                                                    <label class="form-check-label" for="dashboard_view">Dashboard</label>
                                                 </div>
                                             </div>
 
@@ -221,7 +221,7 @@ checkPageAccess();
                                                 <div class="form-check">
                                                     <input class="form-check-input products-check" type="checkbox" name="permissions[]" value="products_view"
                                                         id="products_view">
-                                                    <label class="form-check-label" for="products_view">View All Products</label>
+                                                    <label class="form-check-label" for="products_view">All Products</label>
                                                 </div>
                                                 <div class="form-check">
                                                     <input class="form-check-input products-check" type="checkbox" name="permissions[]"
@@ -242,7 +242,7 @@ checkPageAccess();
                                                 <div class="form-check">
                                                     <input class="form-check-input categories-check" type="checkbox" name="permissions[]" value="categories_view"
                                                         id="categories_view">
-                                                    <label class="form-check-label" for="categories_view">View All Categories</label>
+                                                    <label class="form-check-label" for="categories_view">All Categories</label>
                                                 </div>
                                                 <div class="form-check">
                                                     <input class="form-check-input categories-check" type="checkbox" name="permissions[]"
@@ -263,17 +263,12 @@ checkPageAccess();
                                                 <div class="form-check">
                                                     <input class="form-check-input orders-check" type="checkbox" name="permissions[]" value="customers_view"
                                                         id="customers_view">
-                                                    <label class="form-check-label" for="customers_view">View Customers</label>
+                                                    <label class="form-check-label" for="customers_view">Customers</label>
                                                 </div>
                                                 <div class="form-check">
                                                     <input class="form-check-input orders-check" type="checkbox" name="permissions[]" value="orders_view"
                                                         id="orders_view">
-                                                    <label class="form-check-label" for="orders_view">View All Orders</label>
-                                                </div>
-                                                <div class="form-check">
-                                                    <input class="form-check-input orders-check" type="checkbox" name="permissions[]" value="returns_refunds"
-                                                        id="returns_refunds">
-                                                    <label class="form-check-label" for="returns_refunds">Returns / Refunds</label>
+                                                    <label class="form-check-label" for="orders_view">All Orders</label>
                                                 </div>
                                                 <div class="form-check">
                                                     <input class="form-check-input orders-check" type="checkbox" name="permissions[]" value="stock_management"
@@ -294,7 +289,7 @@ checkPageAccess();
                                                 <div class="form-check">
                                                     <input class="form-check-input marketing-check" type="checkbox" name="permissions[]" value="edit_homepage"
                                                         id="edit_homepage">
-                                                    <label class="form-check-label" for="edit_homepage">Edit Homepage</label>
+                                                    <label class="form-check-label" for="edit_homepage">Edit Website</label>
                                                 </div>
                                                 <div class="form-check">
                                                     <input class="form-check-input marketing-check" type="checkbox" name="permissions[]" value="coupons_discounts"
@@ -302,14 +297,9 @@ checkPageAccess();
                                                     <label class="form-check-label" for="coupons_discounts">Coupons & Discounts</label>
                                                 </div>
                                                 <div class="form-check">
-                                                    <input class="form-check-input marketing-check" type="checkbox" name="permissions[]" value="blogs_manage"
-                                                        id="blogs_manage">
-                                                    <label class="form-check-label" for="blogs_manage">Blogs</label>
-                                                </div>
-                                                <div class="form-check">
                                                     <input class="form-check-input marketing-check" type="checkbox" name="permissions[]" value="reviews_manage"
                                                         id="reviews_manage">
-                                                    <label class="form-check-label" for="reviews_manage">Reviews (Approve, Reject)</label>
+                                                    <label class="form-check-label" for="reviews_manage">Customer Reviews</label>
                                                 </div>
                                             </div>
 
@@ -321,11 +311,6 @@ checkPageAccess();
                                                         onclick="toggleCategorySelection('utilities')">
                                                         Select All
                                                     </button>
-                                                </div>
-                                                <div class="form-check">
-                                                    <input class="form-check-input utilities-check" type="checkbox" name="permissions[]" value="cart_wishlist"
-                                                        id="cart_wishlist">
-                                                    <label class="form-check-label" for="cart_wishlist">Cart & Wishlist</label>
                                                 </div>
                                                 <div class="form-check">
                                                     <input class="form-check-input utilities-check" type="checkbox" name="permissions[]" value="contact_queries"
@@ -347,11 +332,6 @@ checkPageAccess();
                                                     <input class="form-check-input users-check" type="checkbox" name="permissions[]" value="users_list"
                                                         id="users_list">
                                                     <label class="form-check-label" for="users_list">User List</label>
-                                                </div>
-                                                <div class="form-check">
-                                                    <input class="form-check-input users-check" type="checkbox" name="permissions[]" value="manage_profiles"
-                                                        id="manage_profiles">
-                                                    <label class="form-check-label" for="manage_profiles">Manage Profiles</label>
                                                 </div>
                                                 <div class="form-check">
                                                     <input class="form-check-input users-check" type="checkbox" name="permissions[]" value="user_roles"
@@ -378,11 +358,6 @@ checkPageAccess();
                                                     <input class="form-check-input settings-check" type="checkbox" name="permissions[]" value="payment_settings"
                                                         id="payment_settings">
                                                     <label class="form-check-label" for="payment_settings">Payment Settings</label>
-                                                </div>
-                                                <div class="form-check">
-                                                    <input class="form-check-input settings-check" type="checkbox" name="permissions[]" value="shipping_settings"
-                                                        id="shipping_settings">
-                                                    <label class="form-check-label" for="shipping_settings">Shipping Settings</label>
                                                 </div>
                                                 <div class="form-check">
                                                     <input class="form-check-input settings-check" type="checkbox" name="permissions[]" value="email_settings"
@@ -420,28 +395,11 @@ checkPageAccess();
                                                         id="performance_metrics">
                                                     <label class="form-check-label" for="performance_metrics">Performance Metrics</label>
                                                 </div>
-                                            </div>
+                                             </div>
+                                         </div>
+                                     </div>
 
-                                            <!-- Support -->
-                                            <div class="functionality-item">
-                                                <div class="d-flex justify-content-between align-items-center">
-                                                    <h6><i class="iconoir-headset-help me-2"></i>Support</h6>
-                                                    <button type="button" class="btn btn-xs btn-outline-info select-all-btn" 
-                                                        onclick="toggleCategorySelection('support')">
-                                                        Select All
-                                                    </button>
-                                                </div>
-                                                <div class="form-check">
-                                                    <input class="form-check-input support-check" type="checkbox" name="permissions[]" value="support_access"
-                                                        id="support_access">
-                                                    <label class="form-check-label" for="support_access">Support Access</label>
-                                                </div>
-                                            </div>
-
-                                        </div>
-                                    </div>
-
-                                    <div class="row">
+                                     <div class="row">
                                         <div class="col-12">
                                             <div class="d-flex gap-2 justify-content-end">
                                                 <a href="user-roles.php" class="btn btn-secondary">
@@ -529,12 +487,12 @@ checkPageAccess();
                 1: {
                     name: 'Super Admin',
                     description: 'Full system access',
-                    functionalities: ['dashboard_view', 'products_view', 'product_add', 'categories_view', 'category_add', 'customers_view', 'orders_view', 'returns_refunds', 'stock_management', 'edit_homepage', 'coupons_discounts', 'blogs_manage', 'reviews_manage', 'cart_wishlist', 'contact_queries', 'users_list', 'manage_profiles', 'user_roles', 'general_settings', 'payment_settings', 'shipping_settings', 'email_settings', 'sales_report', 'customer_analytics', 'inventory_report', 'performance_metrics', 'support_access']
+                    functionalities: ['dashboard_view', 'products_view', 'product_add', 'categories_view', 'category_add', 'customers_view', 'orders_view', 'stock_management', 'edit_homepage', 'coupons_discounts', 'reviews_manage', 'contact_queries', 'users_list', 'user_roles', 'general_settings', 'payment_settings', 'email_settings', 'sales_report', 'customer_analytics', 'inventory_report', 'performance_metrics']
                 },
                 2: {
                     name: 'Website Manager',
                     description: 'Content & SEO management',
-                    functionalities: ['dashboard_view', 'edit_homepage', 'coupons_discounts', 'blogs_manage', 'reviews_manage']
+                    functionalities: ['dashboard_view', 'edit_homepage', 'coupons_discounts', 'reviews_manage']
                 },
                 3: {
                     name: 'Product Manager',
@@ -544,7 +502,7 @@ checkPageAccess();
                 4: {
                     name: 'Order Manager',
                     description: 'Order processing & management',
-                    functionalities: ['dashboard_view', 'customers_view', 'orders_view', 'returns_refunds', 'sales_report']
+                    functionalities: ['dashboard_view', 'customers_view', 'orders_view', 'sales_report']
                 }
             };
 

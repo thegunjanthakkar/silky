@@ -66,7 +66,12 @@ try {
                 @mysqli_query($conn, $update_sql);
                 
                 $_SESSION['success'] = 'Login successful! Welcome back.';
-                header('Location: index.php');
+                // Send user to dashboard if allowed, else to their first allowed page
+                $login_target = 'index.php';
+                if (function_exists('hasFileAccess') && !hasFileAccess('index.php') && function_exists('getFirstAllowedPage')) {
+                    $login_target = getFirstAllowedPage();
+                }
+                header('Location: ' . $login_target);
                 exit;
             } else {
                 $_SESSION['error'] = 'Your account is inactive. Please contact administrator.';

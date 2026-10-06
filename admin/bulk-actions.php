@@ -6,6 +6,8 @@ if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true) {
 }
 
 require_once '../db_config.php';
+require_once 'includes/permission-manager.php';
+checkPageAccess();
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     header('Location: products.php');

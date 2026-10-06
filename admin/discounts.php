@@ -4,6 +4,8 @@ if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true) {
     header('Location: login.php');
     exit;
 }
+require_once 'includes/permission-manager.php';
+checkPageAccess();
 
 // Handle form submissions before any output
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
@@ -685,8 +687,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 btn.addEventListener('click', function() {
                     const discountId = this.getAttribute('data-discount-id');
                     
-                    if (confirm('Are you sure you want to delete this discount? This action cannot be undone.')) {
-                        // Create a form and submit it
+                    themeConfirm('Are you sure you want to delete this discount? This action cannot be undone.', function() {
                         const form = document.createElement('form');
                         form.method = 'POST';
                         form.action = '';
@@ -705,7 +706,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         
                         document.body.appendChild(form);
                         form.submit();
-                    }
+                    });
                 });
             });
 

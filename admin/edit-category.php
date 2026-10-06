@@ -478,7 +478,7 @@ $category = mysqli_fetch_assoc($result);
 
         // Delete image function
         function deleteImage(categoryId) {
-            if (confirm('Are you sure you want to delete this image?')) {
+            const doDelete = function() {
                 fetch('save-category.php', {
                     method: 'POST',
                     headers: {
@@ -491,13 +491,31 @@ $category = mysqli_fetch_assoc($result);
                     if (data.success) {
                         location.reload(); // Reload page to show updated state
                     } else {
-                        alert('Error: ' + (data.message || 'Failed to delete image'));
+                        if (typeof Swal !== 'undefined') {
+                            Swal.fire({ icon: 'error', title: 'Error', text: data.message || 'Failed to delete image' });
+                        } else {
+                            alert('Error: ' + (data.message || 'Failed to delete image'));
+                        }
                     }
                 })
                 .catch(error => {
                     console.error('Error:', error);
-                    alert('An error occurred while deleting the image');
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({ icon: 'error', title: 'Error', text: 'An error occurred while deleting the image' });
+                    } else {
+                        alert('An error occurred while deleting the image');
+                    }
                 });
+            };
+
+            if (typeof window.themeConfirm === 'function') {
+                window.themeConfirm({
+                    title: 'Delete Image?',
+                    text: 'Are you sure you want to delete this image?',
+                    confirmButtonText: 'Yes, delete it!'
+                }, doDelete);
+            } else if (confirm('Are you sure you want to delete this image?')) {
+                doDelete();
             }
         }
     </script>

@@ -4,6 +4,8 @@ if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true) {
     header('Location: login.php');
     exit;
 }
+require_once 'includes/permission-manager.php';
+checkPageAccess();
 
 // Handle form submissions before any output
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
@@ -580,7 +582,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         }
 
         function confirmDelete(id, code) {
-            if (confirm('Are you sure you want to delete coupon "' + code + '"?\n\nThis action cannot be undone.')) {
+            themeConfirm('Are you sure you want to delete coupon "' + code + '"?\n\nThis action cannot be undone.', function() {
                 // Create and submit form
                 const form = document.createElement('form');
                 form.method = 'POST';
@@ -600,7 +602,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 
                 document.body.appendChild(form);
                 form.submit();
-            }
+            });
         }
     </script>
 

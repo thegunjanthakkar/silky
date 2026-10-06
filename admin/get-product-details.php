@@ -19,6 +19,12 @@ try {
         exit;
     }
 
+    require_once 'includes/permission-manager.php';
+    if (!hasFileAccess('get-product-details.php')) {
+        echo json_encode(['success' => false, 'message' => 'You do not have permission to view products']);
+        exit;
+    }
+
     require_once '../db_config.php';
 
     if (!isset($_GET['id']) || empty($_GET['id'])) {

@@ -5,6 +5,7 @@ if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true) {
     exit;
 }
 require_once 'includes/permission-manager.php';
+checkPageAccess();
 require_once '../db_config.php';
 
 // Check duplicate product code AJAX endpoint
@@ -893,6 +894,9 @@ if ($ca_res) {
                     </div>
                 </div>
             </div>
+            <!--Start Footer-->
+            <?php include 'footer.php'; ?>
+            <!--end footer-->
         </div>
     </div>
 
@@ -1139,14 +1143,24 @@ if ($ca_res) {
         }
 
         function resetToGlobalDefaults() {
-            if (!confirm('Replace current cards with the global default highlights?')) return;
-            const list = document.getElementById('product-highlights-cards-list');
-            if (!list) return;
-            list.innerHTML = '';
-            document.getElementById('custom_highlights_title').value = '';
-            globalDefaultCards.forEach(c => {
-                addProductHighlightCard(c.icon || 'bi bi-gem', c.title || '', c.desc || '');
-            });
+            const doReset = () => {
+                const list = document.getElementById('product-highlights-cards-list');
+                if (!list) return;
+                list.innerHTML = '';
+                document.getElementById('custom_highlights_title').value = '';
+                globalDefaultCards.forEach(c => {
+                    addProductHighlightCard(c.icon || 'bi bi-gem', c.title || '', c.desc || '');
+                });
+            };
+            if (typeof window.themeConfirm === 'function') {
+                window.themeConfirm({
+                    title: 'Reset Highlights?',
+                    text: 'Replace current cards with the global default highlights?',
+                    confirmButtonText: 'Yes, replace them!'
+                }, doReset);
+            } else if (confirm('Replace current cards with the global default highlights?')) {
+                doReset();
+            }
         }
 
         // Care Instructions JS Functions
@@ -1252,15 +1266,25 @@ if ($ca_res) {
         }
 
         function resetCareToGlobalDefaults() {
-            if (!confirm('Replace current care cards with the global default care instructions?')) return;
-            const list = document.getElementById('product-care-cards-list');
-            if (!list) return;
-            list.innerHTML = '';
-            const headingInput = document.getElementById('custom_care_heading') || document.getElementById('custom_care_title');
-            if (headingInput) headingInput.value = '';
-            globalDefaultCareCards.forEach(c => {
-                addProductCareCard(c.icon || 'bi bi-droplet-half', c.color || '#0dcaf0', c.title || '', c.desc || '');
-            });
+            const doReset = () => {
+                const list = document.getElementById('product-care-cards-list');
+                if (!list) return;
+                list.innerHTML = '';
+                const headingInput = document.getElementById('custom_care_heading') || document.getElementById('custom_care_title');
+                if (headingInput) headingInput.value = '';
+                globalDefaultCareCards.forEach(c => {
+                    addProductCareCard(c.icon || 'bi bi-droplet-half', c.color || '#0dcaf0', c.title || '', c.desc || '');
+                });
+            };
+            if (typeof window.themeConfirm === 'function') {
+                window.themeConfirm({
+                    title: 'Reset Care Instructions?',
+                    text: 'Replace current care cards with the global default care instructions?',
+                    confirmButtonText: 'Yes, replace them!'
+                }, doReset);
+            } else if (confirm('Replace current care cards with the global default care instructions?')) {
+                doReset();
+            }
         }
 
         // Add-on products handling
@@ -1816,10 +1840,19 @@ if ($ca_res) {
         }
 
         function removeImage(index) {
-            if (confirm('Are you sure you want to remove this image?')) {
+            const doRemove = () => {
                 uploadedImages.splice(index, 1);
                 updateImagesDisplay();
                 updateImagesInput();
+            };
+            if (typeof window.themeConfirm === 'function') {
+                window.themeConfirm({
+                    title: 'Remove Image?',
+                    text: 'Are you sure you want to remove this image?',
+                    confirmButtonText: 'Yes, remove it!'
+                }, doRemove);
+            } else if (confirm('Are you sure you want to remove this image?')) {
+                doRemove();
             }
         }
 
@@ -1917,12 +1950,21 @@ if ($ca_res) {
         }
 
         function removeYouTubeVideo() {
-            if (confirm('Are you sure you want to remove this YouTube video?')) {
+            const doRemove = () => {
                 youtubeVideoId = null;
                 document.getElementById('youtube_url').value = '';
                 document.getElementById('youtube_video_id').value = '';
                 document.getElementById('youtube-preview').style.display = 'none';
                 document.getElementById('youtube-error').style.display = 'none';
+            };
+            if (typeof window.themeConfirm === 'function') {
+                window.themeConfirm({
+                    title: 'Remove Video?',
+                    text: 'Are you sure you want to remove this YouTube video?',
+                    confirmButtonText: 'Yes, remove it!'
+                }, doRemove);
+            } else if (confirm('Are you sure you want to remove this YouTube video?')) {
+                doRemove();
             }
         }
 

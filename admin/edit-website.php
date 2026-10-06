@@ -4,7 +4,9 @@ if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true) {
     header('Location: login.php');
     exit;
 }
-// Permission check handled by session only - edit-website is allowed for all logged-in admins
+// Only users with homepage/content permission can edit the website
+require_once 'includes/permission-manager.php';
+checkPageAccess();
 require_once '../db_config.php';
 
 // Fetch settings
@@ -1080,9 +1082,18 @@ $error_message = isset($_GET['error']) ? 'Error saving settings.' : '';
         function removeBenefitCard(btn) {
             const item = btn.closest('.benefit-card-item');
             if (item) {
-                if (confirm('Are you sure you want to remove this card?')) {
+                const doRemove = () => {
                     item.remove();
                     reindexBenefitCards();
+                };
+                if (typeof window.themeConfirm === 'function') {
+                    window.themeConfirm({
+                        title: 'Remove Card?',
+                        text: 'Are you sure you want to remove this card?',
+                        confirmButtonText: 'Yes, remove it!'
+                    }, doRemove);
+                } else if (confirm('Are you sure you want to remove this card?')) {
+                    doRemove();
                 }
             }
         }
@@ -1158,9 +1169,18 @@ $error_message = isset($_GET['error']) ? 'Error saving settings.' : '';
         function removeHighlightCard(btn) {
             const item = btn.closest('.highlight-card-item');
             if (item) {
-                if (confirm('Are you sure you want to remove this card?')) {
+                const doRemove = () => {
                     item.remove();
                     reindexHighlightCards();
+                };
+                if (typeof window.themeConfirm === 'function') {
+                    window.themeConfirm({
+                        title: 'Remove Card?',
+                        text: 'Are you sure you want to remove this card?',
+                        confirmButtonText: 'Yes, remove it!'
+                    }, doRemove);
+                } else if (confirm('Are you sure you want to remove this card?')) {
+                    doRemove();
                 }
             }
         }
@@ -1252,9 +1272,18 @@ $error_message = isset($_GET['error']) ? 'Error saving settings.' : '';
         function removeCareCard(btn) {
             const item = btn.closest('.care-card-item');
             if (item) {
-                if (confirm('Are you sure you want to remove this care card?')) {
+                const doRemove = () => {
                     item.remove();
                     reindexCareCards();
+                };
+                if (typeof window.themeConfirm === 'function') {
+                    window.themeConfirm({
+                        title: 'Remove Card?',
+                        text: 'Are you sure you want to remove this care card?',
+                        confirmButtonText: 'Yes, remove it!'
+                    }, doRemove);
+                } else if (confirm('Are you sure you want to remove this care card?')) {
+                    doRemove();
                 }
             }
         }

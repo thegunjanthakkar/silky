@@ -6,6 +6,13 @@ if ((!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true) && !isse
     echo json_encode(['error' => 'Unauthorized']);
     exit;
 }
+require_once 'includes/permission-manager.php';
+// Serves both website hero images and product images
+if (!hasFileAccess('get-hero-banners.php')) {
+    http_response_code(403);
+    echo json_encode(['error' => 'Permission denied']);
+    exit;
+}
 
 $type = $_GET['type'] ?? 'hero';
 

@@ -4,6 +4,8 @@ if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true) {
     header('Location: login.php');
     exit;
 }
+require_once 'includes/permission-manager.php';
+checkPageAccess();
 
 // Handle form submissions before any output
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
@@ -82,6 +84,20 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         header('Location: stocks.php');
         exit;
     }
+}
+
+// Handle delete stock action
+if (isset($_GET['action']) && $_GET['action'] === 'delete_stock' && isset($_GET['id'])) {
+    require_once '../db_config.php';
+    $stock_id = (int)$_GET['id'];
+    $delSQL = "DELETE FROM stock WHERE id = $stock_id";
+    if (mysqli_query($conn, $delSQL)) {
+        $_SESSION['success'] = "Stock record deleted successfully!";
+    } else {
+        $_SESSION['error'] = "Error deleting stock: " . mysqli_error($conn);
+    }
+    header('Location: stocks.php');
+    exit;
 }
 ?>
 <!DOCTYPE html>
@@ -407,13 +423,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                                         // Product has variants, direct Edit button to edit-product.php
                                                         echo '<a href="edit-product.php?id=' . $product_id . '#variants-section" class="btn btn-sm btn-soft-secondary" title="Edit Variants Stock"><i class="fas fa-edit"></i></a>';
                                                         if ($has_stock_record) {
-                                                            echo '<button type="button" class="btn btn-sm btn-soft-danger btn-delete-stock" data-id="' . $stock_id . '" title="Delete"><i class="fas fa-trash"></i></button>';
+                                                            echo '<a href="stocks.php?action=delete_stock&id=' . $stock_id . '" class="btn btn-sm btn-soft-danger" title="Delete" data-confirm="Are you sure you want to delete this stock record?" data-confirm-title="Delete Stock?"><i class="fas fa-trash"></i></a>';
                                                         }
                                                     } else {
                                                         // No variants, use standard modal buttons
                                                         if ($has_stock_record) {
                                                             echo '<button type="button" class="btn btn-sm btn-soft-secondary btn-edit-stock" data-id="' . $stock_id . '" data-product-id="' . $product_id . '" data-quantity="' . $quantity . '" data-product-name="' . htmlspecialchars($row['product_name']) . '" data-size="' . htmlspecialchars($row['size']) . '" data-color="' . htmlspecialchars($row['color']) . '" data-category="' . htmlspecialchars($row['category_name']) . '" title="Edit Stock"><i class="fas fa-edit"></i></button>';
-                                                            echo '<button type="button" class="btn btn-sm btn-soft-danger btn-delete-stock" data-id="' . $stock_id . '" title="Delete"><i class="fas fa-trash"></i></button>';
+                                                            echo '<a href="stocks.php?action=delete_stock&id=' . $stock_id . '" class="btn btn-sm btn-soft-danger" title="Delete" data-confirm="Are you sure you want to delete this stock record?" data-confirm-title="Delete Stock?"><i class="fas fa-trash"></i></a>';
                                                         } else {
                                                             echo '<button type="button" class="btn btn-sm btn-soft-success btn-add-stock" data-product-id="' . $product_id . '" data-product-name="' . htmlspecialchars($row['product_name']) . '" data-size="' . htmlspecialchars($row['size']) . '" data-color="' . htmlspecialchars($row['color']) . '" data-category="' . htmlspecialchars($row['category_name']) . '" title="Add Stock"><i class="fas fa-plus"></i></button>';
                                                         }

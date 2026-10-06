@@ -5,6 +5,10 @@ if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true) {
     exit;
 }
 
+// Enforce dashboard_view permission - redirects to first allowed page if denied
+require_once __DIR__ . '/includes/permission-manager.php';
+checkPageAccess();
+
 // Get recent login activities
 require_once '../db_config.php';
 $activity_query = "SELECT au.first_name, au.last_name, au.last_login, ar.role_name 
@@ -114,6 +118,12 @@ if ($recent_orders_result) {
         <!-- Page Content-->
         <div class="page-content">
             <div class="container-fluid">
+                <?php if (!empty($_SESSION['perm_notice'])): ?>
+                    <div class="alert alert-warning alert-dismissible fade show mt-3" role="alert">
+                        <?php echo htmlspecialchars($_SESSION['perm_notice']); unset($_SESSION['perm_notice']); ?>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                <?php endif; ?>
                 <div class="row">
                     <div class="col-sm-12">
                         <div class="page-title-box d-md-flex justify-content-md-between align-items-center">

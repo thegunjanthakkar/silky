@@ -4,12 +4,21 @@ if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true) {
     header('Location: login.php');
     exit;
 }
+require_once 'includes/permission-manager.php';
+// Page view requires permission; AJAX actions are checked separately below
+if (!($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']))) {
+    checkPageAccess();
+}
 
 require_once '../db_config.php';
 
 // Handle AJAX status update / delete
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     header('Content-Type: application/json');
+    if (!hasFileAccess('reviews.php')) {
+        echo json_encode(['success' => false, 'message' => 'You do not have permission to manage reviews.']);
+        exit;
+    }
     $review_id = intval($_POST['review_id'] ?? 0);
     $action    = $_POST['action'];
 
@@ -570,42 +579,56 @@ if ($prod_res) {
             const id     = btn.dataset.id;
             const action = btn.dataset.action;
 
-            if (action === 'delete' && !confirm('Are you sure you want to permanently delete this review?')) return;
+            const runAction = () => {
+                btn.disabled = true;
+                const orig = btn.innerHTML;
+                btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
 
-            btn.disabled = true;
-            const orig = btn.innerHTML;
-            btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+                const fd = new FormData();
+                fd.append('review_id', id);
+                fd.append('action', action);
 
-            const fd = new FormData();
-            fd.append('review_id', id);
-            fd.append('action', action);
-
-            fetch('reviews.php', { method: 'POST', body: fd })
-                .then(r => r.json())
-                .then(data => {
-                    btn.disabled = false;
-                    btn.innerHTML = orig;
-                    if (data.success) {
-                        showToast(data.message, 'success');
-                        if (action === 'delete') {
-                            document.getElementById('review-row-' + id)?.remove();
-                        } else {
-                            const badge = document.getElementById('badge-' + id);
-                            if (badge) {
-                                badge.className = 'badge px-2 py-1 status-badge ' + badgeMap[action].cls;
-                                badge.textContent = badgeMap[action].label;
+                fetch('reviews.php', { method: 'POST', body: fd })
+                    .then(r => r.json())
+                    .then(data => {
+                        btn.disabled = false;
+                        btn.innerHTML = orig;
+                        if (data.success) {
+                            showToast(data.message, 'success');
+                            if (action === 'delete') {
+                                document.getElementById('review-row-' + id)?.remove();
+                            } else {
+                                const badge = document.getElementById('badge-' + id);
+                                if (badge) {
+                                    badge.className = 'badge px-2 py-1 status-badge ' + badgeMap[action].cls;
+                                    badge.textContent = badgeMap[action].label;
+                                }
+                                setTimeout(() => location.reload(), 900);
                             }
-                            setTimeout(() => location.reload(), 900);
+                        } else {
+                            showToast(data.message || 'Error', 'error');
                         }
-                    } else {
-                        showToast(data.message || 'Error', 'error');
-                    }
-                })
-                .catch(() => {
-                    btn.disabled = false;
-                    btn.innerHTML = orig;
-                    showToast('Network error. Please try again.', 'error');
-                });
+                    })
+                    .catch(() => {
+                        btn.disabled = false;
+                        btn.innerHTML = orig;
+                        showToast('Network error. Please try again.', 'error');
+                    });
+            };
+
+            if (action === 'delete') {
+                if (typeof window.themeConfirm === 'function') {
+                    window.themeConfirm({
+                        title: 'Delete Review?',
+                        text: 'Are you sure you want to permanently delete this review?',
+                        confirmButtonText: 'Yes, delete it!'
+                    }, runAction);
+                } else if (confirm('Are you sure you want to permanently delete this review?')) {
+                    runAction();
+                }
+            } else {
+                runAction();
+            }
         });
     });
     </script>

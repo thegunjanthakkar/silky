@@ -4,6 +4,8 @@ if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true) {
     header('Location: login.php');
     exit;
 }
+require_once 'includes/permission-manager.php';
+checkPageAccess();
 
 // Handle inline single Order Status Update (AJAX)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'update_order_status') {
@@ -840,6 +842,61 @@ if (isset($_GET['action']) && $_GET['action'] === 'modal_order' && isset($_GET['
     echo $html;
     exit;
 }
+
+// Handle Delete Order (no external file)
+if ((isset($_GET['action']) && $_GET['action'] === 'delete' && isset($_GET['id'])) || 
+    ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'delete' && isset($_POST['id']))) {
+    require_once 'includes/permission-manager.php';
+    require_once '../db_config.php';
+    checkPageAccess();
+
+    $orderId = intval($_GET['id'] ?? $_POST['id'] ?? 0);
+    if ($orderId <= 0) {
+        $_SESSION['error'] = 'Invalid order ID.';
+        header('Location: orders.php');
+        exit;
+    }
+
+    // Verify order exists and get order number for display
+    $checkStmt = mysqli_prepare($conn, "SELECT id, order_number FROM orders WHERE id = ? LIMIT 1");
+    mysqli_stmt_bind_param($checkStmt, 'i', $orderId);
+    mysqli_stmt_execute($checkStmt);
+    $checkRes = mysqli_stmt_get_result($checkStmt);
+    $orderData = mysqli_fetch_assoc($checkRes);
+    mysqli_stmt_close($checkStmt);
+
+    if (!$orderData) {
+        $_SESSION['error'] = 'Order not found.';
+        header('Location: orders.php');
+        exit;
+    }
+
+    $ordNumber = !empty($orderData['order_number']) ? $orderData['order_number'] : sprintf('%04d', $orderId);
+
+    // Restore stock if it was deducted
+    require_once '../includes/stock-functions.php';
+    restoreOrderStock($conn, $orderId);
+
+    // Delete related child records
+    @mysqli_query($conn, "DELETE FROM return_requests WHERE order_id = $orderId");
+    @mysqli_query($conn, "DELETE FROM payment_transactions WHERE order_id = $orderId");
+    @mysqli_query($conn, "DELETE FROM order_items WHERE order_id = $orderId");
+
+    // Delete order from database
+    $delStmt = mysqli_prepare($conn, "DELETE FROM orders WHERE id = ?");
+    mysqli_stmt_bind_param($delStmt, 'i', $orderId);
+    $deleted = mysqli_stmt_execute($delStmt);
+    mysqli_stmt_close($delStmt);
+
+    if ($deleted) {
+        $_SESSION['success'] = "Order #{$ordNumber} deleted successfully.";
+    } else {
+        $_SESSION['error'] = "Failed to delete order #{$ordNumber}: " . mysqli_error($conn);
+    }
+
+    header('Location: orders.php');
+    exit;
+}
 ?>
 <!DOCTYPE html>
 <html lang="en" dir="ltr" data-startbar="light" data-bs-theme="light">
@@ -1014,12 +1071,20 @@ if (isset($_GET['action']) && $_GET['action'] === 'modal_order' && isset($_GET['
                             </div><!--end card-header-->
                             <div class="card-body">
                                 <?php
+                                if (isset($_SESSION['success'])) {
+                                    echo '<div class="alert alert-success alert-dismissible fade show" role="alert">' . htmlspecialchars($_SESSION['success']) . '<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button></div>';
+                                    unset($_SESSION['success']);
+                                }
+                                if (isset($_SESSION['error'])) {
+                                    echo '<div class="alert alert-danger alert-dismissible fade show" role="alert">' . htmlspecialchars($_SESSION['error']) . '<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button></div>';
+                                    unset($_SESSION['error']);
+                                }
                                 if (isset($_SESSION['add_order_success'])) {
-                                    echo '<div class="alert alert-success">' . htmlspecialchars($_SESSION['add_order_success']) . '</div>';
+                                    echo '<div class="alert alert-success alert-dismissible fade show" role="alert">' . htmlspecialchars($_SESSION['add_order_success']) . '<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button></div>';
                                     unset($_SESSION['add_order_success']);
                                 }
                                 if (isset($_SESSION['add_order_error'])) {
-                                    echo '<div class="alert alert-danger">' . htmlspecialchars($_SESSION['add_order_error']) . '</div>';
+                                    echo '<div class="alert alert-danger alert-dismissible fade show" role="alert">' . htmlspecialchars($_SESSION['add_order_error']) . '<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button></div>';
                                     unset($_SESSION['add_order_error']);
                                 }
                                 ?>
@@ -1237,7 +1302,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'modal_order' && isset($_GET['
                                                         echo '<div class="btn-group" role="group">';
                                                         echo '<button type="button" class="btn btn-sm btn-soft-primary view-order-btn" data-id="' . htmlspecialchars($row['id']) . '" data-ordernumber="' . htmlspecialchars($row['order_number'] ?: '') . '" title="View"><i class="fas fa-eye"></i></button>';
                                                         echo '<a href="edit-order.php?id=' . urlencode($row['id']) . '" class="btn btn-sm btn-soft-secondary" title="Edit"><i class="fas fa-edit"></i></a>';
-                                                        echo '<a href="delete-order.php?id=' . urlencode($row['id']) . '" class="btn btn-sm btn-soft-danger" title="Delete" onclick="return confirm(\'Are you sure you want to delete this order?\')"><i class="fas fa-trash"></i></a>';
+                                                        echo '<a href="orders.php?action=delete&id=' . urlencode($row['id']) . '" class="btn btn-sm btn-soft-danger" title="Delete" data-confirm="Are you sure you want to delete this order?"><i class="fas fa-trash"></i></a>';
                                                         echo '</div>';
                                                         echo '</td>';
                                                         echo '</tr>';
@@ -2123,26 +2188,6 @@ if (isset($_GET['action']) && $_GET['action'] === 'modal_order' && isset($_GET['
     });
     </script>
 
-    <script>
-    document.addEventListener('DOMContentLoaded', function () {
-        document.querySelectorAll('.btn-edit-user').forEach(function(btn) {
-            btn.addEventListener('click', function() {
-                var userId = this.getAttribute('data-id');
-                if (userId) {
-                    window.location.href = 'edit-user.php?id=' + userId;
-                }
-            });
-        });
-            document.querySelectorAll('.btn-delete-user').forEach(function(btn) {
-                btn.addEventListener('click', function() {
-                    var userId = this.getAttribute('data-id');
-                    if (userId && confirm('Are you sure you want to delete this user?')) {
-                        window.location.href = 'delete-user.php?id=' + userId;
-                    }
-                });
-            });
-    });
-    </script>
 
     <!-- Toast Notification -->
     <div class="position-fixed top-0 end-0 p-3" style="z-index:1090;">

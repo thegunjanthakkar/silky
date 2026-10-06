@@ -9,6 +9,7 @@ if (!isset($_SESSION['admin_user_id']) && !isset($_SESSION['user_id'])) {
     header('Location: login.php');
     exit;
 }
+checkPageAccess();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $product_id = intval($_POST['id'] ?? 0);

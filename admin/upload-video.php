@@ -8,6 +8,12 @@ if (!isset($_SESSION['admin_user_id']) && !isset($_SESSION['user_id'])) {
     echo json_encode(["success" => false, "message" => "Please login first"]);
     exit;
 }
+require_once 'includes/permission-manager.php';
+if (!hasFileAccess('upload-video.php')) {
+    http_response_code(403);
+    echo json_encode(["success" => false, "message" => "You do not have permission to upload videos"]);
+    exit;
+}
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);

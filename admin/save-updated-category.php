@@ -9,6 +9,7 @@ if (!isset($_SESSION['admin_user_id']) && !isset($_SESSION['user_id'])) {
     echo json_encode(["success" => false, "message" => "Please login first"]);
     exit;
 }
+checkPageAccess();
 
 // Handle AJAX image delete
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'delete_image') {

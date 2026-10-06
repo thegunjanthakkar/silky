@@ -4,6 +4,8 @@ if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true) {
     header('Location: login.php');
     exit;
 }
+require_once 'includes/permission-manager.php';
+checkPageAccess();
 require_once '../db_config.php';
 
 // Handle action (mark read, delete)
@@ -110,7 +112,7 @@ if (isset($_GET['action']) && isset($_GET['id'])) {
                                                         <?php if ($row['status'] == 'unread') { ?>
                                                             <a href="contact-queries.php?action=read&id=<?php echo $row['id']; ?>" class="btn btn-sm btn-soft-primary"><i class="las la-check"></i> Mark Read</a>
                                                         <?php } ?>
-                                                        <a href="contact-queries.php?action=delete&id=<?php echo $row['id']; ?>" class="btn btn-sm btn-soft-danger" onclick="return confirm('Are you sure you want to delete this message?');"><i class="las la-trash"></i></a>
+                                                        <a href="contact-queries.php?action=delete&id=<?php echo $row['id']; ?>" class="btn btn-sm btn-soft-danger" data-confirm="Are you sure you want to delete this message?" data-confirm-title="Delete Message?"><i class="las la-trash"></i></a>
                                                     </td>
                                                 </tr>
                                             <?php } ?>

@@ -538,12 +538,22 @@ if (!isset($_SESSION['user_id']) || empty($_SESSION['user_id'])) {
           return;
         }
         
-        if (confirm('Are you sure you want to clear your wishlist?')) {
+        const doClear = () => {
           wishlist = [];
           localStorage.setItem('wishlist', JSON.stringify(wishlist));
           loadWishlistItems();
           updateWishlistBadge();
           showToast('Wishlist cleared', 'info');
+        };
+
+        if (typeof window.themeConfirm === 'function') {
+          window.themeConfirm({
+            title: 'Clear Wishlist?',
+            text: 'Are you sure you want to clear your wishlist?',
+            confirmButtonText: 'Yes, clear it!'
+          }, doClear);
+        } else if (confirm('Are you sure you want to clear your wishlist?')) {
+          doClear();
         }
       });
       

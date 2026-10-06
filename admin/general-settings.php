@@ -1120,11 +1120,19 @@ function saveLegalPolicyToFile($filename, $title, $rawContent) {
             // Check if platform already exists
             const existingInput = $('input[name="social_' + platform + '"]');
             if (existingInput.length > 0 && existingInput.val()) {
-                if (!confirm('A link for ' + config.label + ' already exists. Do you want to replace it?')) {
-                    return;
+                const replaceLink = () => {
+                    existingInput.val(url);
+                    $('#addSocialModal').modal('hide');
+                };
+                if (typeof window.themeConfirm === 'function') {
+                    window.themeConfirm({
+                        title: 'Replace Link?',
+                        text: 'A link for ' + config.label + ' already exists. Do you want to replace it?',
+                        confirmButtonText: 'Yes, replace it!'
+                    }, replaceLink);
+                } else if (confirm('A link for ' + config.label + ' already exists. Do you want to replace it?')) {
+                    replaceLink();
                 }
-                existingInput.val(url);
-                $('#addSocialModal').modal('hide');
                 return;
             }
             
@@ -1152,7 +1160,7 @@ function saveLegalPolicyToFile($filename, $title, $rawContent) {
 
         // Remove social link
         function removeSocialLink(button) {
-            if (confirm('Are you sure you want to remove this social media link?')) {
+            const doRemove = () => {
                 $(button).closest('.social-link-item').remove();
                 
                 // Show "no links" message if no links left
@@ -1162,6 +1170,16 @@ function saveLegalPolicyToFile($filename, $title, $rawContent) {
                 
                 // Add change indicator
                 $('.card').has('#social-links-container').addClass('border-warning');
+            };
+
+            if (typeof window.themeConfirm === 'function') {
+                window.themeConfirm({
+                    title: 'Remove Link?',
+                    text: 'Are you sure you want to remove this social media link?',
+                    confirmButtonText: 'Yes, remove it!'
+                }, doRemove);
+            } else if (confirm('Are you sure you want to remove this social media link?')) {
+                doRemove();
             }
         }
 
