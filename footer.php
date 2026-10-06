@@ -200,3 +200,110 @@ $website_tagline = $settings['website_tagline'] ?? 'A silky touch to beauty';
       </div>
     </div>
   </footer>
+
+  <!-- SweetAlert2 Theme Confirm Dialogs -->
+  <link rel="stylesheet" href="<?php echo $base_url; ?>admin/assets/libs/sweetalert2/sweetalert2.min.css">
+  <script src="<?php echo $base_url; ?>admin/assets/libs/sweetalert2/sweetalert2.min.js"></script>
+  <style>
+    .swal2-popup.silky-swal-popup {
+      border-radius: 14px;
+      font-family: inherit;
+      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.18);
+      padding: 1.5rem 1.25rem;
+    }
+    .silky-swal-popup .swal2-title {
+      font-size: 1.25rem;
+      font-weight: 600;
+    }
+    .silky-swal-popup .btn {
+      border-radius: 8px;
+      font-weight: 500;
+      padding: 0.5rem 1.25rem;
+    }
+  </style>
+  <script>
+  (function() {
+    window.themeConfirm = function(options, onConfirm, onCancel) {
+      if (typeof options === 'string') {
+        options = { text: options };
+      }
+      options = options || {};
+      const title = options.title || 'Are you sure?';
+      const text = options.text || '';
+      const icon = options.icon || 'warning';
+      const confirmButtonText = options.confirmButtonText || 'Yes, proceed!';
+      const cancelButtonText = options.cancelButtonText || 'Cancel';
+
+      if (typeof Swal !== 'undefined') {
+        return Swal.fire({
+          title: title,
+          text: text,
+          icon: icon,
+          showCancelButton: true,
+          confirmButtonText: confirmButtonText,
+          cancelButtonText: cancelButtonText,
+          customClass: {
+            popup: 'silky-swal-popup',
+            confirmButton: 'btn btn-danger me-2',
+            cancelButton: 'btn btn-outline-secondary'
+          },
+          buttonsStyling: false,
+          reverseButtons: true,
+          focusCancel: true
+        }).then(function(result) {
+          if (result.isConfirmed) {
+            if (typeof onConfirm === 'function') onConfirm();
+          } else if (result.dismiss === Swal.DismissReason.cancel || result.isDismissed) {
+            if (typeof onCancel === 'function') onCancel();
+          }
+          return result;
+        });
+      } else {
+        if (confirm(text || title)) {
+          if (typeof onConfirm === 'function') onConfirm();
+        } else {
+          if (typeof onCancel === 'function') onCancel();
+        }
+      }
+    };
+
+    document.addEventListener('click', function(e) {
+      const target = e.target.closest('[data-confirm], [onclick*="confirm("]');
+      if (!target) return;
+
+      let confirmMsg = target.getAttribute('data-confirm');
+      const confirmTitle = target.getAttribute('data-confirm-title') || 'Confirm Action';
+      const btnText = target.getAttribute('data-confirm-btn') || 'Yes, proceed!';
+
+      if (!confirmMsg && target.hasAttribute('onclick')) {
+        const oc = target.getAttribute('onclick');
+        const match = oc.match(/confirm\s*\(\s*(['"])(.*?)\1\s*\)/);
+        if (match && match[2]) {
+          confirmMsg = match[2];
+          target.setAttribute('data-original-onclick', oc);
+          target.removeAttribute('onclick');
+        }
+      }
+
+      if (confirmMsg) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+
+        window.themeConfirm({
+          title: confirmTitle,
+          text: confirmMsg,
+          confirmButtonText: btnText
+        }, function() {
+          if (target.tagName === 'A' && target.href && !target.href.startsWith('javascript:')) {
+            window.location.href = target.href;
+          } else if (target.type === 'submit' && target.form) {
+            target.form.submit();
+          } else if (target.getAttribute('data-original-onclick')) {
+            const fn = new Function(target.getAttribute('data-original-onclick'));
+            fn.call(target);
+          }
+        });
+      }
+    }, true);
+  })();
+  </script>
