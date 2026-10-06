@@ -174,6 +174,16 @@ if (isset($_GET['toggle_id'])) {
                                             if (!isset($conn)) {
                                                 require_once '../db_config.php';
                                             }
+                                            // Who am I? Admins may edit other Admin users (but never self, never delete/toggle them)
+                                            $__current_id = (int)($_SESSION['admin_user_id'] ?? $_SESSION['user_id'] ?? 0);
+                                            $__i_am_admin = false;
+                                            if ($__current_id > 0) {
+                                                $__me_res = mysqli_query($conn, "SELECT u.role_id, r.role_name FROM admin_users u LEFT JOIN admin_roles r ON u.role_id = r.id WHERE u.id = $__current_id LIMIT 1");
+                                                if ($__me_res && mysqli_num_rows($__me_res) > 0) {
+                                                    $__me = mysqli_fetch_assoc($__me_res);
+                                                    $__i_am_admin = ((int)$__me['role_id'] === 1) || in_array(strtolower(trim($__me['role_name'] ?? '')), ['admin', 'super admin', 'administrator'], true);
+                                                }
+                                            }
                                             $result = mysqli_query($conn, "SELECT u.id, u.email, u.first_name, u.last_name, u.phone, u.status, u.role_id, u.created_at, u.last_login, r.role_name FROM admin_users u LEFT JOIN admin_roles r ON u.role_id = r.id ORDER BY u.id ASC");
                                             if ($result && mysqli_num_rows($result) > 0) {
                                                 $rowIndex = 0;
@@ -212,24 +222,33 @@ if (isset($_GET['toggle_id'])) {
                                                     echo '<td>' . ($row['created_at'] ? date('d/m/Y', strtotime($row['created_at'])) : '-') . '</td>';
                                                     echo '<td>' . ($row['last_login'] ? date('d/m/Y h:i A', strtotime($row['last_login'])) : '-') . '</td>';
                                                     echo '<td>';
-                                                    // Protected: Admin-role users cannot be edited/deleted by anyone
-                                                    $is_protected_admin = ((int)$row['role_id'] === 1) || in_array(strtolower(trim($row['role_name'] ?? '')), ['admin', 'super admin', 'administrator'], true);
-                                                    // Protected: no one can edit/delete their own profile
-                                                    $__current_id = (int)($_SESSION['admin_user_id'] ?? $_SESSION['user_id'] ?? 0);
+                                                    $is_target_admin = ((int)$row['role_id'] === 1) || in_array(strtolower(trim($row['role_name'] ?? '')), ['admin', 'super admin', 'administrator'], true);
                                                     $is_own_profile = ($__current_id > 0 && (int)$row['id'] === $__current_id);
-                                                    $hide_actions = ($is_protected_admin || $is_own_profile);
-                                                    $__lock_title = $is_own_profile ? 'You cannot edit/delete your own profile' : 'Protected Admin - editing disabled';
+                                                    // Edit: allowed unless self; Admin targets need an Admin editor
+                                                    $can_edit = (!$is_own_profile && (!$is_target_admin || $__i_am_admin));
+                                                    // Activate/inactivate + delete: never self, never Admin targets (even for Admins)
+                                                    $can_danger = (!$is_own_profile && !$is_target_admin);
                                                     echo '<div class="btn-group" role="group">';
-                                                    if (!$hide_actions) {
+                                                    if ($can_danger) {
                                                         $is_active = (strtolower($row['status']) === 'active');
                                                         if ($is_active) {
                                                             echo '<button type="button" class="btn btn-sm btn-soft-warning btn-toggle-status" data-id="' . $row['id'] . '" data-action="deactivate" title="Deactivate user"><i class="fas fa-toggle-on"></i></button>';
                                                         } else {
                                                             echo '<button type="button" class="btn btn-sm btn-soft-success btn-toggle-status" data-id="' . $row['id'] . '" data-action="activate" title="Activate user"><i class="fas fa-toggle-off"></i></button>';
                                                         }
+                                                    }
+                                                    if ($can_edit) {
                                                         echo '<button type="button" class="btn btn-sm btn-soft-secondary btn-edit-user" data-id="' . $row['id'] . '" title="Edit"><i class="fas fa-edit"></i></button>';
+                                                    }
+                                                    if ($can_danger) {
                                                         echo '<button type="button" class="btn btn-sm btn-soft-danger btn-delete-user" data-id="' . $row['id'] . '" title="Delete"><i class="fas fa-trash"></i></button>';
-                                                    } else {
+                                                    }
+                                                    if (!$can_edit && !$can_danger) {
+                                                        $__lock_title = $is_own_profile ? 'You cannot edit/delete your own profile' : 'Protected Admin - editing disabled';
+                                                        echo '<span class="btn btn-sm btn-soft-dark disabled" title="' . $__lock_title . '"><i class="fas fa-lock"></i></span>';
+                                                    } elseif ($can_edit && !$can_danger) {
+                                                        // Admin editing fellow Admin: edit OK, status/delete locked
+                                                        $__lock_title = $is_own_profile ? 'You cannot change status/delete your own profile' : 'Only edit allowed for Admin users';
                                                         echo '<span class="btn btn-sm btn-soft-dark disabled" title="' . $__lock_title . '"><i class="fas fa-lock"></i></span>';
                                                     }
                                                     echo '</div>';

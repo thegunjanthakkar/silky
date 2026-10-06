@@ -334,7 +334,7 @@ function logActionBadge($action) {
                                                     <td><?php echo logActionBadge($log['action']); ?></td>
                                                     <td><span class="badge bg-secondary-subtle text-secondary"><?php echo htmlspecialchars($log['module']); ?></span></td>
                                                     <td style="white-space:normal;min-width:220px;"><?php echo htmlspecialchars($log['description'] ?: '—'); ?></td>
-                                                    <td><small class="text-muted"><?php echo htmlspecialchars($log['ip_address'] ?: '—'); ?></small></td>
+                                                    <td><small class="text-muted"><?php $dip = function_exists('normalizeIpAddress') ? normalizeIpAddress($log['ip_address'] ?? '') : (string)($log['ip_address'] ?? ''); echo htmlspecialchars($dip !== '' ? $dip : '—'); ?></small></td>
                                                     <td><small><?php echo htmlspecialchars(date('d/m/Y h:i A', strtotime($log['created_at']))); ?></small></td>
                                                 </tr>
                                             <?php endforeach; ?>

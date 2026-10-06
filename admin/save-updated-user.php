@@ -59,15 +59,25 @@ if ($__current_id > 0 && $id === $__current_id) {
     exit;
 }
 
-// Protected: users whose role is Admin cannot be edited by anyone (even via direct POST)
+// Protected: Admin-role users can only be edited by an Admin (even via direct POST)
 $__t_check = mysqli_query($conn, "SELECT u.role_id, r.role_name FROM admin_users u LEFT JOIN admin_roles r ON u.role_id = r.id WHERE u.id = " . $id . " LIMIT 1");
 if ($__t_check && mysqli_num_rows($__t_check) > 0) {
     $__t_row = mysqli_fetch_assoc($__t_check);
     $__t_role_name = strtolower(trim($__t_row['role_name'] ?? ''));
     if ((int)$__t_row['role_id'] === 1 || in_array($__t_role_name, ['admin', 'super admin', 'administrator'], true)) {
-        $_SESSION['error'] = 'This user has an Admin role and cannot be edited.';
-        header('Location: users.php');
-        exit;
+        $__i_am_admin = false;
+        if ($__current_id > 0) {
+            $__me_res = mysqli_query($conn, "SELECT u.role_id, r.role_name FROM admin_users u LEFT JOIN admin_roles r ON u.role_id = r.id WHERE u.id = $__current_id LIMIT 1");
+            if ($__me_res && mysqli_num_rows($__me_res) > 0) {
+                $__me = mysqli_fetch_assoc($__me_res);
+                $__i_am_admin = ((int)$__me['role_id'] === 1) || in_array(strtolower(trim($__me['role_name'] ?? '')), ['admin', 'super admin', 'administrator'], true);
+            }
+        }
+        if (!$__i_am_admin) {
+            $_SESSION['error'] = 'Only an Admin can edit another Admin user.';
+            header('Location: users.php');
+            exit;
+        }
     }
 }
 

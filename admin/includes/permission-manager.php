@@ -423,6 +423,28 @@ function ensureActivityLogsTable() {
 }
 
 /**
+ * Normalize an IP address for display/storage as IPv4 where possible.
+ * Localhost often reports ::1 (IPv6 loopback) - show 127.0.0.1 instead.
+ * IPv4-mapped IPv6 addresses (::ffff:1.2.3.4) are unwrapped to plain IPv4.
+ */
+function normalizeIpAddress($ip) {
+    $ip = trim((string)$ip);
+    if ($ip === '') {
+        return '';
+    }
+    if ($ip === '::1') {
+        return '127.0.0.1';
+    }
+    if (stripos($ip, '::ffff:') === 0) {
+        $v4 = substr($ip, 7);
+        if (filter_var($v4, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
+            return $v4;
+        }
+    }
+    return $ip;
+}
+
+/**
  * Record an admin activity log entry.
  * @param string $action  e.g. login, logout, create, update, delete
  * @param string $module  e.g. Auth, Users, Roles, Products
@@ -457,7 +479,7 @@ function logActivity($action, $module, $description = '') {
         $desc_esc = mysqli_real_escape_string($conn, (string)$description);
         $uname_esc = mysqli_real_escape_string($conn, substr((string)$user_name, 0, 150));
         $rname_esc = $role_name !== null ? ("'" . mysqli_real_escape_string($conn, substr((string)$role_name, 0, 100)) . "'") : 'NULL';
-        $ip_esc = mysqli_real_escape_string($conn, substr((string)($_SERVER['REMOTE_ADDR'] ?? ''), 0, 45));
+        $ip_esc = mysqli_real_escape_string($conn, substr(normalizeIpAddress($_SERVER['REMOTE_ADDR'] ?? ''), 0, 45));
         $ua_esc = mysqli_real_escape_string($conn, substr((string)($_SERVER['HTTP_USER_AGENT'] ?? ''), 0, 255));
         @mysqli_query($conn, "INSERT INTO activity_logs (user_id, user_name, role_name, action, module, description, ip_address, user_agent) VALUES ($uid_sql, '$uname_esc', $rname_esc, '$action_esc', '$module_esc', '$desc_esc', '$ip_esc', '$ua_esc')");
         return true;

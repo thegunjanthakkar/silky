@@ -26,7 +26,15 @@ if (!$result || mysqli_num_rows($result) === 0) {
 }
 $user = mysqli_fetch_assoc($result);
 
-// Protected: users whose role is Admin cannot be edited by anyone (even via direct URL)
+// Protected: no one can edit their own profile (even via direct URL)
+$__current_id = (int)($_SESSION['admin_user_id'] ?? $_SESSION['user_id'] ?? 0);
+if ($__current_id > 0 && (int)$user_id === $__current_id) {
+    $_SESSION['error'] = 'You cannot edit your own profile.';
+    header('Location: users.php');
+    exit;
+}
+
+// Protected: Admin-role users can only be edited by an Admin (even via direct URL)
 $__role_name_check = '';
 $__role_lookup = mysqli_query($conn, "SELECT role_name FROM admin_roles WHERE id = '" . mysqli_real_escape_string($conn, $user['role_id']) . "' LIMIT 1");
 if ($__role_lookup && mysqli_num_rows($__role_lookup) > 0) {
@@ -35,17 +43,19 @@ if ($__role_lookup && mysqli_num_rows($__role_lookup) > 0) {
     mysqli_free_result($__role_lookup);
 }
 if ((int)$user['role_id'] === 1 || in_array($__role_name_check, ['admin', 'super admin', 'administrator'], true)) {
-    $_SESSION['error'] = 'This user has an Admin role and cannot be edited.';
-    header('Location: users.php');
-    exit;
-}
-
-// Protected: no one can edit their own profile (even via direct URL)
-$__current_id = (int)($_SESSION['admin_user_id'] ?? $_SESSION['user_id'] ?? 0);
-if ($__current_id > 0 && (int)$user_id === $__current_id) {
-    $_SESSION['error'] = 'You cannot edit your own profile.';
-    header('Location: users.php');
-    exit;
+    $__i_am_admin = false;
+    if ($__current_id > 0) {
+        $__me_res = mysqli_query($conn, "SELECT u.role_id, r.role_name FROM admin_users u LEFT JOIN admin_roles r ON u.role_id = r.id WHERE u.id = $__current_id LIMIT 1");
+        if ($__me_res && mysqli_num_rows($__me_res) > 0) {
+            $__me = mysqli_fetch_assoc($__me_res);
+            $__i_am_admin = ((int)$__me['role_id'] === 1) || in_array(strtolower(trim($__me['role_name'] ?? '')), ['admin', 'super admin', 'administrator'], true);
+        }
+    }
+    if (!$__i_am_admin) {
+        $_SESSION['error'] = 'Only an Admin can edit another Admin user.';
+        header('Location: users.php');
+        exit;
+    }
 }
 
 // Fetch roles for dropdown
