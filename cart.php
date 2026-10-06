@@ -1765,15 +1765,26 @@ if ($tax_query && mysqli_num_rows($tax_query) > 0) {
       }
 
       document.getElementById('clear-cart')?.addEventListener('click', () => {
-        if (!confirm('Clear your entire cart?')) return;
-        if (isLoggedIn) {
-          fetch('cart.php?action=clear_cart', { method: 'POST' })
-            .then(r => r.json()).then(d => {
-              if (d.status === 'success') window.location.reload();
-              else toast(d.message, 'danger');
-            });
-        } else {
-          cart = []; localStorage.removeItem('cart'); window.location.reload();
+        const doClear = () => {
+          if (isLoggedIn) {
+            fetch('cart.php?action=clear_cart', { method: 'POST' })
+              .then(r => r.json()).then(d => {
+                if (d.status === 'success') window.location.reload();
+                else toast(d.message, 'danger');
+              });
+          } else {
+            cart = []; localStorage.removeItem('cart'); window.location.reload();
+          }
+        };
+
+        if (typeof window.themeConfirm === 'function') {
+          window.themeConfirm({
+            title: 'Clear Cart?',
+            text: 'Are you sure you want to clear your entire cart?',
+            confirmButtonText: 'Yes, clear it!'
+          }, doClear);
+        } else if (confirm('Clear your entire cart?')) {
+          doClear();
         }
       });
 
