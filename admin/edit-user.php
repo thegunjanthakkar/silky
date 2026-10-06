@@ -26,6 +26,28 @@ if (!$result || mysqli_num_rows($result) === 0) {
 }
 $user = mysqli_fetch_assoc($result);
 
+// Protected: users whose role is Admin cannot be edited by anyone (even via direct URL)
+$__role_name_check = '';
+$__role_lookup = mysqli_query($conn, "SELECT role_name FROM admin_roles WHERE id = '" . mysqli_real_escape_string($conn, $user['role_id']) . "' LIMIT 1");
+if ($__role_lookup && mysqli_num_rows($__role_lookup) > 0) {
+    $__role_row = mysqli_fetch_assoc($__role_lookup);
+    $__role_name_check = strtolower(trim($__role_row['role_name'] ?? ''));
+    mysqli_free_result($__role_lookup);
+}
+if ((int)$user['role_id'] === 1 || in_array($__role_name_check, ['admin', 'super admin', 'administrator'], true)) {
+    $_SESSION['error'] = 'This user has an Admin role and cannot be edited.';
+    header('Location: users.php');
+    exit;
+}
+
+// Protected: no one can edit their own profile (even via direct URL)
+$__current_id = (int)($_SESSION['admin_user_id'] ?? $_SESSION['user_id'] ?? 0);
+if ($__current_id > 0 && (int)$user_id === $__current_id) {
+    $_SESSION['error'] = 'You cannot edit your own profile.';
+    header('Location: users.php');
+    exit;
+}
+
 // Fetch roles for dropdown
 $roles = [];
 $role_res = mysqli_query($conn, "SELECT id, role_name FROM admin_roles ORDER BY role_name ASC");

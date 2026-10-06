@@ -42,6 +42,7 @@ $can_user_roles      = $__can('user_roles');
 $can_general         = $__can('general_settings');
 $can_payment         = $__can('payment_settings');
 $can_email           = $__can('email_settings');
+$can_activity        = $__can('activity_logs');
 
 $can_sales           = $__can('sales_report');
 $can_cust_analytics  = $__can('customer_analytics');
@@ -61,7 +62,7 @@ $show_utilities = $can_contact;
 
 $show_usermgmt = ($can_users_list || $can_user_roles);
 
-$show_settings = ($can_general || $can_payment || $can_email);
+$show_settings = ($can_general || $can_payment || $can_email || $can_activity);
 $show_reports  = ($can_sales || $can_cust_analytics || $can_inventory || $can_perf);
 $show_system_label = ($show_usermgmt || $show_settings || $show_reports);
 ?>
@@ -329,6 +330,11 @@ $show_system_label = ($show_usermgmt || $show_settings || $show_reports);
                                     <?php if ($can_email): ?>
                                     <li class="nav-item">
                                         <a class="nav-link" href="./email-settings">Email Settings</a>
+                                    </li><!--end nav-item-->
+                                    <?php endif; ?>
+                                    <?php if ($can_activity): ?>
+                                    <li class="nav-item">
+                                        <a class="nav-link" href="./activity-logs">Activity Logs</a>
                                     </li><!--end nav-item-->
                                     <?php endif; ?>
                                 </ul><!--end nav-->

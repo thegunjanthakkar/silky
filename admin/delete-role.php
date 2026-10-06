@@ -34,6 +34,9 @@ if (!$result || mysqli_num_rows($result) === 0) {
 // Delete role
 $del_sql = "DELETE FROM admin_roles WHERE id = '" . mysqli_real_escape_string($conn, $role_id) . "'";
 if (mysqli_query($conn, $del_sql)) {
+    if (function_exists('logActivity')) {
+        @logActivity('delete', 'Roles', 'Deleted role (ID: ' . $role_id . ')');
+    }
     $_SESSION['role_flash'] = [
         'type' => 'success',
         'messages' => ['Role deleted successfully.']

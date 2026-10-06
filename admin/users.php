@@ -6,6 +6,51 @@ if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true) {
 }
 require_once 'includes/permission-manager.php';
 checkPageAccess();
+
+// Inline status toggle (no separate file): users.php?toggle_id=X flips active <-> inactive
+if (isset($_GET['toggle_id'])) {
+    if (!isset($conn)) {
+        require_once '../db_config.php';
+    }
+    $tid = intval($_GET['toggle_id']);
+    if ($tid <= 0) {
+        $_SESSION['error'] = 'Invalid user ID.';
+        header('Location: users.php');
+        exit;
+    }
+    // Protected: no one can change status of their own account
+    $__current_id = (int)($_SESSION['admin_user_id'] ?? $_SESSION['user_id'] ?? 0);
+    if ($__current_id > 0 && $tid === $__current_id) {
+        $_SESSION['error'] = 'You cannot change the status of your own account.';
+        header('Location: users.php');
+        exit;
+    }
+    $__t_res = mysqli_query($conn, "SELECT status, role_id, r.role_name FROM admin_users u LEFT JOIN admin_roles r ON u.role_id = r.id WHERE u.id = $tid LIMIT 1");
+    if (!$__t_res || mysqli_num_rows($__t_res) === 0) {
+        $_SESSION['error'] = 'User not found.';
+        header('Location: users.php');
+        exit;
+    }
+    $__t_row = mysqli_fetch_assoc($__t_res);
+    $__t_role = strtolower(trim($__t_row['role_name'] ?? ''));
+    // Protected: Admin-role users cannot be activated/inactivated by anyone
+    if ((int)$__t_row['role_id'] === 1 || in_array($__t_role, ['admin', 'super admin', 'administrator'], true)) {
+        $_SESSION['error'] = 'Status of an Admin user cannot be changed.';
+        header('Location: users.php');
+        exit;
+    }
+    $new_status = (strtolower($__t_row['status']) === 'active') ? 'inactive' : 'active';
+    if (mysqli_query($conn, "UPDATE admin_users SET status = '" . mysqli_real_escape_string($conn, $new_status) . "' WHERE id = $tid LIMIT 1")) {
+        if (function_exists('logActivity')) {
+            @logActivity('update', 'Users', 'Changed status to ' . $new_status . ' for admin user (ID: ' . $tid . ')');
+        }
+        $_SESSION['success'] = 'User ' . $new_status . ' successfully.';
+    } else {
+        $_SESSION['error'] = 'Error updating user status: ' . mysqli_error($conn);
+    }
+    header('Location: users.php');
+    exit;
+}
 ?>
 <!DOCTYPE html>
 <html lang="en" dir="ltr" data-startbar="light" data-bs-theme="light">
@@ -95,6 +140,18 @@ checkPageAccess();
                                 </div> <!--end row-->
                             </div><!--end card-header-->
                             <div class="card-body">
+                                <?php if (isset($_SESSION['error'])): ?>
+                                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                                        <?php echo htmlspecialchars($_SESSION['error']); unset($_SESSION['error']); ?>
+                                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                                    </div>
+                                <?php endif; ?>
+                                <?php if (isset($_SESSION['success'])): ?>
+                                    <div class="alert alert-success alert-dismissible fade show" role="alert">
+                                        <?php echo htmlspecialchars($_SESSION['success']); unset($_SESSION['success']); ?>
+                                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                                    </div>
+                                <?php endif; ?>
                                 <div class="table-responsive">
                                     <table class="table datatable" id="datatable_1">
                                         <thead class="table-light">
@@ -155,10 +212,26 @@ checkPageAccess();
                                                     echo '<td>' . ($row['created_at'] ? date('d/m/Y', strtotime($row['created_at'])) : '-') . '</td>';
                                                     echo '<td>' . ($row['last_login'] ? date('d/m/Y h:i A', strtotime($row['last_login'])) : '-') . '</td>';
                                                     echo '<td>';
+                                                    // Protected: Admin-role users cannot be edited/deleted by anyone
+                                                    $is_protected_admin = ((int)$row['role_id'] === 1) || in_array(strtolower(trim($row['role_name'] ?? '')), ['admin', 'super admin', 'administrator'], true);
+                                                    // Protected: no one can edit/delete their own profile
+                                                    $__current_id = (int)($_SESSION['admin_user_id'] ?? $_SESSION['user_id'] ?? 0);
+                                                    $is_own_profile = ($__current_id > 0 && (int)$row['id'] === $__current_id);
+                                                    $hide_actions = ($is_protected_admin || $is_own_profile);
+                                                    $__lock_title = $is_own_profile ? 'You cannot edit/delete your own profile' : 'Protected Admin - editing disabled';
                                                     echo '<div class="btn-group" role="group">';
-                                                    echo '<button type="button" class="btn btn-sm btn-soft-primary" title="View"><i class="fas fa-eye"></i></button>';
-                                                    echo '<button type="button" class="btn btn-sm btn-soft-secondary btn-edit-user" data-id="' . $row['id'] . '" title="Edit"><i class="fas fa-edit"></i></button>';
+                                                    if (!$hide_actions) {
+                                                        $is_active = (strtolower($row['status']) === 'active');
+                                                        if ($is_active) {
+                                                            echo '<button type="button" class="btn btn-sm btn-soft-warning btn-toggle-status" data-id="' . $row['id'] . '" data-action="deactivate" title="Deactivate user"><i class="fas fa-toggle-on"></i></button>';
+                                                        } else {
+                                                            echo '<button type="button" class="btn btn-sm btn-soft-success btn-toggle-status" data-id="' . $row['id'] . '" data-action="activate" title="Activate user"><i class="fas fa-toggle-off"></i></button>';
+                                                        }
+                                                        echo '<button type="button" class="btn btn-sm btn-soft-secondary btn-edit-user" data-id="' . $row['id'] . '" title="Edit"><i class="fas fa-edit"></i></button>';
                                                         echo '<button type="button" class="btn btn-sm btn-soft-danger btn-delete-user" data-id="' . $row['id'] . '" title="Delete"><i class="fas fa-trash"></i></button>';
+                                                    } else {
+                                                        echo '<span class="btn btn-sm btn-soft-dark disabled" title="' . $__lock_title . '"><i class="fas fa-lock"></i></span>';
+                                                    }
                                                     echo '</div>';
                                                     echo '</td>';
                                                     echo '</tr>';
@@ -241,6 +314,18 @@ checkPageAccess();
                     if (userId) {
                         themeConfirm('Are you sure you want to delete this user?', function() {
                             window.location.href = 'delete-user.php?id=' + userId;
+                        });
+                    }
+                });
+            });
+            document.querySelectorAll('.btn-toggle-status').forEach(function(btn) {
+                btn.addEventListener('click', function() {
+                    var userId = this.getAttribute('data-id');
+                    var action = this.getAttribute('data-action') || 'activate';
+                    if (userId) {
+                        var msg = (action === 'activate') ? 'Activate this user?' : 'Deactivate this user?';
+                        themeConfirm(msg, function() {
+                            window.location.href = 'users.php?toggle_id=' + userId;
                         });
                     }
                 });

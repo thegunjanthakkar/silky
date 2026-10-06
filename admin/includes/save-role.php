@@ -42,12 +42,18 @@ try {
         $role_id_int = (int) $role_id;
         $sql = "UPDATE admin_roles SET role_name='$role_name_esc', role_description='$role_description_esc', functionality='$permissions_json' WHERE id=$role_id_int";
         mysqli_query($conn, $sql);
+        if (function_exists('logActivity')) {
+            @logActivity('update', 'Roles', 'Updated role: ' . $role_name);
+        }
         $_SESSION['role_flash'] = ['type' => 'success', 'messages' => ['Role updated successfully']];
         header('Location: ../user-roles.php');
         exit;
     } else {
         $sql = "INSERT INTO admin_roles (role_name, role_description, functionality, created_at) VALUES ('$role_name_esc', '$role_description_esc', '$permissions_json', NOW())";
         mysqli_query($conn, $sql);
+        if (function_exists('logActivity')) {
+            @logActivity('create', 'Roles', 'Created role: ' . $role_name);
+        }
         $_SESSION['role_flash'] = ['type' => 'success', 'messages' => ['Role created successfully']];
         header('Location: ../user-roles.php');
         exit;

@@ -395,6 +395,11 @@ if (!empty($role['functionality'])) {
                                                         id="email_settings" <?php echo in_array('email_settings', $permissions) ? 'checked' : ''; ?>>
                                                     <label class="form-check-label" for="email_settings">Email Settings</label>
                                                 </div>
+                                                <div class="form-check">
+                                                    <input class="form-check-input settings-check" type="checkbox" name="permissions[]" value="activity_logs"
+                                                        id="activity_logs" <?php echo in_array('activity_logs', $permissions) ? 'checked' : ''; ?>>
+                                                    <label class="form-check-label" for="activity_logs">Activity Logs</label>
+                                                </div>
                                             </div>
 
                                             <!-- Analytics & Reports -->

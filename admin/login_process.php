@@ -59,6 +59,9 @@ try {
                     if (function_exists('setUserPermissions')) {
                         @setUserPermissions($user['id']);
                     }
+                    if (function_exists('logActivity')) {
+                        @logActivity('login', 'Auth', 'Logged in as ' . $user['email']);
+                    }
                 }
                 
                 // Update last login

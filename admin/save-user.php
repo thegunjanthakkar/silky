@@ -159,6 +159,9 @@ if ($action === 'update' && $id > 0) {
             $_SESSION['success'] = 'User created successfully, but email could not be sent. Password: ' . $random_password;
         }
 
+        if (function_exists('logActivity')) {
+            @logActivity('create', 'Users', 'Created admin user: ' . $email);
+        }
         header('Location: users.php');
         exit;
     } else {

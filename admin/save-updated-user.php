@@ -51,6 +51,26 @@ if ($id <= 0 || $email === '' || $first_name === '' || $last_name === '' || $pho
     exit;
 }
 
+// Protected: no one can update their own profile (even via direct POST)
+$__current_id = (int)($_SESSION['admin_user_id'] ?? $_SESSION['user_id'] ?? 0);
+if ($__current_id > 0 && $id === $__current_id) {
+    $_SESSION['error'] = 'You cannot edit your own profile.';
+    header('Location: users.php');
+    exit;
+}
+
+// Protected: users whose role is Admin cannot be edited by anyone (even via direct POST)
+$__t_check = mysqli_query($conn, "SELECT u.role_id, r.role_name FROM admin_users u LEFT JOIN admin_roles r ON u.role_id = r.id WHERE u.id = " . $id . " LIMIT 1");
+if ($__t_check && mysqli_num_rows($__t_check) > 0) {
+    $__t_row = mysqli_fetch_assoc($__t_check);
+    $__t_role_name = strtolower(trim($__t_row['role_name'] ?? ''));
+    if ((int)$__t_row['role_id'] === 1 || in_array($__t_role_name, ['admin', 'super admin', 'administrator'], true)) {
+        $_SESSION['error'] = 'This user has an Admin role and cannot be edited.';
+        header('Location: users.php');
+        exit;
+    }
+}
+
 // Update user
 $sql = "UPDATE admin_users SET 
     email = '" . mysqli_real_escape_string($conn, $email) . "',
@@ -155,6 +175,9 @@ if (mysqli_query($conn, $sql)) {
         $_SESSION['success'] = 'User updated successfully, but notification email could not be sent.';
     }
 
+    if (function_exists('logActivity')) {
+        @logActivity('update', 'Users', 'Updated admin user: ' . $email);
+    }
     header('Location: users.php');
     exit;
 } else {

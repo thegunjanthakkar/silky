@@ -44,6 +44,7 @@ $permission_map = [
     'general_settings' => ['general-settings.php', 'settings.php'],
     'payment_settings' => ['payment-settings.php'],
     'email_settings' => ['email-settings.php'],
+    'activity_logs' => ['activity-logs.php'],
 
     // Analytics & Reports
     'sales_report' => ['sales-report.php', 'reports.php'],
@@ -78,6 +79,7 @@ function permissionLabel($permission) {
         'general_settings'   => 'General Settings',
         'payment_settings'   => 'Payment Settings',
         'email_settings'     => 'Email Settings',
+        'activity_logs'      => 'Activity Logs',
         'sales_report'       => 'Sales Report',
         'customer_analytics' => 'Customer Analytics',
         'inventory_report'   => 'Inventory Report',
@@ -366,6 +368,7 @@ function getAllowedMenuItems() {
         'general_settings' => ['permission' => 'general_settings', 'file' => 'general-settings.php'],
         'payment_settings' => ['permission' => 'payment_settings', 'file' => 'payment-settings.php'],
         'email_settings' => ['permission' => 'email_settings', 'file' => 'email-settings.php'],
+        'activity_logs' => ['permission' => 'activity_logs', 'file' => 'activity-logs.php'],
         'sales_report' => ['permission' => 'sales_report', 'file' => 'sales-report.php'],
         'customer_analytics' => ['permission' => 'customer_analytics', 'file' => 'customer-analytics.php'],
         'inventory_report' => ['permission' => 'inventory_report', 'file' => 'inventory-report.php'],
@@ -379,6 +382,88 @@ function getAllowedMenuItems() {
     }
 
     return $allowed_items;
+}
+
+/**
+ * Ensure the activity_logs table exists (safe to call on every request).
+ */
+function ensureActivityLogsTable() {
+    try {
+        global $conn;
+        if (!isset($conn) || !$conn) {
+            $cfg = __DIR__ . '/../../db_config.php';
+            if (file_exists($cfg)) {
+                require_once $cfg;
+            }
+        }
+        if (!isset($conn) || !$conn) {
+            return false;
+        }
+        $sql = "CREATE TABLE IF NOT EXISTS activity_logs (
+            id INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
+            user_id INT(11) NULL,
+            user_name VARCHAR(150) NULL,
+            role_name VARCHAR(100) NULL,
+            action VARCHAR(50) NOT NULL,
+            module VARCHAR(80) NOT NULL,
+            description TEXT NULL,
+            ip_address VARCHAR(45) NULL,
+            user_agent VARCHAR(255) NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_created (created_at),
+            INDEX idx_module (module),
+            INDEX idx_action (action),
+            INDEX idx_user (user_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+        @mysqli_query($conn, $sql);
+        return true;
+    } catch (Throwable $e) {
+        return false;
+    }
+}
+
+/**
+ * Record an admin activity log entry.
+ * @param string $action  e.g. login, logout, create, update, delete
+ * @param string $module  e.g. Auth, Users, Roles, Products
+ * @param string $description human-readable detail
+ */
+function logActivity($action, $module, $description = '') {
+    try {
+        if (!ensureActivityLogsTable()) {
+            return false;
+        }
+        global $conn;
+        if (!isset($conn) || !$conn) {
+            return false;
+        }
+        if (session_status() === PHP_SESSION_NONE) {
+            @session_start();
+        }
+        $user_id = $_SESSION['admin_user_id'] ?? null;
+        $user_name = $_SESSION['admin_name'] ?? $_SESSION['admin_first_name'] ?? $_SESSION['first_name'] ?? 'System';
+        $role_name = null;
+        $role_id = $_SESSION['admin_role'] ?? $_SESSION['user_role'] ?? null;
+        if ($role_id !== null && is_numeric($role_id)) {
+            $rid = (int)$role_id;
+            $rres = @mysqli_query($conn, "SELECT role_name FROM admin_roles WHERE id = $rid LIMIT 1");
+            if ($rres && ($rrow = mysqli_fetch_assoc($rres)) && !empty($rrow['role_name'])) {
+                $role_name = $rrow['role_name'];
+            }
+        }
+        $uid_sql = is_numeric($user_id) ? (int)$user_id : 'NULL';
+        $action_esc = mysqli_real_escape_string($conn, substr((string)$action, 0, 50));
+        $module_esc = mysqli_real_escape_string($conn, substr((string)$module, 0, 80));
+        $desc_esc = mysqli_real_escape_string($conn, (string)$description);
+        $uname_esc = mysqli_real_escape_string($conn, substr((string)$user_name, 0, 150));
+        $rname_esc = $role_name !== null ? ("'" . mysqli_real_escape_string($conn, substr((string)$role_name, 0, 100)) . "'") : 'NULL';
+        $ip_esc = mysqli_real_escape_string($conn, substr((string)($_SERVER['REMOTE_ADDR'] ?? ''), 0, 45));
+        $ua_esc = mysqli_real_escape_string($conn, substr((string)($_SERVER['HTTP_USER_AGENT'] ?? ''), 0, 255));
+        @mysqli_query($conn, "INSERT INTO activity_logs (user_id, user_name, role_name, action, module, description, ip_address, user_agent) VALUES ($uid_sql, '$uname_esc', $rname_esc, '$action_esc', '$module_esc', '$desc_esc', '$ip_esc', '$ua_esc')");
+        return true;
+    } catch (Throwable $e) {
+        return false;
+    }
 }
 
 /**

@@ -364,6 +364,11 @@ checkPageAccess();
                                                         id="email_settings">
                                                     <label class="form-check-label" for="email_settings">Email Settings</label>
                                                 </div>
+                                                <div class="form-check">
+                                                    <input class="form-check-input settings-check" type="checkbox" name="permissions[]" value="activity_logs"
+                                                        id="activity_logs">
+                                                    <label class="form-check-label" for="activity_logs">Activity Logs</label>
+                                                </div>
                                             </div>
 
                                             <!-- Analytics & Reports -->
@@ -487,7 +492,7 @@ checkPageAccess();
                 1: {
                     name: 'Super Admin',
                     description: 'Full system access',
-                    functionalities: ['dashboard_view', 'products_view', 'product_add', 'categories_view', 'category_add', 'customers_view', 'orders_view', 'stock_management', 'edit_homepage', 'coupons_discounts', 'reviews_manage', 'contact_queries', 'users_list', 'user_roles', 'general_settings', 'payment_settings', 'email_settings', 'sales_report', 'customer_analytics', 'inventory_report', 'performance_metrics']
+                    functionalities: ['dashboard_view', 'products_view', 'product_add', 'categories_view', 'category_add', 'customers_view', 'orders_view', 'stock_management', 'edit_homepage', 'coupons_discounts', 'reviews_manage', 'contact_queries', 'users_list', 'user_roles', 'general_settings', 'payment_settings', 'email_settings', 'activity_logs', 'sales_report', 'customer_analytics', 'inventory_report', 'performance_metrics']
                 },
                 2: {
                     name: 'Website Manager',
