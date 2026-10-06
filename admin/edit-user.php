@@ -27,7 +27,7 @@ if (!$result || mysqli_num_rows($result) === 0) {
 $user = mysqli_fetch_assoc($result);
 
 // Protected: no one can edit their own profile (even via direct URL)
-$__current_id = (int)($_SESSION['admin_user_id'] ?? $_SESSION['user_id'] ?? 0);
+$__current_id = (int)($_SESSION['admin_user_id'] ?? $_SESSION['user_id'] ?? $_SESSION['admin_id'] ?? $_SESSION['id'] ?? 0);
 if ($__current_id > 0 && (int)$user_id === $__current_id) {
     $_SESSION['error'] = 'You cannot edit your own profile.';
     header('Location: users.php');
@@ -42,13 +42,14 @@ if ($__role_lookup && mysqli_num_rows($__role_lookup) > 0) {
     $__role_name_check = strtolower(trim($__role_row['role_name'] ?? ''));
     mysqli_free_result($__role_lookup);
 }
-if ((int)$user['role_id'] === 1 || in_array($__role_name_check, ['admin', 'super admin', 'administrator'], true)) {
-    $__i_am_admin = false;
-    if ($__current_id > 0) {
+if ((int)$user['role_id'] === 1 || in_array($__role_name_check, ['admin', 'super admin', 'superadmin', 'super-admin', 'administrator'], true)) {
+    $__sess_role = (int)($_SESSION['admin_role'] ?? $_SESSION['user_role'] ?? $_SESSION['role_id'] ?? 0);
+    $__i_am_admin = ($__sess_role === 1);
+    if (!$__i_am_admin && $__current_id > 0) {
         $__me_res = mysqli_query($conn, "SELECT u.role_id, r.role_name FROM admin_users u LEFT JOIN admin_roles r ON u.role_id = r.id WHERE u.id = $__current_id LIMIT 1");
         if ($__me_res && mysqli_num_rows($__me_res) > 0) {
             $__me = mysqli_fetch_assoc($__me_res);
-            $__i_am_admin = ((int)$__me['role_id'] === 1) || in_array(strtolower(trim($__me['role_name'] ?? '')), ['admin', 'super admin', 'administrator'], true);
+            $__i_am_admin = ((int)$__me['role_id'] === 1) || in_array(strtolower(trim($__me['role_name'] ?? '')), ['admin', 'super admin', 'superadmin', 'super-admin', 'administrator'], true);
         }
     }
     if (!$__i_am_admin) {

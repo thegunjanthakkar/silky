@@ -19,7 +19,7 @@ if (isset($_GET['toggle_id'])) {
         exit;
     }
     // Protected: no one can change status of their own account
-    $__current_id = (int)($_SESSION['admin_user_id'] ?? $_SESSION['user_id'] ?? 0);
+    $__current_id = (int)($_SESSION['admin_user_id'] ?? $_SESSION['user_id'] ?? $_SESSION['admin_id'] ?? $_SESSION['id'] ?? 0);
     if ($__current_id > 0 && $tid === $__current_id) {
         $_SESSION['error'] = 'You cannot change the status of your own account.';
         header('Location: users.php');
@@ -33,11 +33,22 @@ if (isset($_GET['toggle_id'])) {
     }
     $__t_row = mysqli_fetch_assoc($__t_res);
     $__t_role = strtolower(trim($__t_row['role_name'] ?? ''));
-    // Protected: Admin-role users cannot be activated/inactivated by anyone
-    if ((int)$__t_row['role_id'] === 1 || in_array($__t_role, ['admin', 'super admin', 'administrator'], true)) {
-        $_SESSION['error'] = 'Status of an Admin user cannot be changed.';
-        header('Location: users.php');
-        exit;
+    // Protected: Admin-role users can only be activated/inactivated by an Admin
+    if ((int)$__t_row['role_id'] === 1 || in_array($__t_role, ['admin', 'super admin', 'superadmin', 'super-admin', 'administrator'], true)) {
+        $__sess_role = (int)($_SESSION['admin_role'] ?? $_SESSION['user_role'] ?? $_SESSION['role_id'] ?? 0);
+        $__i_am_admin = ($__sess_role === 1);
+        if (!$__i_am_admin && $__current_id > 0) {
+            $__me_res = mysqli_query($conn, "SELECT u.role_id, r.role_name FROM admin_users u LEFT JOIN admin_roles r ON u.role_id = r.id WHERE u.id = $__current_id LIMIT 1");
+            if ($__me_res && mysqli_num_rows($__me_res) > 0) {
+                $__me = mysqli_fetch_assoc($__me_res);
+                $__i_am_admin = ((int)$__me['role_id'] === 1) || in_array(strtolower(trim($__me['role_name'] ?? '')), ['admin', 'super admin', 'superadmin', 'super-admin', 'administrator'], true);
+            }
+        }
+        if (!$__i_am_admin) {
+            $_SESSION['error'] = 'Only an Admin can change the status of another Admin user.';
+            header('Location: users.php');
+            exit;
+        }
     }
     $new_status = (strtolower($__t_row['status']) === 'active') ? 'inactive' : 'active';
     if (mysqli_query($conn, "UPDATE admin_users SET status = '" . mysqli_real_escape_string($conn, $new_status) . "' WHERE id = $tid LIMIT 1")) {
@@ -175,13 +186,15 @@ if (isset($_GET['toggle_id'])) {
                                                 require_once '../db_config.php';
                                             }
                                             // Who am I? Admins may edit other Admin users (but never self, never delete/toggle them)
-                                            $__current_id = (int)($_SESSION['admin_user_id'] ?? $_SESSION['user_id'] ?? 0);
-                                            $__i_am_admin = false;
-                                            if ($__current_id > 0) {
+                                            $__current_id = (int)($_SESSION['admin_user_id'] ?? $_SESSION['user_id'] ?? $_SESSION['admin_id'] ?? $_SESSION['id'] ?? 0);
+                                            $__sess_role = (int)($_SESSION['admin_role'] ?? $_SESSION['user_role'] ?? $_SESSION['role_id'] ?? 0);
+                                            $__admin_names = ['admin', 'super admin', 'superadmin', 'super-admin', 'administrator'];
+                                            $__i_am_admin = ($__sess_role === 1);
+                                            if (!$__i_am_admin && $__current_id > 0) {
                                                 $__me_res = mysqli_query($conn, "SELECT u.role_id, r.role_name FROM admin_users u LEFT JOIN admin_roles r ON u.role_id = r.id WHERE u.id = $__current_id LIMIT 1");
                                                 if ($__me_res && mysqli_num_rows($__me_res) > 0) {
                                                     $__me = mysqli_fetch_assoc($__me_res);
-                                                    $__i_am_admin = ((int)$__me['role_id'] === 1) || in_array(strtolower(trim($__me['role_name'] ?? '')), ['admin', 'super admin', 'administrator'], true);
+                                                    $__i_am_admin = ((int)$__me['role_id'] === 1) || in_array(strtolower(trim($__me['role_name'] ?? '')), $__admin_names, true);
                                                 }
                                             }
                                             $result = mysqli_query($conn, "SELECT u.id, u.email, u.first_name, u.last_name, u.phone, u.status, u.role_id, u.created_at, u.last_login, r.role_name FROM admin_users u LEFT JOIN admin_roles r ON u.role_id = r.id ORDER BY u.id ASC");
@@ -222,12 +235,11 @@ if (isset($_GET['toggle_id'])) {
                                                     echo '<td>' . ($row['created_at'] ? date('d/m/Y', strtotime($row['created_at'])) : '-') . '</td>';
                                                     echo '<td>' . ($row['last_login'] ? date('d/m/Y h:i A', strtotime($row['last_login'])) : '-') . '</td>';
                                                     echo '<td>';
-                                                    $is_target_admin = ((int)$row['role_id'] === 1) || in_array(strtolower(trim($row['role_name'] ?? '')), ['admin', 'super admin', 'administrator'], true);
+                                                    $is_target_admin = ((int)$row['role_id'] === 1) || in_array(strtolower(trim($row['role_name'] ?? '')), $__admin_names, true);
                                                     $is_own_profile = ($__current_id > 0 && (int)$row['id'] === $__current_id);
-                                                    // Edit: allowed unless self; Admin targets need an Admin editor
+                                                    // Edit + activate/inactivate + delete: allowed unless self; Admin targets need an Admin editor
                                                     $can_edit = (!$is_own_profile && (!$is_target_admin || $__i_am_admin));
-                                                    // Activate/inactivate + delete: never self, never Admin targets (even for Admins)
-                                                    $can_danger = (!$is_own_profile && !$is_target_admin);
+                                                    $can_danger = $can_edit;
                                                     echo '<div class="btn-group" role="group">';
                                                     if ($can_danger) {
                                                         $is_active = (strtolower($row['status']) === 'active');
@@ -243,12 +255,8 @@ if (isset($_GET['toggle_id'])) {
                                                     if ($can_danger) {
                                                         echo '<button type="button" class="btn btn-sm btn-soft-danger btn-delete-user" data-id="' . $row['id'] . '" title="Delete"><i class="fas fa-trash"></i></button>';
                                                     }
-                                                    if (!$can_edit && !$can_danger) {
-                                                        $__lock_title = $is_own_profile ? 'You cannot edit/delete your own profile' : 'Protected Admin - editing disabled';
-                                                        echo '<span class="btn btn-sm btn-soft-dark disabled" title="' . $__lock_title . '"><i class="fas fa-lock"></i></span>';
-                                                    } elseif ($can_edit && !$can_danger) {
-                                                        // Admin editing fellow Admin: edit OK, status/delete locked
-                                                        $__lock_title = $is_own_profile ? 'You cannot change status/delete your own profile' : 'Only edit allowed for Admin users';
+                                                    if (!$can_edit) {
+                                                        $__lock_title = $is_own_profile ? 'You cannot edit/delete your own profile' : 'Only an Admin can manage another Admin user';
                                                         echo '<span class="btn btn-sm btn-soft-dark disabled" title="' . $__lock_title . '"><i class="fas fa-lock"></i></span>';
                                                     }
                                                     echo '</div>';

@@ -34,14 +34,6 @@ if ($id > 0) {
         $old_data = mysqli_fetch_assoc($check_result);
         $old_email = $old_data['email'];
     }
-    // Fetch password for the user
-    $pass_sql = "SELECT password FROM admin_users WHERE id = " . $id;
-    $pass_result = mysqli_query($conn, $pass_sql);
-    $user_password = '';
-    if ($pass_result && mysqli_num_rows($pass_result) > 0) {
-        $pass_data = mysqli_fetch_assoc($pass_result);
-        $user_password = $pass_data['password'];
-    }
 }
 
 // Basic validation
@@ -52,7 +44,7 @@ if ($id <= 0 || $email === '' || $first_name === '' || $last_name === '' || $pho
 }
 
 // Protected: no one can update their own profile (even via direct POST)
-$__current_id = (int)($_SESSION['admin_user_id'] ?? $_SESSION['user_id'] ?? 0);
+$__current_id = (int)($_SESSION['admin_user_id'] ?? $_SESSION['user_id'] ?? $_SESSION['admin_id'] ?? $_SESSION['id'] ?? 0);
 if ($__current_id > 0 && $id === $__current_id) {
     $_SESSION['error'] = 'You cannot edit your own profile.';
     header('Location: users.php');
@@ -64,13 +56,14 @@ $__t_check = mysqli_query($conn, "SELECT u.role_id, r.role_name FROM admin_users
 if ($__t_check && mysqli_num_rows($__t_check) > 0) {
     $__t_row = mysqli_fetch_assoc($__t_check);
     $__t_role_name = strtolower(trim($__t_row['role_name'] ?? ''));
-    if ((int)$__t_row['role_id'] === 1 || in_array($__t_role_name, ['admin', 'super admin', 'administrator'], true)) {
-        $__i_am_admin = false;
-        if ($__current_id > 0) {
+    if ((int)$__t_row['role_id'] === 1 || in_array($__t_role_name, ['admin', 'super admin', 'superadmin', 'super-admin', 'administrator'], true)) {
+        $__sess_role = (int)($_SESSION['admin_role'] ?? $_SESSION['user_role'] ?? $_SESSION['role_id'] ?? 0);
+        $__i_am_admin = ($__sess_role === 1);
+        if (!$__i_am_admin && $__current_id > 0) {
             $__me_res = mysqli_query($conn, "SELECT u.role_id, r.role_name FROM admin_users u LEFT JOIN admin_roles r ON u.role_id = r.id WHERE u.id = $__current_id LIMIT 1");
             if ($__me_res && mysqli_num_rows($__me_res) > 0) {
                 $__me = mysqli_fetch_assoc($__me_res);
-                $__i_am_admin = ((int)$__me['role_id'] === 1) || in_array(strtolower(trim($__me['role_name'] ?? '')), ['admin', 'super admin', 'administrator'], true);
+                $__i_am_admin = ((int)$__me['role_id'] === 1) || in_array(strtolower(trim($__me['role_name'] ?? '')), ['admin', 'super admin', 'superadmin', 'super-admin', 'administrator'], true);
             }
         }
         if (!$__i_am_admin) {
@@ -161,15 +154,15 @@ if (mysqli_query($conn, $sql)) {
                         <p><strong>Name:</strong> ' . htmlspecialchars($first_name . ' ' . $last_name) . '</p>
                         <p><strong>Phone:</strong> ' . htmlspecialchars($phone) . '</p>
                         <p><strong>Status:</strong> ' . htmlspecialchars($status) . '</p>
-                            <p><strong>Password:</strong> ' . htmlspecialchars($user_password) . '</p>
                     </div>
+                    <p style="color:#666;font-size:13px;">For security reasons your password is never included in emails. If you need to reset it, please contact the administrator.</p>
                     
                     <p>If you did not request these changes, please contact the administrator immediately.</p>
                     <p>You can log in at: <a href="' . (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS']==='on'?'https':'http') . '://' . ($_SERVER['HTTP_HOST']??'localhost') . (defined('BASE_URL')?BASE_URL:'/') . 'admin/login">Admin Login</a></p>
                 </div>
                 <div class="footer">
                     <p>This is an automated email. Please do not reply.</p>
-                    <p>&copy; 2024 Silky Garments</p>
+                    <p>&copy; ' . date('Y') . ' Silky Saree</p>
                 </div>
             </div>
         </body>

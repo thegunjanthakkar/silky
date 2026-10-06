@@ -147,7 +147,7 @@ if ($action === 'update' && $id > 0) {
                     </div>
                     <div class="footer">
                         <p>This is an automated email. Please do not reply.</p>
-                        <p>&copy; ' . date("Y") . ' Silky</p>
+                        <p>&copy; ' . date("Y") . ' Silky Saree</p>
                     </div>
                 </div>
             </body>
