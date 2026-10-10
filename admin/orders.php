@@ -73,6 +73,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         $msg .= ' (Email notification could not be delivered).';
     }
 
+    if (function_exists('logActivity')) { @logActivity('update', 'Orders', 'Changed order #' . $orderId . ' status from ' . ucwords($oldStatus) . ' to ' . ucwords($newStatus)); }
+
     echo json_encode([
         'success' => true,
         'message' => $msg,
@@ -267,6 +269,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             require_once '../includes/stock-functions.php';
             deductOrderStock($conn, $orderId);
 
+            if (function_exists('logActivity')) { @logActivity('create', 'Orders', 'Created order #' . $orderId . ' (' . $items_inserted . ' item(s))'); }
             $_SESSION['add_order_success'] = "Order created successfully! Order #" . htmlspecialchars($orderNumber) . " with $items_inserted items.";
         } else {
             $error_msg = mysqli_error($conn);
@@ -889,6 +892,7 @@ if ((isset($_GET['action']) && $_GET['action'] === 'delete' && isset($_GET['id']
     mysqli_stmt_close($delStmt);
 
     if ($deleted) {
+        if (function_exists('logActivity')) { @logActivity('delete', 'Orders', 'Deleted order #' . $ordNumber . ' (ID: ' . $orderId . ')'); }
         $_SESSION['success'] = "Order #{$ordNumber} deleted successfully.";
     } else {
         $_SESSION['error'] = "Failed to delete order #{$ordNumber}: " . mysqli_error($conn);
@@ -1169,6 +1173,7 @@ if ((isset($_GET['action']) && $_GET['action'] === 'delete' && isset($_GET['id']
                                         }
                                     }
                                     if ($updated > 0) {
+                                        if (function_exists('logActivity')) { @logActivity('update', 'Orders', 'Bulk updated ' . $updated . ' order(s)' . ($bulkOrder !== '' ? ' to status ' . $bulkOrder : '') . ($bulkPayment !== '' ? ' (payment: ' . $bulkPayment . ')' : '')); }
                                         echo '<div class="alert alert-success">' . $updated . ' orders updated successfully.</div>';
                                     } else {
                                         echo '<div class="alert alert-info">No orders were updated.</div>';

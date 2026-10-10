@@ -91,6 +91,7 @@ if ($stmt) {
     
     if (mysqli_stmt_execute($stmt)) {
         $_SESSION['add_order_success'] = 'Order updated successfully.';
+        if (function_exists('logActivity')) { @logActivity('update', 'Orders', 'Updated order #' . $order_id . ' (payment: ' . $payment_status . ', status: ' . $order_status . ')'); }
         
         // Check if status changed
         if ($payment_status !== $order['payment_status'] || $order_status !== $order['order_status']) {

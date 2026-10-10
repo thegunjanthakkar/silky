@@ -15,8 +15,10 @@ if (isset($_GET['action']) && isset($_GET['id'])) {
     
     if ($action === 'read') {
         mysqli_query($conn, "UPDATE contact_messages SET status = 'read' WHERE id = $id");
+        if (function_exists('logActivity')) { @logActivity('update', 'Contact Queries', 'Marked contact query as read (ID: ' . $id . ')'); }
     } elseif ($action === 'delete') {
         mysqli_query($conn, "DELETE FROM contact_messages WHERE id = $id");
+        if (function_exists('logActivity')) { @logActivity('delete', 'Contact Queries', 'Deleted contact query (ID: ' . $id . ')'); }
     }
     header('Location: contact-queries.php');
     exit;

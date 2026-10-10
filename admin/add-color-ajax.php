@@ -56,6 +56,7 @@ if ($check_res && mysqli_num_rows($check_res) > 0) {
 $sql = "INSERT INTO colors (color_name, color_code, status) VALUES ('$color_name_clean', '$color_code_clean', 'active')";
 if (mysqli_query($conn, $sql)) {
     $new_id = mysqli_insert_id($conn);
+    if (function_exists('logActivity')) { @logActivity('create', 'Products', 'Added color: ' . $color_name . ' (' . strtoupper($color_code) . ')'); }
     echo json_encode([
         'success' => true,
         'color' => [

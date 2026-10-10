@@ -369,6 +369,16 @@ if (!empty($role['functionality'])) {
                                                         id="user_roles" <?php echo in_array('user_roles', $permissions) ? 'checked' : ''; ?>>
                                                     <label class="form-check-label" for="user_roles">User Roles (Admin / Staff)</label>
                                                 </div>
+                                                <div class="form-check">
+                                                    <input class="form-check-input users-check" type="checkbox" name="permissions[]" value="change_password"
+                                                        id="change_password" <?php echo in_array('change_password', $permissions) ? 'checked' : ''; ?>>
+                                                    <label class="form-check-label" for="change_password">Change Own Password</label>
+                                                </div>
+                                                <div class="form-check">
+                                                    <input class="form-check-input users-check" type="checkbox" name="permissions[]" value="reset_password"
+                                                        id="reset_password" <?php echo in_array('reset_password', $permissions) ? 'checked' : ''; ?>>
+                                                    <label class="form-check-label" for="reset_password">Reset User Passwords</label>
+                                                </div>
                                             </div>
 
                                             <!-- Settings -->

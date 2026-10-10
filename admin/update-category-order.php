@@ -37,6 +37,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             
             if ($success) {
                 mysqli_commit($conn);
+                if (function_exists('logActivity')) { @logActivity('update', 'Categories', 'Reordered categories (' . count($order) . ' items)'); }
                 echo json_encode(['success' => true, 'message' => 'Order updated successfully']);
             } else {
                 mysqli_rollback($conn);

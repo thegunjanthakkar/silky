@@ -51,7 +51,7 @@ if ($mres) {
         if (!empty($mr['module'])) { $modules[] = $mr['module']; }
     }
 }
-foreach (['Auth', 'Users', 'Roles', 'Activity Logs'] as $must) {
+foreach (['Auth', 'Users', 'Roles', 'Products', 'Categories', 'Website', 'Orders', 'Coupons', 'Discounts', 'Stocks', 'Reviews', 'Settings', 'Contact Queries', 'Activity Logs'] as $must) {
     if (!in_array($must, $modules, true)) { $modules[] = $must; }
 }
 sort($modules);

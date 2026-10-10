@@ -381,6 +381,11 @@ file_put_contents($log_file, "  => Reviews done. Kept: " . implode(',', $kept_re
 // =============================================
 // Done - Redirect
 // =============================================
+if (empty($errors) && function_exists('logActivity')) {
+    $slide_count = count($kept_slides);
+    $review_count = count($kept_reviews);
+    @logActivity('update', 'Website', 'Updated website settings (' . $slide_count . ' hero slide(s), ' . $review_count . ' review(s))');
+}
 if (!empty($errors)) {
     $_SESSION['save_errors'] = implode('<br>', $errors);
     file_put_contents($log_file, "  => Redirect with ERRORS\n", FILE_APPEND);

@@ -363,6 +363,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Also add total stock to the main stock table to maintain compatibility with existing features
         $stock_sql = "INSERT INTO stock (product_id, quantity, last_updated, updated_by) VALUES ($product_id, $total_stock, NOW(), $user_id)";
         mysqli_query($conn, $stock_sql);
+
+        if (function_exists('logActivity')) { @logActivity('create', 'Products', 'Added product: ' . stripslashes($name) . ' (ID: ' . $product_id . ')'); }
         
         $_SESSION['success'] = 'Product added successfully!';
         header('Location: products.php');

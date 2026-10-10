@@ -96,6 +96,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_settings'])) {
         }
         
         if ($saved_count > 0) {
+            if (function_exists('logActivity')) { @logActivity('update', 'Settings', 'Updated general settings (' . $saved_count . ' item(s) saved)'); }
             $success_message = 'Settings saved successfully! tos.php and privacy.php have been updated.';
         } else {
             $error_message = 'No settings were updated';

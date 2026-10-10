@@ -40,6 +40,10 @@ $permission_map = [
     'users_list' => ['users.php', 'user-list.php', 'add-user.php', 'edit-user.php', 'save-user.php', 'save-updated-user.php', 'delete-user.php'],
     'user_roles' => ['user-roles.php', 'add-role.php', 'edit-role.php', 'delete-role.php', 'save-role.php'],
 
+    // Password Management
+    'change_password' => ['change-password.php'],
+    'reset_password' => ['reset-password.php'],
+
     // Settings
     'general_settings' => ['general-settings.php', 'settings.php'],
     'payment_settings' => ['payment-settings.php'],
@@ -76,6 +80,8 @@ function permissionLabel($permission) {
         'contact_queries'    => 'Contact Queries',
         'users_list'         => 'User List',
         'user_roles'         => 'User Roles (Admin / Staff)',
+        'change_password'    => 'Change Own Password',
+        'reset_password'     => 'Reset User Passwords',
         'general_settings'   => 'General Settings',
         'payment_settings'   => 'Payment Settings',
         'email_settings'     => 'Email Settings',
@@ -140,6 +146,9 @@ function hasFileAccess($filename) {
     // They require the 'dashboard_view' permission (see $permission_map),
     // so unchecking "View Dashboard" hides them. Includes/partials and
     // auth pages stay always-allowed.
+    // NOTE: change-password.php / reset-password.php are intentionally NOT
+    // here - they are gated by the 'change_password' / 'reset_password'
+    // permissions so they can be toggled per role in User Roles.
     $always_allowed = [
         'topbar.php',
         'leftbar.php',
@@ -686,4 +695,177 @@ if (!function_exists('canManageUser')) {
         }
     }
 }
+if (!function_exists('isSuperAdminById')) {
+    // Strict check: does this admin user hold the Super Admin role?
+    // Convention: role_id 1 == Super Admin, or role_name is a super-admin variant.
+    function isSuperAdminById($admin_id) {
+        try {
+            global $conn;
+            $admin_id = (int)$admin_id;
+            if ($admin_id <= 0 || !isset($conn) || !$conn) {
+                return false;
+            }
+            $res = @mysqli_query($conn, "SELECT u.role_id, r.role_name FROM admin_users u LEFT JOIN admin_roles r ON u.role_id = r.id WHERE u.id = $admin_id LIMIT 1");
+            if ($res && mysqli_num_rows($res) > 0) {
+                $row = mysqli_fetch_assoc($res);
+                if ((int)($row['role_id'] ?? 0) === 1) {
+                    return true;
+                }
+                return in_array(strtolower(trim((string)($row['role_name'] ?? ''))), ['super admin', 'superadmin', 'super-admin', 'super_admin'], true);
+            }
+        } catch (Throwable $e) {
+            return false;
+        }
+        return false;
+    }
+}
+
+if (!function_exists('isPrivilegedAdminById')) {
+    // Privileged for password resets: Admin role OR Super Admin role.
+    function isPrivilegedAdminById($admin_id) {
+        return isStrictAdminById($admin_id) || isSuperAdminById($admin_id);
+    }
+}
+
+if (!function_exists('canResetUserPassword')) {
+    // Central decision: can $actor_id reset the password of $target_id?
+    // Rule:
+    //  - Self (actor == target): needs the 'change_password' permission
+    //    (change-password.php verifies the current password separately).
+    //  - For others: actor needs the 'reset_password' permission AND must
+    //    be Admin or Super Admin AND must be the creator
+    //    (admin_users.created_by) of the target user.
+    //  - Exception: Super Admin may reset any user's password (top-level
+    //    fallback, e.g. orphaned users with created_by NULL).
+    //  - Exception: Admin may reset orphaned users with created_by NULL.
+    // Returns [bool $allowed, string $reason].
+    function canResetUserPassword($actor_id, $target_id) {
+        try {
+            global $conn;
+            if (function_exists('ensureCreatedByColumn')) {
+                ensureCreatedByColumn();
+            }
+            $actor_id = (int)$actor_id;
+            $target_id = (int)$target_id;
+            if ($target_id <= 0) {
+                return [false, 'Invalid user ID.'];
+            }
+            // Self-change goes through the Change Password flow.
+            if ($actor_id > 0 && $actor_id === $target_id) {
+                if (function_exists('hasPermission') && !hasPermission('change_password')) {
+                    return [false, 'You do not have permission to change your password.'];
+                }
+                return [true, ''];
+            }
+            // Others need the Reset User Passwords permission first.
+            if (function_exists('hasPermission') && !hasPermission('reset_password')) {
+                return [false, 'You do not have permission to reset passwords.'];
+            }
+            if (!isset($conn) || !$conn) {
+                return [false, 'Database connection not available.'];
+            }
+            // Actor must hold Admin or Super Admin role.
+            if (!isPrivilegedAdminById($actor_id)) {
+                return [false, 'Only Admins can reset passwords for other users.'];
+            }
+            $res = @mysqli_query($conn, "SELECT u.role_id, u.created_by, r.role_name FROM admin_users u LEFT JOIN admin_roles r ON u.role_id = r.id WHERE u.id = $target_id LIMIT 1");
+            if (!$res) {
+                // created_by column may not exist (migration blocked) - fall back without it
+                $res = @mysqli_query($conn, "SELECT u.role_id, r.role_name FROM admin_users u LEFT JOIN admin_roles r ON u.role_id = r.id WHERE u.id = $target_id LIMIT 1");
+            }
+            if (!$res || mysqli_num_rows($res) === 0) {
+                return [false, 'User not found.'];
+            }
+            $t = mysqli_fetch_assoc($res);
+            $created_by = isset($t['created_by']) && $t['created_by'] !== null && $t['created_by'] !== '' ? (int)$t['created_by'] : 0;
+            // Super Admin can reset anyone (except self, handled above via change-password).
+            if (isSuperAdminById($actor_id)) {
+                return [true, ''];
+            }
+            // Admin (non-super): only users they created (or orphaned rows with no creator).
+            if ($actor_id > 0 && $created_by > 0 && $created_by === $actor_id) {
+                return [true, ''];
+            }
+            if ($created_by === 0) {
+                // Orphaned/legacy user with no creator recorded - allow Admin as fallback.
+                return [true, ''];
+            }
+            return [false, 'You can only reset passwords for users created by you.'];
+        } catch (Throwable $e) {
+            return [false, 'Operation failed. Please try again.'];
+        }
+    }
+}
+
+if (!function_exists('ensurePasswordPermissionsBackfill')) {
+    // One-time backfill for the new password permissions introduced after
+    // roles already existed:
+    //  - Every role gets 'change_password' (preserves "all users can
+    //    change their own password" default; admin may uncheck to revoke).
+    //  - Roles that already have 'users_list' also get 'reset_password'
+    //    (preserves previous behaviour where reset lived under User List).
+    // Runs only until at least one role carries the new key, so deliberate
+    // removals by the admin afterwards are never re-added.
+    function ensurePasswordPermissionsBackfill() {
+        static $done = false;
+        if ($done) {
+            return;
+        }
+        $done = true;
+        try {
+            global $conn;
+            if (!isset($conn) || !$conn) {
+                $cfg = __DIR__ . '/../../db_config.php';
+                if (file_exists($cfg)) {
+                    require_once $cfg;
+                }
+            }
+            if (!isset($conn) || !$conn) {
+                return;
+            }
+            $marker = @mysqli_query($conn, "SELECT 1 FROM admin_roles WHERE functionality LIKE '%change_password%' LIMIT 1");
+            if ($marker && mysqli_num_rows($marker) > 0) {
+                return; // migration already applied - respect later admin edits
+            }
+            $res = @mysqli_query($conn, "SELECT id, functionality FROM admin_roles");
+            if (!$res || mysqli_num_rows($res) === 0) {
+                return;
+            }
+            while ($row = mysqli_fetch_assoc($res)) {
+                $rid = (int)($row['id'] ?? 0);
+                if ($rid <= 0) {
+                    continue;
+                }
+                $perms = [];
+                if (!empty($row['functionality'])) {
+                    $decoded = json_decode($row['functionality'], true);
+                    if (is_array($decoded)) {
+                        $perms = array_values($decoded);
+                    }
+                }
+                if (empty($perms)) {
+                    continue; // fresh/legacy role with nothing stored - defaults handled elsewhere
+                }
+                $changed = false;
+                if (!in_array('change_password', $perms, true)) {
+                    $perms[] = 'change_password';
+                    $changed = true;
+                }
+                if (in_array('users_list', $perms, true) && !in_array('reset_password', $perms, true)) {
+                    $perms[] = 'reset_password';
+                    $changed = true;
+                }
+                if ($changed) {
+                    $json_esc = mysqli_real_escape_string($conn, json_encode(array_values($perms)));
+                    @mysqli_query($conn, "UPDATE admin_roles SET functionality = '$json_esc' WHERE id = $rid LIMIT 1");
+                }
+            }
+        } catch (Throwable $e) {
+            return;
+        }
+    }
+}
+
+// Keep existing roles working after the new permissions were introduced.
+ensurePasswordPermissionsBackfill();
 ?>

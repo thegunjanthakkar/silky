@@ -39,6 +39,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         // Update database to remove image path
         $update_sql = "UPDATE categories SET image = '' WHERE id = '" . mysqli_real_escape_string($conn, $category_id) . "'";
         if (mysqli_query($conn, $update_sql)) {
+            if (function_exists('logActivity')) { @logActivity('update', 'Categories', 'Removed image for category (ID: ' . $category_id . ')'); }
             echo json_encode(["success" => true, "message" => "Image deleted successfully"]);
         } else {
             echo json_encode(["success" => false, "message" => "Database error: " . mysqli_error($conn)]);
@@ -159,6 +160,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             WHERE id = '" . mysqli_real_escape_string($conn, $category_id) . "'";
     
     if (mysqli_query($conn, $sql)) {
+        if (function_exists('logActivity')) { @logActivity('update', 'Categories', 'Updated category: ' . stripslashes($name) . ' (ID: ' . $category_id . ')'); }
         $_SESSION['success'] = 'Category updated successfully!';
         header('Location: categories.php');
         exit;

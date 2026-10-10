@@ -77,6 +77,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 VALUES ('" . mysqli_real_escape_string($conn, $coupon_code) . "', '$discount_type', $discount_value, $min_purchase, $max_discount_value, $usage_limit_value, $start_date_value, $end_date_value, '$status', $created_by)";
 
         if (mysqli_query($conn, $sql)) {
+            if (function_exists('logActivity')) { @logActivity('create', 'Coupons', 'Added coupon: ' . $coupon_code); }
             $_SESSION['success'] = "Coupon added successfully!";
         } else {
             $_SESSION['error'] = "Error adding coupon: " . mysqli_error($conn);
@@ -163,6 +164,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 WHERE id = $coupon_id";
 
         if (mysqli_query($conn, $sql)) {
+            if (function_exists('logActivity')) { @logActivity('update', 'Coupons', 'Updated coupon: ' . $coupon_code . ' (ID: ' . $coupon_id . ')'); }
             $_SESSION['success'] = "Coupon updated successfully!";
         } else {
             $_SESSION['error'] = "Error updating coupon: " . mysqli_error($conn);
@@ -178,6 +180,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
         $sql = "DELETE FROM coupons WHERE id = $coupon_id";
         if (mysqli_query($conn, $sql)) {
+            if (function_exists('logActivity')) { @logActivity('delete', 'Coupons', 'Deleted coupon (ID: ' . $coupon_id . ')'); }
             $_SESSION['success'] = "Coupon deleted successfully!";
         } else {
             $_SESSION['error'] = "Error deleting coupon: " . mysqli_error($conn);

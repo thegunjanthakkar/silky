@@ -39,6 +39,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             // Update database to remove image path
             $update_sql = "UPDATE categories SET image = '' WHERE id = '$category_id'";
             if (mysqli_query($conn, $update_sql)) {
+                if (function_exists('logActivity')) { @logActivity('update', 'Categories', 'Removed image for category (ID: ' . $category_id . ')'); }
                 echo json_encode(["success" => true, "message" => "Image deleted successfully"]);
             } else {
                 echo json_encode(["success" => false, "message" => "Database error: " . mysqli_error($conn)]);
@@ -116,6 +117,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
               VALUES ('$name', '$description', '$image_path', '$status', '$user_id', NOW())";
     
     if (mysqli_query($conn, $query)) {
+        $new_cat_id = mysqli_insert_id($conn);
+        if (function_exists('logActivity')) { @logActivity('create', 'Categories', 'Added category: ' . stripslashes($name) . ' (ID: ' . $new_cat_id . ')'); }
         echo json_encode(["status" => "success", "message" => "Category added successfully."]);
         header("Location: ./categories");
         exit;

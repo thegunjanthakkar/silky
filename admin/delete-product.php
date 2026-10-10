@@ -19,7 +19,7 @@ if ($product_id <= 0) {
 }
 
 // Get product data to check if image exists
-$sql = "SELECT image FROM products WHERE id = '" . mysqli_real_escape_string($conn, $product_id) . "'";
+$sql = "SELECT id, name, image FROM products WHERE id = '" . mysqli_real_escape_string($conn, $product_id) . "'";
 $result = mysqli_query($conn, $sql);
 
 if ($result && mysqli_num_rows($result) > 0) {
@@ -36,6 +36,7 @@ if ($result && mysqli_num_rows($result) > 0) {
     // Delete product from database
     $delete_sql = "DELETE FROM products WHERE id = '" . mysqli_real_escape_string($conn, $product_id) . "'";
     if (mysqli_query($conn, $delete_sql)) {
+        if (function_exists('logActivity')) { @logActivity('delete', 'Products', 'Deleted product: ' . ($product['name'] ?? '') . ' (ID: ' . $product_id . ')'); }
         $_SESSION['success'] = 'Product deleted successfully!';
     } else {
         $_SESSION['error'] = 'Failed to delete product: ' . mysqli_error($conn);

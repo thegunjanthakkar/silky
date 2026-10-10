@@ -69,6 +69,10 @@ switch ($action) {
 }
 
 if (mysqli_query($conn, $sql)) {
+    if (function_exists('logActivity')) {
+        $log_action = ($action === 'delete') ? 'delete' : 'update';
+        @logActivity($log_action, 'Products', 'Bulk ' . $action . ': ' . $count . ' product(s) (IDs: ' . $placeholders . ')');
+    }
     $_SESSION['success'] = $successMessage;
 } else {
     $_SESSION['error'] = 'Error performing bulk action: ' . mysqli_error($conn);

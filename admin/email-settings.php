@@ -81,6 +81,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         );
         
         if (mysqli_stmt_execute($stmt)) {
+            if (function_exists('logActivity')) { @logActivity('update', 'Settings', 'Updated email (SMTP) settings'); }
             $_SESSION['success'] = "Email settings updated successfully!";
         } else {
             $_SESSION['error'] = "Error updating email settings: " . mysqli_error($conn);

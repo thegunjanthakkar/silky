@@ -51,6 +51,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     VALUES ($product_id, '$discount_type', $discount_value, $start_date_value, $end_date_value, '$status', $created_by)";
 
             if (mysqli_query($conn, $sql)) {
+                if (function_exists('logActivity')) { @logActivity('create', 'Discounts', 'Added discount for product (ID: ' . $product_id . ', ' . $discount_type . ' ' . $discount_value . ')'); }
                 $_SESSION['success'] = "Discount added successfully!";
             } else {
                 $_SESSION['error'] = "Error adding discount: " . mysqli_error($conn);
@@ -109,6 +110,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     WHERE id = $discount_id";
 
             if (mysqli_query($conn, $sql)) {
+                if (function_exists('logActivity')) { @logActivity('update', 'Discounts', 'Updated discount (ID: ' . $discount_id . ', product ID: ' . $product_id . ')'); }
                 $_SESSION['success'] = "Discount updated successfully!";
             } else {
                 $_SESSION['error'] = "Error updating discount: " . mysqli_error($conn);
@@ -127,6 +129,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $sql = "DELETE FROM discounts WHERE id = $discount_id";
 
         if (mysqli_query($conn, $sql)) {
+            if (function_exists('logActivity')) { @logActivity('delete', 'Discounts', 'Deleted discount (ID: ' . $discount_id . ')'); }
             $_SESSION['success'] = "Discount deleted successfully!";
         } else {
             $_SESSION['error'] = "Error deleting discount: " . mysqli_error($conn);

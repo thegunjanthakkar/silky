@@ -338,6 +338,16 @@ checkPageAccess();
                                                         id="user_roles">
                                                     <label class="form-check-label" for="user_roles">User Roles (Admin / Staff)</label>
                                                 </div>
+                                                <div class="form-check">
+                                                    <input class="form-check-input users-check" type="checkbox" name="permissions[]" value="change_password"
+                                                        id="change_password">
+                                                    <label class="form-check-label" for="change_password">Change Own Password</label>
+                                                </div>
+                                                <div class="form-check">
+                                                    <input class="form-check-input users-check" type="checkbox" name="permissions[]" value="reset_password"
+                                                        id="reset_password">
+                                                    <label class="form-check-label" for="reset_password">Reset User Passwords</label>
+                                                </div>
                                             </div>
 
                                             <!-- Settings -->
@@ -492,7 +502,7 @@ checkPageAccess();
                 1: {
                     name: 'Super Admin',
                     description: 'Full system access',
-                    functionalities: ['dashboard_view', 'products_view', 'product_add', 'categories_view', 'category_add', 'customers_view', 'orders_view', 'stock_management', 'edit_homepage', 'coupons_discounts', 'reviews_manage', 'contact_queries', 'users_list', 'user_roles', 'general_settings', 'payment_settings', 'email_settings', 'activity_logs', 'sales_report', 'customer_analytics', 'inventory_report', 'performance_metrics']
+                    functionalities: ['dashboard_view', 'products_view', 'product_add', 'categories_view', 'category_add', 'customers_view', 'orders_view', 'stock_management', 'edit_homepage', 'coupons_discounts', 'reviews_manage', 'contact_queries', 'users_list', 'user_roles', 'change_password', 'reset_password', 'general_settings', 'payment_settings', 'email_settings', 'activity_logs', 'sales_report', 'customer_analytics', 'inventory_report', 'performance_metrics']
                 },
                 2: {
                     name: 'Website Manager',

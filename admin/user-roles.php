@@ -59,6 +59,9 @@ function permissionBadgeClass($perm) {
     // Marketing / content
     $marketingKeys = ['edit_homepage','coupons_discounts','reviews_manage'];
     if (in_array($perm, $marketingKeys, true)) return ['bg-secondary-subtle','text-secondary'];
+    // Password management
+    $passwordKeys = ['change_password','reset_password'];
+    if (in_array($perm, $passwordKeys, true)) return ['bg-dark-subtle','text-dark'];
     // Fallback (includes legacy stored permissions no longer offered)
     return ['bg-primary-subtle','text-primary'];
 }

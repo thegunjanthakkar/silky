@@ -236,6 +236,15 @@ if (isset($_GET['toggle_id'])) {
                                                     if ($can_edit) {
                                                         echo '<button type="button" class="btn btn-sm btn-soft-secondary btn-edit-user" data-id="' . $row['id'] . '" title="Edit"><i class="fas fa-edit"></i></button>';
                                                     }
+                                                    // Reset password: never self (use Change Password); Admin/Super Admin
+                                                    // only for users created by them (Super Admin fallback: anyone).
+                                                    $__can_reset = false;
+                                                    if (!$is_own_profile && function_exists('canResetUserPassword')) {
+                                                        [$__can_reset] = canResetUserPassword($__current_id, (int)$row['id']);
+                                                    }
+                                                    if ($__can_reset) {
+                                                        echo '<button type="button" class="btn btn-sm btn-soft-warning btn-reset-password" data-id="' . $row['id'] . '" title="Reset password"><i class="fas fa-key"></i></button>';
+                                                    }
                                                     if ($can_danger) {
                                                         echo '<button type="button" class="btn btn-sm btn-soft-danger btn-delete-user" data-id="' . $row['id'] . '" title="Delete"><i class="fas fa-trash"></i></button>';
                                                     }
@@ -319,6 +328,14 @@ if (isset($_GET['toggle_id'])) {
                 }
             });
         });
+            document.querySelectorAll('.btn-reset-password').forEach(function(btn) {
+                btn.addEventListener('click', function() {
+                    var userId = this.getAttribute('data-id');
+                    if (userId) {
+                        window.location.href = 'reset-password.php?id=' + userId;
+                    }
+                });
+            });
             document.querySelectorAll('.btn-delete-user').forEach(function(btn) {
                 btn.addEventListener('click', function() {
                     var userId = this.getAttribute('data-id');

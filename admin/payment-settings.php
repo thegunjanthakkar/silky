@@ -94,6 +94,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         mysqli_stmt_bind_param($stmt, "iisssssss", $is_enabled, $test_mode, $api_key, $api_secret, $merchant_id, $display_name, $additional_config_json, $user_id, $method);
         
         if (mysqli_stmt_execute($stmt)) {
+            if (function_exists('logActivity')) { @logActivity('update', 'Settings', 'Updated payment settings (' . stripslashes($method) . ')'); }
             $_SESSION['success'] = "Payment settings updated successfully!";
         } else {
             $_SESSION['error'] = "Error updating payment settings: " . mysqli_error($conn);

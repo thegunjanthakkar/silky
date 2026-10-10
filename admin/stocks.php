@@ -24,6 +24,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             // Update existing stock
             $updateSQL = "UPDATE stock SET quantity = quantity + $quantity, updated_by = $updated_by WHERE product_id = $product_id";
             if (mysqli_query($conn, $updateSQL)) {
+                if (function_exists('logActivity')) { @logActivity('update', 'Stocks', 'Added ' . $quantity . ' units to stock for product (ID: ' . $product_id . ')'); }
                 $_SESSION['success'] = "Stock quantity updated successfully!";
                 
                 // Check if the new stock is > 0
@@ -41,6 +42,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             // Insert new stock record
             $insertSQL = "INSERT INTO stock (product_id, quantity, updated_by) VALUES ($product_id, $quantity, $updated_by)";
             if (mysqli_query($conn, $insertSQL)) {
+                if (function_exists('logActivity')) { @logActivity('create', 'Stocks', 'Added stock record for product (ID: ' . $product_id . ', qty: ' . $quantity . ')'); }
                 $_SESSION['success'] = "Stock added successfully!";
                 if ($quantity > 0) {
                     require_once '../includes/process-notifications.php';
@@ -72,6 +74,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             // Update stock record
             $updateSQL = "UPDATE stock SET product_id = $product_id, quantity = $quantity, updated_by = $updated_by WHERE id = $stock_id";
             if (mysqli_query($conn, $updateSQL)) {
+                if (function_exists('logActivity')) { @logActivity('update', 'Stocks', 'Updated stock record (ID: ' . $stock_id . ', product ID: ' . $product_id . ', qty: ' . $quantity . ')'); }
                 $_SESSION['success'] = "Stock updated successfully!";
                 if ($quantity > 0) {
                     require_once '../includes/process-notifications.php';
@@ -92,6 +95,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'delete_stock' && isset($_GET[
     $stock_id = (int)$_GET['id'];
     $delSQL = "DELETE FROM stock WHERE id = $stock_id";
     if (mysqli_query($conn, $delSQL)) {
+        if (function_exists('logActivity')) { @logActivity('delete', 'Stocks', 'Deleted stock record (ID: ' . $stock_id . ')'); }
         $_SESSION['success'] = "Stock record deleted successfully!";
     } else {
         $_SESSION['error'] = "Error deleting stock: " . mysqli_error($conn);

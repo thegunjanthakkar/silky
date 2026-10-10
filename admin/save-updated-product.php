@@ -416,6 +416,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // The helper will send them. (We could be more granular, but for now this is good).
             checkAndSendStockNotifications($conn, $product_id);
         }
+
+        if (function_exists('logActivity')) { @logActivity('update', 'Products', 'Updated product: ' . stripslashes($name) . ' (ID: ' . $product_id . ')'); }
         
         $_SESSION['success'] = 'Product updated successfully!';
         header('Location: products.php');

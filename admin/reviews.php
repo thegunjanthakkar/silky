@@ -31,7 +31,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             $stmt = mysqli_prepare($conn, "UPDATE reviews SET status = ? WHERE id = ?");
             mysqli_stmt_bind_param($stmt, "si", $status, $review_id);
         }
-        echo json_encode(mysqli_stmt_execute($stmt)
+        $ok = mysqli_stmt_execute($stmt);
+        if ($ok && function_exists('logActivity')) {
+            $log_action = ($action === 'delete') ? 'delete' : 'update';
+            @logActivity($log_action, 'Reviews', ucfirst($action) . 'd product review (ID: ' . $review_id . ')');
+        }
+        echo json_encode($ok
             ? ['success' => true,  'message' => 'Review updated successfully.']
             : ['success' => false, 'message' => 'Database error.']);
     } else {

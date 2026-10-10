@@ -241,6 +241,19 @@ $type_colors = [
                             <a class="dropdown-item" href="#"><i class="las la-lock fs-18 me-1 align-text-bottom"></i> Security</a>
                             <a class="dropdown-item" href="#"><i class="las la-question-circle fs-18 me-1 align-text-bottom"></i> Help Center</a>                        -->
                             <div class="dropdown-divider mb-0"></div>
+                            <?php
+                            // Show Change Password only to roles granted the permission
+                            $__show_change_pw = true;
+                            if (file_exists(__DIR__ . '/includes/permission-manager.php') && !function_exists('hasPermission')) {
+                                require_once __DIR__ . '/includes/permission-manager.php';
+                            }
+                            if (function_exists('hasPermission')) {
+                                $__show_change_pw = hasPermission('change_password');
+                            }
+                            if ($__show_change_pw):
+                            ?>
+                            <a class="dropdown-item" href="change-password.php"><i class="las la-key fs-18 me-1 align-text-bottom"></i> Change Password</a>
+                            <?php endif; ?>
                             <a class="dropdown-item text-danger" href="#" onclick="confirmLogout(); return false;"><i class="las la-power-off fs-18 me-1 align-text-bottom"></i> Logout</a>
                         </div>
                     </li>
