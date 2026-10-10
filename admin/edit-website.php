@@ -353,27 +353,44 @@ $error_message = isset($_GET['error']) ? 'Error saving settings.' : '';
                                                     </div>
                                                     <div class="row g-3">
                                                         <div class="col-md-4">
-                                                            <label class="form-label fw-semibold">Banner Image</label>
+                                                            <label class="form-label fw-semibold">Banner Images <span class="badge bg-primary-subtle text-primary border border-primary-subtle ms-1">Desktop + Mobile</span></label>
                                                             <?php
                                                             $img_path = htmlspecialchars($slide['image_path']);
-                                                            $img_preview = $img_path ? '../' . $img_path : '';
+                                                            $mobile_img_path = htmlspecialchars($slide['mobile_image_path'] ?? '');
                                                             ?>
-                                                            <!-- Current image preview -->
-                                                            <div class="mb-2 img-preview-wrap"<?php if (!$img_path) echo ' style="display:none;"'; ?>>
-                                                                <img src="<?php echo $img_path ? '../' . $img_path : ''; ?>" class="img-thumbnail" style="max-height:80px;object-fit:cover" onerror="this.style.display='none'">
+                                                            <!-- Desktop image preview -->
+                                                            <div class="mb-2">
+                                                                <small class="text-muted fw-semibold d-block mb-1"><i class="bi bi-display me-1"></i>Desktop (16:9)</small>
+                                                                <div class="mb-2 img-preview-wrap"<?php if (!$img_path) echo ' style="display:none;"'; ?>>
+                                                                    <img src="<?php echo $img_path ? '../' . $img_path : ''; ?>" class="img-thumbnail" style="max-height:80px;width:100%;object-fit:cover" onerror="this.style.display='none'">
+                                                                </div>
+                                                            </div>
+                                                            <!-- Mobile image preview -->
+                                                            <div class="mb-2">
+                                                                <small class="text-muted fw-semibold d-block mb-1"><i class="bi bi-phone me-1"></i>Mobile (9:16)</small>
+                                                                <div class="mb-2 img-preview-wrap-mobile"<?php if (!$mobile_img_path) echo ' style="display:none;"'; ?>>
+                                                                    <img src="<?php echo $mobile_img_path ? '../' . $mobile_img_path : ''; ?>" class="img-thumbnail" style="max-height:110px;object-fit:cover" onerror="this.style.display='none'">
+                                                                </div>
                                                             </div>
                                                             <input type="hidden" name="slide_image_path[]" class="slide-img-path" value="<?php echo $img_path; ?>">
+                                                            <input type="hidden" name="slide_mobile_image_path[]" class="slide-mobile-img-path" value="<?php echo $mobile_img_path; ?>">
                                                             <input type="hidden" name="slide_image_base64_<?php echo $slide['id']; ?>" class="slide-base64" value="">
-                                                            <div class="btn-group w-100 mb-2" role="group">
-                                                                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="openDirectoryPicker(this)">
-                                                                    <i class="bi bi-folder2-open me-1"></i>Select
+                                                            <input type="hidden" name="slide_mobile_image_base64_<?php echo $slide['id']; ?>" class="slide-mobile-base64" value="">
+                                                            <div class="d-grid gap-2 mb-2">
+                                                                <button type="button" class="btn btn-primary btn-sm" onclick="this.closest('.col-md-4').querySelector('.upload-trigger').click()">
+                                                                    <i class="bi bi-upload me-1"></i>Upload & Crop (Desktop + Mobile)
                                                                 </button>
-                                                                <button type="button" class="btn btn-outline-primary btn-sm" onclick="this.closest('.col-md-4').querySelector('.upload-trigger').click()">
-                                                                    <i class="bi bi-upload me-1"></i>Upload & Crop
-                                                                </button>
+                                                                <div class="btn-group w-100" role="group">
+                                                                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="openDirectoryPicker(this, 'desktop')">
+                                                                        <i class="bi bi-display me-1"></i>Desktop
+                                                                    </button>
+                                                                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="openDirectoryPicker(this, 'mobile')">
+                                                                        <i class="bi bi-phone me-1"></i>Mobile
+                                                                    </button>
+                                                                </div>
                                                             </div>
                                                             <input type="file" class="upload-trigger d-none" accept="image/*" onchange="previewUpload(this)">
-                                                            <div class="form-text text-muted font-11">Recommended resolution 1920 x 1080px, Crop (16:9) & convert to WebP (up to 50MB).</div>
+                                                            <div class="form-text text-muted font-11">One upload → crop <b>16:9</b> for desktop (1920×1080) & <b>9:16</b> for mobile (1080×1920). WebP (up to 50MB).</div>
                                                         </div>
                                                         <div class="col-md-4">
                                                             <label class="form-label fw-semibold">Title</label>
@@ -1402,22 +1419,38 @@ $error_message = isset($_GET['error']) ? 'Error saving settings.' : '';
                     </div>
                     <div class="row g-3">
                         <div class="col-md-4">
-                            <label class="form-label fw-semibold">Banner Image</label>
-                            <div class="mb-2 img-preview-wrap" style="display:none;">
-                                <img src="" class="img-thumbnail" style="max-height:80px;object-fit:cover" onerror="this.style.display='none'">
+                            <label class="form-label fw-semibold">Banner Images <span class="badge bg-primary-subtle text-primary border border-primary-subtle ms-1">Desktop + Mobile</span></label>
+                            <div class="mb-2">
+                                <small class="text-muted fw-semibold d-block mb-1"><i class="bi bi-display me-1"></i>Desktop (16:9)</small>
+                                <div class="mb-2 img-preview-wrap" style="display:none;">
+                                    <img src="" class="img-thumbnail" style="max-height:80px;width:100%;object-fit:cover" onerror="this.style.display='none'">
+                                </div>
+                            </div>
+                            <div class="mb-2">
+                                <small class="text-muted fw-semibold d-block mb-1"><i class="bi bi-phone me-1"></i>Mobile (9:16)</small>
+                                <div class="mb-2 img-preview-wrap-mobile" style="display:none;">
+                                    <img src="" class="img-thumbnail" style="max-height:110px;object-fit:cover" onerror="this.style.display='none'">
+                                </div>
                             </div>
                             <input type="hidden" name="slide_image_path[]" class="slide-img-path" value="">
+                            <input type="hidden" name="slide_mobile_image_path[]" class="slide-mobile-img-path" value="">
                             <input type="hidden" name="slide_image_base64_${id}" class="slide-base64" value="">
-                            <div class="btn-group w-100 mb-2" role="group">
-                                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="openDirectoryPicker(this)">
-                                    <i class="bi bi-folder2-open me-1"></i>Select
+                            <input type="hidden" name="slide_mobile_image_base64_${id}" class="slide-mobile-base64" value="">
+                            <div class="d-grid gap-2 mb-2">
+                                <button type="button" class="btn btn-primary btn-sm" onclick="this.closest('.col-md-4').querySelector('.upload-trigger').click()">
+                                    <i class="bi bi-upload me-1"></i>Upload & Crop (Desktop + Mobile)
                                 </button>
-                                <button type="button" class="btn btn-outline-primary btn-sm" onclick="this.closest('.col-md-4').querySelector('.upload-trigger').click()">
-                                    <i class="bi bi-upload me-1"></i>Upload & Crop
-                                </button>
+                                <div class="btn-group w-100" role="group">
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="openDirectoryPicker(this, 'desktop')">
+                                        <i class="bi bi-display me-1"></i>Desktop
+                                    </button>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="openDirectoryPicker(this, 'mobile')">
+                                        <i class="bi bi-phone me-1"></i>Mobile
+                                    </button>
+                                </div>
                             </div>
                             <input type="file" class="upload-trigger d-none" accept="image/*" onchange="previewUpload(this)">
-                            <div class="form-text text-muted font-11">Crop (16:9) & convert to WebP (up to 50MB).</div>
+                            <div class="form-text text-muted font-11">One upload → crop <b>16:9</b> desktop (1920×1080) & <b>9:16</b> mobile (1080×1920). WebP (up to 50MB).</div>
                         </div>
                         <div class="col-md-4">
                             <label class="form-label fw-semibold">Title</label>
@@ -1522,61 +1555,117 @@ $error_message = isset($_GET['error']) ? 'Error saving settings.' : '';
             }
         }
 
-        // ── Directory Picker ──────────────────────────────────────────
+        // ── Directory Picker (Desktop / Mobile aware) ─────────────
         let _pickerTarget = null;
+        let _pickerMode = 'desktop'; // 'desktop' | 'mobile'
+        let _pickerImages = [];
+        let _pickerFilter = 'desktop'; // all | desktop | mobile
 
-        function openDirectoryPicker(btn) {
+        function pickerKindBadge(kind) {
+            if (kind === 'desktop') return '<span class="badge bg-primary position-absolute top-0 start-0 m-1"><i class="bi bi-display me-1"></i>16:9</span>';
+            if (kind === 'mobile') return '<span class="badge bg-success position-absolute top-0 start-0 m-1"><i class="bi bi-phone me-1"></i>9:16</span>';
+            return '<span class="badge bg-secondary position-absolute top-0 start-0 m-1">Other</span>';
+        }
+
+        function setPickerFilter(f) {
+            _pickerFilter = f;
+            document.querySelectorAll('.picker-filter-btn').forEach(b => {
+                b.classList.toggle('active', b.dataset.filter === f);
+            });
+            renderPickerGrid();
+        }
+
+        function renderPickerGrid() {
+            const grid = document.getElementById('heroBannerGrid');
+            const countEl = document.getElementById('heroPickerCount');
+            const list = (_pickerFilter === 'all') ? _pickerImages : _pickerImages.filter(i => (i.kind || 'other') === _pickerFilter);
+            if (countEl) countEl.textContent = 'Showing ' + list.length + ' of ' + _pickerImages.length;
+            if (!list.length) {
+                grid.innerHTML = '<div class="text-center py-5 text-muted w-100"><i class="bi bi-images" style="font-size:2rem"></i><p class="mt-2 mb-0">No ' +
+                    (_pickerFilter === 'all' ? '' : (_pickerFilter === 'mobile' ? 'Mobile 9:16' : 'Desktop 16:9') + ' ') +
+                    'images found.</p><small>Try the "All" filter, or upload & crop a new image.</small></div>';
+                return;
+            }
+            grid.innerHTML = list.map(img => {
+                const kind = img.kind || 'other';
+                const mismatch = (kind === 'desktop' && _pickerMode === 'mobile') || (kind === 'mobile' && _pickerMode === 'desktop');
+                const dims = img.dims ? img.dims : '';
+                // Portrait thumbs get a taller preview so 9:16 images are recognisable
+                const thumbH = (kind === 'mobile') ? '140px' : '90px';
+                const safeName = (img.name || '').replace(/'/g, "\\'");
+                return `
+                    <div class="col-4 col-md-3 col-lg-2">
+                        <div class="card h-100 border picker-card ${mismatch ? 'border-warning' : ''}" style="cursor:pointer" onclick="selectBannerImage('${img.path}', '../${img.path}')" title="${safeName}${dims ? ' (' + dims + ')' : ''}${mismatch ? ' — not ideal for this slot' : ''}">
+                            <div class="position-relative bg-dark">
+                                <img src="../${img.path}" class="card-img-top" style="height:${thumbH};object-fit:cover" loading="lazy" onerror="this.src='assets/img/no-image.png'">
+                                ${pickerKindBadge(kind)}
+                            </div>
+                            <div class="card-body p-1 text-center">
+                                <small class="text-muted d-block text-truncate" style="font-size:10px">${img.name}</small>
+                                <small class="text-muted" style="font-size:10px">${dims ? dims + ' · ' : ''}${img.size}</small>
+                                ${mismatch ? '<small class="text-warning d-block" style="font-size:10px"><i class="bi bi-exclamation-triangle me-1"></i>Not ideal here</small>' : ''}
+                            </div>
+                        </div>
+                    </div>`;
+            }).join('');
+        }
+
+        function openDirectoryPicker(btn, mode) {
             _pickerTarget = btn.closest('.col-md-4');
+            _pickerMode = (mode === 'mobile') ? 'mobile' : 'desktop';
+            const titleEl = document.querySelector('#heroBannerModal .modal-title');
+            if (titleEl) {
+                titleEl.innerHTML = _pickerMode === 'mobile'
+                    ? '<i class="bi bi-phone me-2"></i>Select Mobile Banner Image (9:16)'
+                    : '<i class="bi bi-display me-2"></i>Select Desktop Banner Image (16:9)';
+            }
+            const slotLabel = document.getElementById('heroPickerSlotLabel');
+            if (slotLabel) slotLabel.textContent = _pickerMode === 'mobile' ? 'Mobile (9:16)' : 'Desktop (16:9)';
+            // Default the filter to the slot being filled, user can switch to All
+            _pickerFilter = _pickerMode;
+            document.querySelectorAll('.picker-filter-btn').forEach(b => {
+                b.classList.toggle('active', b.dataset.filter === _pickerFilter);
+            });
             const modal = new bootstrap.Modal(document.getElementById('heroBannerModal'));
             const grid = document.getElementById('heroBannerGrid');
             grid.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-primary"></div><p class="mt-2 text-muted">Loading images...</p></div>';
+            const countEl = document.getElementById('heroPickerCount');
+            if (countEl) countEl.textContent = '';
             modal.show();
 
             fetch('get-hero-banners.php')
                 .then(r => r.json())
                 .then(images => {
-                    if (!images.length) {
+                    _pickerImages = Array.isArray(images) ? images : [];
+                    if (!_pickerImages.length) {
                         grid.innerHTML = '<div class="text-center py-5 text-muted"><i class="bi bi-images" style="font-size:2rem"></i><p class="mt-2">No images in hero directory.<br>Upload images to <code>assets/img/hero/</code></p></div>';
+                        if (countEl) countEl.textContent = '';
                         return;
                     }
-                    grid.innerHTML = images.map(img => `
-                        <div class="col-4 col-md-3 col-lg-2">
-                            <div class="card h-100 border picker-card" style="cursor:pointer" onclick="selectBannerImage('${img.path}', '../${img.path}')" title="${img.name}">
-                                <img src="../${img.path}" class="card-img-top" style="height:90px;object-fit:cover" onerror="this.src='assets/img/no-image.png'">
-                                <div class="card-body p-1 text-center">
-                                    <small class="text-muted d-block text-truncate" style="font-size:10px">${img.name}</small>
-                                    <small class="text-muted" style="font-size:10px">${img.size}</small>
-                                </div>
-                            </div>
-                        </div>
-                    `).join('');
+                    renderPickerGrid();
                 })
                 .catch(() => { grid.innerHTML = '<p class="text-danger p-3">Error loading images.</p>'; });
         }
 
         function selectBannerImage(path, previewSrc) {
             if (!_pickerTarget) return;
-            // Set hidden input (and clear any previous base64 crop)
-            const input = _pickerTarget.querySelector('.slide-img-path');
+            const isMobile = (_pickerMode === 'mobile');
+            // Set correct hidden input (and clear its base64 crop)
+            const input = _pickerTarget.querySelector(isMobile ? '.slide-mobile-img-path' : '.slide-img-path');
             if (input) input.value = path;
-            const b64 = _pickerTarget.querySelector('.slide-base64');
+            const b64 = _pickerTarget.querySelector(isMobile ? '.slide-mobile-base64' : '.slide-base64');
             if (b64) b64.value = '';
 
-            // Remove any temporary WebP badge
-            const oldBadge = _pickerTarget.querySelector('.crop-webp-badge');
-            if (oldBadge) oldBadge.remove();
+            // Remove any temporary WebP badges
+            _pickerTarget.querySelectorAll('.crop-webp-badge, .crop-webp-badge-desktop, .crop-webp-badge-mobile').forEach(b => b.remove());
 
-            // Show/update preview
-            let wrap = _pickerTarget.querySelector('.img-preview-wrap');
+            // Show/update correct preview
+            const wrapSel = isMobile ? '.img-preview-wrap-mobile' : '.img-preview-wrap';
+            let wrap = _pickerTarget.querySelector(wrapSel);
             if (!wrap) {
                 wrap = document.createElement('div');
-                wrap.className = 'img-preview-wrap mb-2';
+                wrap.className = (isMobile ? 'img-preview-wrap-mobile' : 'img-preview-wrap') + ' mb-2';
                 wrap.innerHTML = '<img class="img-thumbnail" style="max-height:80px;object-fit:cover">';
-                if (input) {
-                    input.before(wrap);
-                } else {
-                    _pickerTarget.prepend(wrap);
-                }
             }
             wrap.style.display = '';
             const previewImg = wrap.querySelector('img');
@@ -1586,14 +1675,15 @@ $error_message = isset($_GET['error']) ? 'Error saving settings.' : '';
             }
             // Highlight selected
             document.querySelectorAll('.picker-card').forEach(c => c.classList.remove('border-primary', 'border-2'));
-            event.currentTarget.querySelector('.picker-card')?.classList.add('border-primary','border-2');
+            try { (event.target.closest('.picker-card') || event.currentTarget).classList.add('border-primary', 'border-2'); } catch(e) {}
             // Close modal
             bootstrap.Modal.getInstance(document.getElementById('heroBannerModal')).hide();
         }
 
-        // ── Cropper & WebP Conversion ─────────────────────────
+        // ── Dual Cropper (Desktop 16:9 + Mobile 9:16) & WebP Conversion ─
         let _cropTarget = null;
-        let _cropper = null;
+        let _cropperDesktop = null;
+        let _cropperMobile = null;
         let _activeCropObjectUrl = null;
         let _selectedCropFileName = '';
 
@@ -1620,16 +1710,30 @@ $error_message = isset($_GET['error']) ? 'Error saving settings.' : '';
 
             const cropModalEl = document.getElementById('cropModal');
             const cropModal = bootstrap.Modal.getOrCreateInstance(cropModalEl);
-            const cropImg = document.getElementById('cropImageToCrop');
+            const cropImgDesktop = document.getElementById('cropImageDesktop');
+            const cropImgMobile = document.getElementById('cropImageMobile');
 
             function onShown() {
                 cropModalEl.removeEventListener('shown.bs.modal', onShown);
-                if (_cropper) {
-                    _cropper.destroy();
-                    _cropper = null;
-                }
-                _cropper = new Cropper(cropImg, {
+                if (_cropperDesktop) { _cropperDesktop.destroy(); _cropperDesktop = null; }
+                if (_cropperMobile) { _cropperMobile.destroy(); _cropperMobile = null; }
+                // Desktop cropper — 16:9
+                _cropperDesktop = new Cropper(cropImgDesktop, {
                     aspectRatio: 16 / 9,
+                    viewMode: 1,
+                    autoCropArea: 1,
+                    responsive: true,
+                    restore: false,
+                    guides: true,
+                    center: true,
+                    highlight: false,
+                    cropBoxMovable: true,
+                    cropBoxResizable: true,
+                    toggleDragModeOnDblclick: false
+                });
+                // Mobile cropper — 9:16
+                _cropperMobile = new Cropper(cropImgMobile, {
+                    aspectRatio: 9 / 16,
                     viewMode: 1,
                     autoCropArea: 1,
                     responsive: true,
@@ -1644,7 +1748,8 @@ $error_message = isset($_GET['error']) ? 'Error saving settings.' : '';
             }
 
             cropModalEl.addEventListener('shown.bs.modal', onShown);
-            cropImg.src = _activeCropObjectUrl;
+            cropImgDesktop.src = _activeCropObjectUrl;
+            cropImgMobile.src = _activeCropObjectUrl;
             cropModal.show();
 
             // Clear input so same file selection triggers change event if chosen again
@@ -1655,10 +1760,8 @@ $error_message = isset($_GET['error']) ? 'Error saving settings.' : '';
             const cropModalEl = document.getElementById('cropModal');
             if (cropModalEl) {
                 cropModalEl.addEventListener('hidden.bs.modal', function () {
-                    if (_cropper) {
-                        _cropper.destroy();
-                        _cropper = null;
-                    }
+                    if (_cropperDesktop) { _cropperDesktop.destroy(); _cropperDesktop = null; }
+                    if (_cropperMobile) { _cropperMobile.destroy(); _cropperMobile = null; }
                     if (_activeCropObjectUrl) {
                         URL.revokeObjectURL(_activeCropObjectUrl);
                         _activeCropObjectUrl = null;
@@ -1667,155 +1770,135 @@ $error_message = isset($_GET['error']) ? 'Error saving settings.' : '';
             }
         });
 
+        function canvasToBlobPromise(canvas, type, quality) {
+            return new Promise((resolve) => canvas.toBlob((b) => resolve(b), type, quality));
+        }
+
+        function uploadBlob(blob, filename) {
+            const fd = new FormData();
+            fd.append('image', blob, filename);
+            fd.append('type', 'hero');
+            return fetch('upload-image.php', { method: 'POST', body: fd }).then(r => r.json());
+        }
+
+        function setSlidePreview(kind, pathOrDataUrl, filename) {
+            // kind: 'desktop' | 'mobile'
+            const isMobile = (kind === 'mobile');
+            const wrap = _cropTarget.querySelector(isMobile ? '.img-preview-wrap-mobile' : '.img-preview-wrap');
+            if (!wrap) return;
+            wrap.style.display = '';
+            const previewImg = wrap.querySelector('img');
+            if (previewImg) { previewImg.src = pathOrDataUrl; previewImg.style.display = ''; }
+            // Per-kind badge so desktop + mobile statuses show together
+            const badgeCls = isMobile ? '.crop-webp-badge-mobile' : '.crop-webp-badge-desktop';
+            let badge = _cropTarget.querySelector(badgeCls);
+            if (!badge) {
+                badge = document.createElement('div');
+                badge.className = (isMobile ? 'crop-webp-badge-mobile' : 'crop-webp-badge-desktop') + ' crop-webp-badge mb-1';
+                wrap.after(badge);
+            }
+            badge.innerHTML = '<span class="badge bg-success-subtle text-success border border-success-subtle"><i class="bi bi-check-circle me-1"></i>' +
+                (isMobile ? 'Mobile 9:16' : 'Desktop 16:9') + ' ready (' + (filename || 'webp') + ')</span>';
+        }
+
         async function performCrop() {
-            if (!_cropper || !_cropTarget) return;
+            if ((!_cropperDesktop && !_cropperMobile) || !_cropTarget) return;
 
             const cropBtn = document.getElementById('btn-crop-upload');
-            const originalBtnHtml = cropBtn ? cropBtn.innerHTML : '<i class="bi bi-check-lg me-1"></i>Crop & Convert to WebP';
+            const originalBtnHtml = cropBtn ? cropBtn.innerHTML : '<i class="bi bi-check-lg me-1"></i>Crop & Save Both';
             if (cropBtn) {
                 cropBtn.disabled = true;
-                cropBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Converting to WebP...';
+                cropBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Cropping both…';
             }
 
-            // Export high-resolution 16:9 canvas (1920x1080)
-            const canvas = _cropper.getCroppedCanvas({
-                width: 1920,
-                height: 1080,
-                imageSmoothingEnabled: true,
-                imageSmoothingQuality: 'high'
-            });
+            // Export high-res canvases: desktop 1920x1080 (16:9), mobile 1080x1920 (9:16)
+            const canvasDesktop = _cropperDesktop ? _cropperDesktop.getCroppedCanvas({
+                width: 1920, height: 1080,
+                imageSmoothingEnabled: true, imageSmoothingQuality: 'high'
+            }) : null;
+            const canvasMobile = _cropperMobile ? _cropperMobile.getCroppedCanvas({
+                width: 1080, height: 1920,
+                imageSmoothingEnabled: true, imageSmoothingQuality: 'high'
+            }) : null;
 
-            if (!canvas) {
-                if (cropBtn) {
-                    cropBtn.disabled = false;
-                    cropBtn.innerHTML = originalBtnHtml;
-                }
+            if (!canvasDesktop && !canvasMobile) {
+                if (cropBtn) { cropBtn.disabled = false; cropBtn.innerHTML = originalBtnHtml; }
                 alert('Could not generate cropped canvas.');
                 return;
             }
 
-            canvas.toBlob(async (blob) => {
-                if (!blob) {
-                    if (cropBtn) {
-                        cropBtn.disabled = false;
-                        cropBtn.innerHTML = originalBtnHtml;
-                    }
-                    alert('Error creating WebP image. Please try again.');
-                    return;
-                }
+            let baseName = 'hero_' + Date.now();
+            if (_selectedCropFileName) {
+                baseName = _selectedCropFileName.replace(/\.[^/.]+$/, '').replace(/[^a-zA-Z0-9_-]/g, '_');
+            }
 
-                const formData = new FormData();
-                let baseName = 'hero_' + Date.now();
-                if (_selectedCropFileName) {
-                    baseName = _selectedCropFileName.replace(/\.[^/.]+$/, '').replace(/[^a-zA-Z0-9_-]/g, '_');
-                }
-                const filename = baseName + '.webp';
-
-                formData.append('image', blob, filename);
-                formData.append('type', 'hero');
-
-                try {
-                    const response = await fetch('upload-image.php', {
-                        method: 'POST',
-                        body: formData
-                    });
-                    const data = await response.json();
-
-                    if (data.success) {
-                        const pathInput = _cropTarget.querySelector('.slide-img-path');
-                        if (pathInput) pathInput.value = data.path;
-
-                        // Clear base64 since file is successfully uploaded and saved as WebP directly
-                        const b64Input = _cropTarget.querySelector('.slide-base64');
-                        if (b64Input) b64Input.value = '';
-
-                        // Show/update preview
-                        let wrap = _cropTarget.querySelector('.img-preview-wrap');
-                        if (!wrap) {
-                            wrap = document.createElement('div');
-                            wrap.className = 'img-preview-wrap mb-2';
-                            wrap.innerHTML = '<img class="img-thumbnail" style="max-height:80px;object-fit:cover">';
-                            if (pathInput) {
-                                pathInput.before(wrap);
-                            } else {
-                                _cropTarget.prepend(wrap);
-                            }
+            const jobs = [];
+            if (canvasDesktop) {
+                jobs.push((async () => {
+                    const blob = await canvasToBlobPromise(canvasDesktop, 'image/webp', 0.88);
+                    const filename = baseName + '_desktop.webp';
+                    if (!blob) throw new Error('desktop blob failed');
+                    try {
+                        const data = await uploadBlob(blob, filename);
+                        if (data.success) {
+                            const p = _cropTarget.querySelector('.slide-img-path');
+                            if (p) p.value = data.path;
+                            const b = _cropTarget.querySelector('.slide-base64');
+                            if (b) b.value = '';
+                            setSlidePreview('desktop', '../' + data.path + '?t=' + Date.now(), data.filename || filename);
+                            return { ok: true };
                         }
-                        wrap.style.display = '';
-                        const previewImg = wrap.querySelector('img');
-                        if (previewImg) {
-                            previewImg.src = '../' + data.path + '?t=' + Date.now();
-                            previewImg.style.display = '';
-                        }
-
-                        // Badge indicator
-                        let badge = _cropTarget.querySelector('.crop-webp-badge');
-                        if (!badge) {
-                            badge = document.createElement('div');
-                            badge.className = 'crop-webp-badge mb-2';
-                            wrap.after(badge);
-                        }
-                        badge.innerHTML = '<span class="badge bg-success-subtle text-success"><i class="bi bi-check-circle me-1"></i>WebP Image Ready (' + (data.filename || filename) + ')</span>';
-
-                        const cropModal = bootstrap.Modal.getInstance(document.getElementById('cropModal'));
-                        if (cropModal) cropModal.hide();
-                    } else {
-                        // Fallback: convert to WebP base64 so save-website.php can save it on form submit
-                        const webpB64 = canvas.toDataURL('image/webp', 0.88);
-                        const b64Input = _cropTarget.querySelector('.slide-base64');
-                        if (b64Input) b64Input.value = webpB64;
-                        const pathInput = _cropTarget.querySelector('.slide-img-path');
-                        if (pathInput) pathInput.value = '';
-
-                        let wrap = _cropTarget.querySelector('.img-preview-wrap');
-                        if (!wrap) {
-                            wrap = document.createElement('div');
-                            wrap.className = 'img-preview-wrap mb-2';
-                            wrap.innerHTML = '<img class="img-thumbnail" style="max-height:80px;object-fit:cover">';
-                            if (pathInput) pathInput.before(wrap);
-                        }
-                        wrap.style.display = '';
-                        const previewImg = wrap.querySelector('img');
-                        if (previewImg) {
-                            previewImg.src = webpB64;
-                            previewImg.style.display = '';
-                        }
-
-                        const cropModal = bootstrap.Modal.getInstance(document.getElementById('cropModal'));
-                        if (cropModal) cropModal.hide();
+                        throw new Error(data.message || 'upload failed');
+                    } catch (e) {
+                        // Fallback: base64 so save-website.php saves on submit
+                        const webpB64 = canvasDesktop.toDataURL('image/webp', 0.88);
+                        const b = _cropTarget.querySelector('.slide-base64');
+                        if (b) b.value = webpB64;
+                        const p = _cropTarget.querySelector('.slide-img-path');
+                        if (p) p.value = '';
+                        setSlidePreview('desktop', webpB64, filename + ' (pending save)');
+                        return { ok: true, fallback: true };
                     }
-                } catch (error) {
-                    console.error('Upload error:', error);
-                    // Fallback to WebP base64 so save-website.php can process it
-                    const webpB64 = canvas.toDataURL('image/webp', 0.88);
-                    const b64Input = _cropTarget.querySelector('.slide-base64');
-                    if (b64Input) b64Input.value = webpB64;
-                    const pathInput = _cropTarget.querySelector('.slide-img-path');
-                    if (pathInput) pathInput.value = '';
+                })());
+            }
+            if (canvasMobile) {
+                jobs.push((async () => {
+                    const blob = await canvasToBlobPromise(canvasMobile, 'image/webp', 0.88);
+                    const filename = baseName + '_mobile.webp';
+                    if (!blob) throw new Error('mobile blob failed');
+                    try {
+                        const data = await uploadBlob(blob, filename);
+                        if (data.success) {
+                            const p = _cropTarget.querySelector('.slide-mobile-img-path');
+                            if (p) p.value = data.path;
+                            const b = _cropTarget.querySelector('.slide-mobile-base64');
+                            if (b) b.value = '';
+                            setSlidePreview('mobile', '../' + data.path + '?t=' + Date.now(), data.filename || filename);
+                            return { ok: true };
+                        }
+                        throw new Error(data.message || 'upload failed');
+                    } catch (e) {
+                        const webpB64 = canvasMobile.toDataURL('image/webp', 0.88);
+                        const b = _cropTarget.querySelector('.slide-mobile-base64');
+                        if (b) b.value = webpB64;
+                        const p = _cropTarget.querySelector('.slide-mobile-img-path');
+                        if (p) p.value = '';
+                        setSlidePreview('mobile', webpB64, filename + ' (pending save)');
+                        return { ok: true, fallback: true };
+                    }
+                })());
+            }
 
-                    let wrap = _cropTarget.querySelector('.img-preview-wrap');
-                    if (!wrap) {
-                        wrap = document.createElement('div');
-                        wrap.className = 'img-preview-wrap mb-2';
-                        wrap.innerHTML = '<img class="img-thumbnail" style="max-height:80px;object-fit:cover">';
-                        if (pathInput) pathInput.before(wrap);
-                    }
-                    wrap.style.display = '';
-                    const previewImg = wrap.querySelector('img');
-                    if (previewImg) {
-                        previewImg.src = webpB64;
-                        previewImg.style.display = '';
-                    }
-
-                    const cropModal = bootstrap.Modal.getInstance(document.getElementById('cropModal'));
-                    if (cropModal) cropModal.hide();
-                } finally {
-                    if (cropBtn) {
-                        cropBtn.disabled = false;
-                        cropBtn.innerHTML = originalBtnHtml;
-                    }
-                }
-            }, 'image/webp', 0.88);
+            try {
+                await Promise.all(jobs);
+                const cropModal = bootstrap.Modal.getInstance(document.getElementById('cropModal'));
+                if (cropModal) cropModal.hide();
+            } catch (err) {
+                console.error('Crop error:', err);
+                alert('Error processing crops. Please try again.');
+            } finally {
+                if (cropBtn) { cropBtn.disabled = false; cropBtn.innerHTML = originalBtnHtml; }
+            }
         }
     </script>
 
@@ -1828,38 +1911,74 @@ $error_message = isset($_GET['error']) ? 'Error saving settings.' : '';
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <p class="text-muted small mb-3">Images from <code>assets/img/hero/</code> — click any image to select it.</p>
+                    <p class="text-muted small mb-2">Images from <code>assets/img/hero/</code> — click any image to select it for the <strong id="heroPickerSlotLabel">Desktop</strong> slot.</p>
+                    <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+                        <div class="btn-group btn-group-sm" role="group" aria-label="Filter images">
+                            <button type="button" class="btn btn-outline-primary picker-filter-btn" data-filter="all" onclick="setPickerFilter('all')">All</button>
+                            <button type="button" class="btn btn-outline-primary picker-filter-btn" data-filter="desktop" onclick="setPickerFilter('desktop')"><i class="bi bi-display me-1"></i>Desktop 16:9</button>
+                            <button type="button" class="btn btn-outline-primary picker-filter-btn" data-filter="mobile" onclick="setPickerFilter('mobile')"><i class="bi bi-phone me-1"></i>Mobile 9:16</button>
+                        </div>
+                        <small class="text-muted ms-auto" id="heroPickerCount"></small>
+                    </div>
+                    <div class="d-flex flex-wrap gap-2 mb-3">
+                        <span class="badge bg-primary"><i class="bi bi-display me-1"></i>Desktop = landscape 16:9 (filename …_desktop.webp)</span>
+                        <span class="badge bg-success"><i class="bi bi-phone me-1"></i>Mobile = portrait 9:16 (filename …_mobile.webp)</span>
+                        <span class="badge bg-secondary">Untagged = older / other size — check dimensions</span>
+                    </div>
                     <div class="row g-2" id="heroBannerGrid">
                         <!-- Images loaded via AJAX -->
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <small class="text-muted me-auto">To add more images, upload them directly to <code>assets/img/hero/</code></small>
+                    <small class="text-muted me-auto">Cropped uploads save as <code>…_desktop.webp</code> / <code>…_mobile.webp</code> so they are auto-tagged next time.</small>
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Crop Modal -->
+    <!-- Dual Crop Modal: Desktop 16:9 + Mobile 9:16 -->
     <div class="modal fade" id="cropModal" tabindex="-1" data-bs-backdrop="static">
-        <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-dialog modal-fullscreen-lg-down" style="max-width:1200px;" role="document">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="cropModalTitle"><i class="bi bi-crop me-2"></i>Crop Hero Banner (16:9)</h5>
+                    <h5 class="modal-title" id="cropModalTitle"><i class="bi bi-crop me-2"></i>Crop Hero Banner — Desktop + Mobile</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <div class="modal-body p-0 bg-dark text-center">
-                    <div style="height: 60vh; width: 100%; display: flex; align-items: center; justify-content: center; overflow: hidden;">
-                        <img id="cropImageToCrop" style="max-width: 100%; max-height: 100%; display:block; margin: 0 auto;" alt="Crop Image">
+                <div class="modal-body bg-dark">
+                    <div class="row g-3">
+                        <div class="col-md-8">
+                            <div class="card bg-black border-secondary h-100">
+                                <div class="card-header d-flex justify-content-between align-items-center py-2">
+                                    <span class="fw-bold"><i class="bi bi-display me-2 text-primary"></i>Desktop — 16:9 <small class="text-muted">(1920×1080)</small></span>
+                                    <span class="badge bg-primary">Landscape</span>
+                                </div>
+                                <div class="card-body p-0 d-flex align-items-center justify-content-center" style="height:52vh;overflow:hidden;">
+                                    <img id="cropImageDesktop" style="max-width:100%;max-height:100%;display:block;margin:0 auto;" alt="Desktop crop">
+                                </div>
+                                <div class="card-footer py-1"><small class="text-muted">Drag / resize the box. Output fixed to 16:9.</small></div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card bg-black border-secondary h-100">
+                                <div class="card-header d-flex justify-content-between align-items-center py-2">
+                                    <span class="fw-bold"><i class="bi bi-phone me-2 text-success"></i>Mobile — 9:16 <small class="text-muted">(1080×1920)</small></span>
+                                    <span class="badge bg-success">Portrait</span>
+                                </div>
+                                <div class="card-body p-0 d-flex align-items-center justify-content-center" style="height:52vh;overflow:hidden;">
+                                    <img id="cropImageMobile" style="max-width:100%;max-height:100%;display:block;margin:0 auto;" alt="Mobile crop">
+                                </div>
+                                <div class="card-footer py-1"><small class="text-muted">Drag / resize the box. Output fixed to 9:16.</small></div>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <div class="modal-footer d-flex justify-content-between">
-                    <span class="text-muted small"><i class="bi bi-info-circle me-1"></i>Ratio fixed at 16:9. Image is automatically converted to WebP format.</span>
+                <div class="modal-footer d-flex justify-content-between flex-wrap gap-2">
+                    <span class="text-muted small"><i class="bi bi-info-circle me-1"></i>Both images are auto-converted to WebP. Desktop 1920×1080, Mobile 1080×1920.</span>
                     <div class="d-flex gap-2">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                         <button type="button" class="btn btn-primary" id="btn-crop-upload" onclick="performCrop()">
-                            <i class="bi bi-check-lg me-1"></i>Crop & Convert to WebP
+                            <i class="bi bi-check-lg me-1"></i>Crop & Save Both
                         </button>
                     </div>
                 </div>

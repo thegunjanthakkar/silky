@@ -112,6 +112,12 @@ if ($cat_res) {
         height: 100%;
       }
 
+      #heroCarousel .carousel-item picture {
+        display: block;
+        height: 100%;
+        width: 100%;
+      }
+
       #heroCarousel .carousel-img {
         height: 100%;
         width: 100%;
@@ -232,7 +238,21 @@ if ($cat_res) {
         <div class="carousel-inner">
           <?php foreach ($hero_slides as $index => $slide): ?>
           <div class="carousel-item <?php echo $index === 0 ? 'active' : ''; ?>">
-            <img src="<?php echo htmlspecialchars($slide['image_path']); ?>" class="d-block w-100 carousel-img" alt="<?php echo htmlspecialchars($slide['title']); ?>">
+            <?php
+              $desktop_src = trim($slide['image_path'] ?? '');
+              $mobile_src = trim($slide['mobile_image_path'] ?? '');
+            ?>
+            <picture>
+              <?php if (!empty($mobile_src)): ?>
+              <!-- Mobile ONLY: 9:16 crop (≤768px). Browser downloads this file only on mobile. -->
+              <source media="(max-width: 768px)" srcset="<?php echo htmlspecialchars($mobile_src); ?>">
+              <?php endif; ?>
+              <?php if (!empty($desktop_src)): ?>
+              <!-- Desktop ONLY: 16:9 crop (≥769px). Browser downloads this file only on desktop. -->
+              <source media="(min-width: 769px)" srcset="<?php echo htmlspecialchars($desktop_src); ?>">
+              <?php endif; ?>
+              <img src="<?php echo htmlspecialchars(!empty($desktop_src) ? $desktop_src : $mobile_src); ?>" class="d-block w-100 carousel-img" alt="<?php echo htmlspecialchars($slide['title']); ?>" <?php echo $index === 0 ? 'fetchpriority="high"' : 'loading="lazy"'; ?>>
+            </picture>
             <div class="carousel-caption">
               <h2 class="display-4 fw-bold text-white mb-3"><?php echo htmlspecialchars($slide['title']); ?></h2>
               <p class="lead text-white-50 mb-4"><?php echo htmlspecialchars($slide['subtitle']); ?></p>

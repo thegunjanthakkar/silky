@@ -207,13 +207,40 @@ if (!empty($_POST['bottom_menu_title'])) {
 file_put_contents($log_file, "  => Menus done. Errors: " . count($errors) . "\n", FILE_APPEND);
 
 // =============================================
-// 3. Hero Slides
+// 3. Hero Slides (Desktop 16:9 + Mobile 9:16)
 // =============================================
 $kept_slides = [];
+
+// Auto-migrate: ensure mobile_image_path column exists
+$col_check = @mysqli_query($conn, "SHOW COLUMNS FROM website_hero_slides LIKE 'mobile_image_path'");
+if ($col_check && mysqli_num_rows($col_check) === 0) {
+    @mysqli_query($conn, "ALTER TABLE website_hero_slides ADD COLUMN mobile_image_path VARCHAR(255) NULL AFTER image_path");
+}
+$has_mobile_col = true;
+$col_recheck = @mysqli_query($conn, "SHOW COLUMNS FROM website_hero_slides LIKE 'mobile_image_path'");
+if ($col_recheck) { $has_mobile_col = (mysqli_num_rows($col_recheck) > 0); }
+
+function saveHeroBase64Image($conn, $base64_string, $suffix) {
+    if (empty($base64_string)) return null;
+    if (!preg_match('/^data:image\/(\w+);base64,/', $base64_string, $type)) return null;
+    $data = substr($base64_string, strpos($base64_string, ',') + 1);
+    $type = strtolower($type[1]);
+    if (!in_array($type, ['jpg', 'jpeg', 'gif', 'png', 'webp'])) return null;
+    $data = base64_decode($data);
+    if ($data === false) return null;
+    $upload_dir = dirname(__DIR__) . '/assets/img/hero/';
+    if (!is_dir($upload_dir)) mkdir($upload_dir, 0755, true);
+    $fname = time() . '_crop_' . $suffix . '_' . uniqid() . '.' . $type;
+    if (file_put_contents($upload_dir . $fname, $data)) {
+        return 'assets/img/hero/' . $fname;
+    }
+    return null;
+}
 
 if (!empty($_POST['slide_id'])) {
     foreach ($_POST['slide_id'] as $idx => $slide_id) {
         $img    = mysqli_real_escape_string($conn, $_POST['slide_image_path'][$idx] ?? '');
+        $mimg   = mysqli_real_escape_string($conn, $_POST['slide_mobile_image_path'][$idx] ?? '');
         $title  = mysqli_real_escape_string($conn, $_POST['slide_title'][$idx] ?? '');
         $sub    = mysqli_real_escape_string($conn, $_POST['slide_subtitle'][$idx] ?? '');
         $b1t    = mysqli_real_escape_string($conn, $_POST['slide_btn1_text'][$idx] ?? '');
@@ -232,32 +259,29 @@ if (!empty($_POST['slide_id'])) {
                 $img = mysqli_real_escape_string($conn, 'assets/img/hero/' . $fname);
             }
         }
-        
-        // Handle cropped base64 image (overrides standard upload if present)
+
+        // Handle cropped base64 images (desktop + mobile, override if present)
         $b64_key = 'slide_image_base64_' . $slide_id;
         if (!empty($_POST[$b64_key])) {
-            $base64_string = $_POST[$b64_key];
-            if (preg_match('/^data:image\/(\w+);base64,/', $base64_string, $type)) {
-                $data = substr($base64_string, strpos($base64_string, ',') + 1);
-                $type = strtolower($type[1]); 
-                if (in_array($type, ['jpg', 'jpeg', 'gif', 'png', 'webp'])) {
-                    $data = base64_decode($data);
-                    if ($data !== false) {
-                        $upload_dir = dirname(__DIR__) . '/assets/img/hero/';
-                        if (!is_dir($upload_dir)) mkdir($upload_dir, 0755, true);
-                        $fname = time() . '_crop_' . uniqid() . '.' . $type;
-                        if (file_put_contents($upload_dir . $fname, $data)) {
-                            $img = mysqli_real_escape_string($conn, 'assets/img/hero/' . $fname);
-                        }
-                    }
-                }
-            }
+            $saved = saveHeroBase64Image($conn, $_POST[$b64_key], 'desktop');
+            if ($saved !== null) { $img = mysqli_real_escape_string($conn, $saved); }
+        }
+        $b64m_key = 'slide_mobile_image_base64_' . $slide_id;
+        if (!empty($_POST[$b64m_key])) {
+            $saved_m = saveHeroBase64Image($conn, $_POST[$b64m_key], 'mobile');
+            if ($saved_m !== null) { $mimg = mysqli_real_escape_string($conn, $saved_m); }
         }
 
         if ($slide_id === 'new' || strpos($slide_id, 'new_') === 0) {
-            $sql = "INSERT INTO website_hero_slides 
-                    (image_path,title,subtitle,button_1_text,button_1_link,button_2_text,button_2_link,slide_order)
-                    VALUES ('$img','$title','$sub','$b1t','$b1l','$b2t','$b2l',$order)";
+            if ($has_mobile_col) {
+                $sql = "INSERT INTO website_hero_slides
+                        (image_path,mobile_image_path,title,subtitle,button_1_text,button_1_link,button_2_text,button_2_link,slide_order)
+                        VALUES ('$img','$mimg','$title','$sub','$b1t','$b1l','$b2t','$b2l',$order)";
+            } else {
+                $sql = "INSERT INTO website_hero_slides
+                        (image_path,title,subtitle,button_1_text,button_1_link,button_2_text,button_2_link,slide_order)
+                        VALUES ('$img','$title','$sub','$b1t','$b1l','$b2t','$b2l',$order)";
+            }
             if (mysqli_query($conn, $sql)) {
                 $kept_slides[] = mysqli_insert_id($conn);
             } else {
@@ -265,11 +289,19 @@ if (!empty($_POST['slide_id'])) {
             }
         } else {
             $sid = (int)$slide_id;
-            $sql = "UPDATE website_hero_slides SET 
-                    image_path='$img', title='$title', subtitle='$sub',
-                    button_1_text='$b1t', button_1_link='$b1l',
-                    button_2_text='$b2t', button_2_link='$b2l', slide_order=$order
-                    WHERE id=$sid";
+            if ($has_mobile_col) {
+                $sql = "UPDATE website_hero_slides SET
+                        image_path='$img', mobile_image_path='$mimg', title='$title', subtitle='$sub',
+                        button_1_text='$b1t', button_1_link='$b1l',
+                        button_2_text='$b2t', button_2_link='$b2l', slide_order=$order
+                        WHERE id=$sid";
+            } else {
+                $sql = "UPDATE website_hero_slides SET
+                        image_path='$img', title='$title', subtitle='$sub',
+                        button_1_text='$b1t', button_1_link='$b1l',
+                        button_2_text='$b2t', button_2_link='$b2l', slide_order=$order
+                        WHERE id=$sid";
+            }
             if (mysqli_query($conn, $sql)) {
                 $kept_slides[] = $sid;
             } else {
